@@ -1,0 +1,73 @@
+{
+  "total": 13,
+  "passed": 0,
+  "failed": 13,
+  "results": [
+    {
+      "name": "Config cache basic",
+      "status": "FAIL: No module named 'core.config_cache'",
+      "duration": 0.002704620361328125
+    },
+    {
+      "name": "Config cache performance",
+      "status": "FAIL: No module named 'core.config_cache'",
+      "duration": 0.0003108978271484375
+    },
+    {
+      "name": "Event batcher basic",
+      "status": "FAIL: No module named 'core.event_batcher'",
+      "duration": 0.0
+    },
+    {
+      "name": "Event batcher performance",
+      "status": "FAIL: No module named 'core.event_batcher'",
+      "duration": 0.0
+    },
+    {
+      "name": "DB connection pool basic",
+      "status": "FAIL: No module named 'core.db_connection_pool'",
+      "duration": 0.0
+    },
+    {
+      "name": "Config encryption basic",
+      "status": "FAIL: No module named 'core.config_encryption'",
+      "duration": 0.0
+    },
+    {
+      "name": "Access control basic",
+      "status": "FAIL: No module named 'core.access_control'",
+      "duration": 0.0
+    },
+    {
+      "name": "Audit logger basic",
+      "status": "FAIL: No module named 'core.audit_logger'",
+      "duration": 0.0
+    },
+    {
+      "name": "Monitoring system basic",
+      "status": "FAIL: No module named 'core.monitoring'",
+      "duration": 0.0
+    },
+    {
+      "name": "Alert notification",
+      "status": "FAIL: No module named 'core.monitoring'",
+      "duration": 0.0
+    },
+    {
+      "name": "Config hot reload with cache",
+      "status": "FAIL: No module named 'core.config_cache'",
+      "duration": 0.002819538116455078
+    },
+    {
+      "name": "API security flow",
+      "status": "FAIL: No module named 'core.access_control'",
+      "duration": 0.0
+    },
+    {
+      "name": "Performance benchmark",
+      "status": "FAIL: No module named 'core.config_cache'",
+      "duration": 0.0
+    }
+  ],
+  "performance_metrics": {}
+}

@@ -1,0 +1,150 @@
+repos:
+  # 基础钩子
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-json
+      - id: check-toml
+      - id: detect-private-key
+      - id: destroyed-symlinks
+
+  # Python代码格式化
+  - repo: https://github.com/psf/black
+    rev: 23.1.0
+    hooks:
+      - id: black
+        language_version: python3.9
+
+  # Python代码检查
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
+  # Python类型检查
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.5.1
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - types-requests
+          - types-pyyaml
+          - types-PyYAML
+          - pydantic
+        exclude: ^(tests/|docs/|examples/|venv/)
+
+  # Python导入排序
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+
+  # Python代码质量检查
+  - repo: https://github.com/PyCQA/pylint
+    rev: v3.0.0a6
+    hooks:
+      - id: pylint
+        args:
+          - --rcfile=.pylintrc
+          - --fail-under=8.0
+        exclude: ^(tests/|docs/|examples/|venv/)
+
+  # Python安全检查
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        exclude: ^(tests/|examples/|venv/)
+
+  # 依赖安全检查
+  - repo: https://github.com/pyupio/safety
+    rev: 2.3.5
+    hooks:
+      - id: safety
+        args: ["check", "--ignore=51457"]
+
+  # Markdown检查
+  - repo: https://github.com/igorshubovych/markdownlint-cli2
+    rev: v0.7.0
+    hooks:
+      - id: markdownlint-cli2
+        args: ["--config", ".markdownlint.yaml"]
+
+  # 提交消息检查
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1
+    hooks:
+      - id: gitlint
+        stages: [commit-msg]
+
+  # 确保没有大文件
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-added-large-files
+        args: ['--maxkb=1024']
+
+  # 确保文件以换行符结束
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: end-of-file-fixer
+
+  # 确保没有合并冲突标记
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-merge-conflict
+
+  # 确保没有调试语句
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: debug-statements
+
+  # 确保没有无效的转义序列
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-byte-order-marker
+
+  # 文件权限检查
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: check-xml
+
+  # 确保代码质量
+  - repo: local
+    hooks:
+      - id: run-tests
+        name: Run Unit Tests
+        entry: python -m pytest tests/unit -xvs --tb=short
+        language: system
+        pass_filenames: false
+        stages: [push]
+        always_run: true
+
+      - id: check-coverage
+        name: Check Test Coverage
+        entry: python -m pytest --cov=core --cov=hub --cov=run --cov-report=term-missing --cov-fail-under=70
+        language: system
+        pass_filenames: false
+        stages: [push]
+        always_run: true
+
+# 默认配置
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [commit, push]
+fail_fast: false

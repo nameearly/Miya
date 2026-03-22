@@ -1,0 +1,31 @@
+# ========================================
+# Miya - 完整生产环境依赖
+# ========================================
+# 说明：这是 Miya 的完整依赖清单，包含所有生产环境所需的包
+# 安装命令: pip install -r setup/requirements/full.txt
+# ========================================
+
+# ========== 基础核心 ==========
+-r ../dependencies/base.txt
+
+# ========== AI 模型 ==========
+-r ../dependencies/ai.txt
+
+# ========== 数据库 ==========
+-r ../dependencies/database.txt
+
+# ========== 文档处理 ==========
+-r ../dependencies/office.txt
+
+# ========== 网络通信 ==========
+-r ../dependencies/network.txt
+
+# ========== TTS (语音合成) ==========
+-r ../dependencies/tts.txt
+
+# ========== 数据可视化 ==========
+-r ../dependencies/viz.txt
+
+# ========== 任务调度 ==========
+# APScheduler 定时任务
+apscheduler>=3.10.0

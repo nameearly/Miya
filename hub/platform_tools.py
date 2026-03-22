@@ -1,0 +1,172 @@
+"""平台工具管理器
+
+负责根据不同平台选择合适的工具集
+"""
+
+import logging
+from typing import List, Dict, Any
+
+logger = logging.getLogger(__name__)
+
+
+class PlatformToolsManager:
+    """平台工具管理器
+    
+    职责：
+    - 根据平台类型选择合适的工具
+    - 避免传递过多工具导致API超限
+    - 管理平台特定的工具配置
+    """
+
+    # 核心工具 - 所有平台都需要
+    CORE_TOOLS = [
+        'get_current_time',
+        'web_search',
+    ]
+
+    # 平台特定工具映射
+    PLATFORM_TOOL_MAP = {
+        'qq': [
+            'send_message',
+            'get_user_info',
+            'qq_like',
+            'send_poke',
+            'react_emoji',
+            'get_member_list',
+            'get_member_info',
+            'find_member',
+            'memory_add',
+            'memory_list',
+            # 跨端工具
+            'execute_on_desktop',
+            'send_to_desktop',
+            'send_to_terminal',
+            'terminal_command',
+        ],
+        'terminal': [
+            'terminal_command',
+            'multi_terminal',
+            'wsl_manager',
+            'system_info',
+            'environment_detector',
+            'send_to_qq',
+            'send_to_desktop',
+            'qq_like',
+        ],
+        'desktop': [
+            'execute_on_desktop',
+            'send_to_desktop',
+            'send_to_qq',
+            'send_to_terminal',
+            'sync_state',
+            'terminal_command',
+        ],
+        'web': [
+            'send_to_qq',
+            'send_to_desktop',
+            'send_to_terminal',
+            'terminal_command',
+        ],
+    }
+
+    # QQ平台扩展工具
+    QQ_EXTENDED_TOOLS = [
+        'send_message',
+        'get_user_info',
+        'qq_like',
+        'send_poke',
+        'react_emoji',
+        'get_member_list',
+        'get_member_info',
+        'find_member',
+        'memory_add',
+        'memory_list',
+        'knowledge_text_search',
+        'knowledge_semantic_search',
+        'start_trpg',
+        'roll_dice',
+        'search_tavern_characters',
+        # 跨端工具
+        'execute_on_desktop',
+        'send_to_desktop',
+        'send_to_terminal',
+        'terminal_command',
+    ]
+
+    def __init__(self, tool_subnet):
+        """
+        初始化平台工具管理器
+
+        Args:
+            tool_subnet: ToolNet子网实例
+        """
+        self.tool_subnet = tool_subnet
+
+    def get_platform_tools(self, platform: str) -> List[str]:
+        """
+        获取平台可用工具列表
+
+        Args:
+            platform: 平台类型
+
+        Returns:
+            工具名称列表
+        """
+        from hub.platform_adapters import get_adapter
+
+        try:
+            adapter = get_adapter(platform)
+            return adapter._get_available_tools()
+        except Exception as e:
+            logger.error(f"[平台工具] 获取平台工具失败: {e}")
+            return []
+
+    def get_platform_specific_tools(self, platform: str) -> List[Dict]:
+        """
+        获取当前平台的工具 schema（优化版）
+
+        只返回当前平台最常用的核心工具，避免过多工具导致API错误
+
+        Args:
+            platform: 平台类型 ('qq', 'terminal', 'desktop', 'web')
+
+        Returns:
+            工具 schema 列表
+        """
+        # 获取当前平台的工具
+        selected_tools = self.PLATFORM_TOOL_MAP.get(platform, self.CORE_TOOLS)
+
+        # 如果是 QQ 平台，添加更多常用工具
+        if platform == 'qq':
+            selected_tools = self.CORE_TOOLS + self.QQ_EXTENDED_TOOLS
+
+        # 从 tool_subnet 获取工具 schema
+        try:
+            all_schemas = self.tool_subnet.get_tools_schema()
+            # 只返回在 selected_tools 列表中的工具
+            platform_schemas = [
+                s for s in all_schemas
+                if s.get('function', {}).get('name') in selected_tools
+            ]
+
+            logger.info(f"[平台工具] 平台 {platform} 使用 {len(platform_schemas)} 个工具")
+            return platform_schemas
+
+        except Exception as e:
+            logger.warning(f"[平台工具] 获取平台工具失败: {e}，使用全部工具")
+            return self.tool_subnet.get_tools_schema()
+
+    def is_creator(self, user_id: int, onebot_client) -> bool:
+        """
+        判断用户是否为造物主（超级管理员）
+
+        Args:
+            user_id: 用户ID
+            onebot_client: OneBot客户端
+
+        Returns:
+            是否为造物主
+        """
+        if onebot_client and hasattr(onebot_client, 'superadmin'):
+            return user_id == onebot_client.superadmin
+        return False

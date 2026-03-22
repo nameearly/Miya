@@ -1,0 +1,41 @@
+
+# OCR引擎备用配置
+# 当PaddleOCR失败时使用的配置
+
+ocr_backup:
+  enabled: true
+  engines:
+    # 优先使用PaddleOCR
+    - name: "paddleocr"
+      priority: 1
+      config:
+        use_angle_cls: true
+        lang: "ch"
+        use_gpu: false
+    
+    # 备选Tesseract
+    - name: "tesseract"
+      priority: 2
+      config:
+        lang: "chi_sim+eng"
+    
+    # 最后使用在线OCR（需要网络）
+    - name: "baidu_ocr"
+      priority: 3
+      config:
+        api_key: ""
+        api_secret: ""
+  
+  # 图片处理配置
+  image_processing:
+    max_size_mb: 10
+    allowed_formats: [".jpg", ".jpeg", ".png", ".bmp", ".gif"]
+    compress_threshold_mb: 2
+    compress_quality: 85
+  
+  # 文字识别配置
+  text_recognition:
+    confidence_threshold: 0.5
+    language_detection: true
+    text_cleanup: true
+    remove_duplicate_lines: true

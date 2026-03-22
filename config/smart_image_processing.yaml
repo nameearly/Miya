@@ -1,0 +1,206 @@
+# 智能图片处理策略
+# 根据图片类型自动选择最佳处理方式
+
+smart_image_processing:
+  # 策略配置
+  enabled: true
+  strategy: "hybrid"  # hybrid, ocr_only, ai_only, cost_optimized
+  
+  # 智能路由规则
+  routing_rules:
+    # 基于图片内容的路由
+    content_based:
+      - condition: "text_density > 0.3"  # 文字密度高
+        primary: "local_ocr"
+        fallback: "ai_ocr"
+        description: "文字密集的图片使用本地OCR"
+        
+      - condition: "image_size > 5000000"  # 大于5MB
+        primary: "local_ocr"
+        fallback: "ai_analysis"
+        description: "大图片优先使用本地处理"
+        
+      - condition: "contains_faces == true"
+        primary: "ai_analysis"
+        fallback: "none"
+        description: "包含人脸的图片使用AI分析"
+        
+      - condition: "contains_multiple_objects == true"
+        primary: "ai_analysis"
+        fallback: "local_ocr"
+        description: "多物体场景使用AI分析"
+        
+      - condition: "is_document == true"
+        primary: "local_ocr"
+        fallback: "ai_ocr"
+        description: "文档图片使用本地OCR"
+    
+    # 基于任务类型的路由
+    task_based:
+      - task_type: "text_extraction"
+        primary: "local_ocr"
+        secondary: "ai_ocr"
+        fallback: "manual_input"
+        
+      - task_type: "image_description"
+        primary: "ai_analysis"
+        secondary: "local_ocr"
+        fallback: "skip"
+        
+      - task_type: "object_detection"
+        primary: "ai_analysis"
+        secondary: "none"
+        fallback: "skip"
+        
+      - task_type: "scene_understanding"
+        primary: "ai_analysis"
+        secondary: "local_ocr"
+        fallback: "skip"
+  
+  # 本地OCR配置
+  local_ocr:
+    enabled: true
+    engines:
+      - name: "paddleocr"
+        priority: 1
+        config:
+          lang: "ch"
+          use_gpu: false
+        
+      - name: "tesseract"
+        priority: 2
+        config:
+          lang: "chi_sim+eng"
+    
+    # 性能优化
+    performance:
+      cache_enabled: true
+      cache_ttl_seconds: 3600
+      parallel_processing: true
+      max_image_size_mb: 10
+      timeout_seconds: 30
+  
+  # AI分析配置
+  ai_analysis:
+    enabled: true
+    providers:
+      # 免费模型（优先使用）
+      - name: "zhipu_glm_46v_flash"
+        priority: 1
+        config:
+          model: "glm-4.6v-flash"
+          max_tokens: 1000
+          temperature: 0.7
+        
+      # 付费模型（备选）
+      - name: "zhipu_glm_4v"
+        priority: 2
+        config:
+          model: "glm-4v"
+          max_tokens: 2000
+          temperature: 0.7
+        
+      # 其他模型
+      - name: "qwen_vl"
+        priority: 3
+        config:
+          model: "Qwen/Qwen2-VL-7B-Instruct"
+          max_tokens: 1500
+          temperature: 0.7
+    
+    # 成本控制
+    cost_control:
+      daily_budget: 0.0  # 免费模型预算为0
+      monthly_budget: 0.0
+      alert_threshold: 0.8
+      stop_threshold: 0.95
+    
+    # 请求优化
+    request_optimization:
+      compress_images: true
+      compress_quality: 80
+      max_retries: 3
+      retry_delay_seconds: 1
+      timeout_seconds: 60
+  
+  # 混合处理流程
+  hybrid_workflow:
+    # 步骤1：图片预处理
+    preprocessing:
+      enabled: true
+      steps:
+        - "size_check"
+        - "format_conversion"
+        - "quality_optimization"
+        - "text_density_analysis"
+    
+    # 步骤2：智能路由决策
+    routing_decision:
+      algorithm: "rule_based"  # rule_based, ml_based, cost_based
+      confidence_threshold: 0.7
+      fallback_strategy: "local_ocr"
+    
+    # 步骤3：并行处理（可选）
+    parallel_processing:
+      enabled: true
+      max_parallel_tasks: 2
+      timeout_seconds: 10
+    
+    # 步骤4：结果融合
+    result_fusion:
+      enabled: true
+      strategy: "weighted_average"
+      weights:
+        local_ocr: 0.7
+        ai_analysis: 0.3
+      confidence_threshold: 0.6
+  
+  # 监控和日志
+  monitoring:
+    enabled: true
+    metrics:
+      - "processing_time"
+      - "accuracy_rate"
+      - "cost_per_request"
+      - "error_rate"
+      - "cache_hit_rate"
+    
+    logging:
+      level: "INFO"
+      detailed_logs: false
+      log_file: "./logs/smart_image_processing.log"
+  
+  # 性能调优
+  performance_tuning:
+    # 缓存策略
+    cache:
+      enabled: true
+      max_size_mb: 100
+      eviction_policy: "LRU"
+      ttl_seconds: 86400
+    
+    # 连接池
+    connection_pool:
+      max_connections: 10
+      max_keepalive: 30
+      connection_timeout: 10
+    
+    # 批量处理
+    batch_processing:
+      enabled: true
+      batch_size: 5
+      batch_timeout: 30
+  
+  # 故障恢复
+  fault_recovery:
+    enabled: true
+    strategies:
+      - "retry_with_backoff"
+      - "fallback_to_simpler_model"
+      - "skip_and_log"
+    
+    retry_config:
+      max_retries: 3
+      initial_delay: 1
+      backoff_factor: 2
+      max_delay: 10

@@ -1,0 +1,163 @@
+# 智能图片分析配置
+
+# ==================== 处理策略 ====================
+strategy:
+  # 图片处理策略
+  max_image_size_mb: 10          # 最大图片大小（MB）
+  max_analysis_time_ms: 30000    # 最大分析时间（毫秒）
+  cache_ttl_seconds: 3600        # 缓存时间（秒）
+  enable_smart_decision: true    # 启用智能决策
+
+# ==================== OCR配置 ====================
+ocr:
+  enabled: true                   # 启用OCR
+  confidence_threshold: 0.5       # OCR置信度阈值
+  min_text_length: 3              # 最小文字长度
+  max_text_length: 5000           # 最大文字长度
+  preferred_engine: "paddleocr"   # 首选OCR引擎：paddleocr/tesseract
+  fallback_engine: "tesseract"    # 备用OCR引擎
+
+# ==================== AI分析配置 ====================
+ai_analysis:
+  enabled: true                   # 启用AI分析
+  model_priority: "cost"          # 模型选择优先级：cost/speed/quality
+  min_confidence: 0.3             # AI最小置信度
+  max_tokens: 500                 # AI最大输出token数
+  max_cost_per_image: 0.0         # 最大单图成本（免费模型为0）
+  use_free_models_only: true      # 仅使用免费模型
+  
+  # 免费模型列表（优先使用）
+  free_models:
+    - "zhipu_glm_46v_flash"      # 智谱GLM-4.6V-Flash（完全免费）
+    - "siliconflow_qwen_vl"      # 硅基流动Qwen-VL（有免费额度）
+  
+  # 付费模型列表（备用）
+  paid_models:
+    - "zhipu_glm_4v"             # 智谱GLM-4V（性能更好）
+    - "qwen_vl"                  # Qwen-VL（通用）
+
+# ==================== 图片类型检测 ====================
+image_type_detection:
+  enabled: true                   # 启用图片类型检测
+  
+  # 类型检测参数
+  screenshot_aspect_ratio_tolerance: 0.1    # 截图长宽比容差
+  text_density_threshold: 0.2               # 文字密度阈值
+  color_count_threshold: 50                 # 颜色数量阈值（低于此值可能是图表）
+  
+  # 类型到策略映射
+  type_to_strategy:
+    text: "ocr_only"             # 文字图片 → 仅OCR
+    screenshot: "ocr_first"      # 截图 → 先OCR后AI
+    document: "ocr_first"        # 文档 → 先OCR后AI
+    chart: "hybrid"              # 图表 → 混合分析
+    meme: "ai_only"              # 表情包 → 仅AI
+    natural: "ai_first"          # 自然图片 → 先AI后OCR
+    unknown: "hybrid"            # 未知 → 混合分析
+
+# ==================== 混合策略配置 ====================
+hybrid_analysis:
+  enabled: true                   # 启用混合分析
+  confidence_threshold: 0.7       # 混合分析置信度阈值
+  
+  # 结果合并策略
+  merge_strategy: "weighted"      # 加权合并：weighted/priority/confidence
+  
+  # 权重配置
+  weights:
+    ocr: 0.6                      # OCR权重
+    ai: 0.4                       # AI权重
+  
+  # 合并规则
+  rules:
+    - name: "text_dominant"       # 文字主导
+      condition: "ocr.confidence > 0.7 and ai.confidence < 0.3"
+      action: "use_ocr_only"
+    
+    - name: "visual_dominant"     # 视觉主导
+      condition: "ai.confidence > 0.7 and ocr.confidence < 0.3"
+      action: "use_ai_only"
+    
+    - name: "balanced"            # 平衡
+      condition: "true"
+      action: "merge_weighted"
+
+# ==================== 成本控制 ====================
+cost_control:
+  enabled: true                   # 启用成本控制
+  daily_budget: 0.0               # 每日预算（美元，免费模型为0）
+  cost_tracking: true             # 启用成本跟踪
+  
+  # 成本阈值
+  thresholds:
+    per_image_warning: 0.01       # 单图成本警告阈值（美元）
+    per_image_error: 0.05         # 单图成本错误阈值（美元）
+    daily_warning: 0.1            # 每日成本警告阈值（美元）
+    daily_error: 1.0              # 每日成本错误阈值（美元）
+  
+  # 成本优化策略
+  optimization:
+    prefer_local_processing: true # 优先本地处理
+    fallback_to_cheaper_models: true # 回退到更便宜模型
+    cache_expensive_results: true # 缓存昂贵结果
+
+# ==================== 性能优化 ====================
+performance:
+  # 并行处理
+  parallel_processing: true       # 启用并行处理
+  max_parallel_tasks: 3           # 最大并行任务数
+  
+  # 预加载
+  preload_models: false           # 预加载模型（增加内存，减少延迟）
+  lazy_loading: true              # 懒加载模型（减少启动时间）
+  
+  # 资源限制
+  memory_limit_mb: 512            # 内存限制（MB）
+  cpu_limit_percent: 50           # CPU使用限制（百分比）
+
+# ==================== 日志和监控 ====================
+monitoring:
+  enabled: true                   # 启用监控
+  log_level: "INFO"               # 日志级别：DEBUG/INFO/WARNING/ERROR
+  
+  # 监控项
+  metrics:
+    - "processing_time"           # 处理时间
+    - "success_rate"              # 成功率
+    - "cost_per_image"            # 单图成本
+    - "cache_hit_rate"            # 缓存命中率
+    - "error_rate"                # 错误率
+  
+  # 报警配置
+  alerts:
+    enabled: true                 # 启用报警
+    channels: ["log"]             # 报警渠道：log/email/webhook
+    
+    # 报警规则
+    rules:
+      - metric: "error_rate"
+        threshold: 0.1            # 错误率超过10%
+        action: "warn"
+      
+      - metric: "cost_per_image"
+        threshold: 0.02           # 单图成本超过0.02美元
+        action: "error"
+      
+      - metric: "processing_time"
+        threshold: 5000           # 处理时间超过5秒
+        action: "warn"
+
+# ==================== 高级配置 ====================
+advanced:
+  # 自定义处理管道
+  pipeline: ["type_detection", "ocr", "ai_analysis", "merge_results"]
+  
+  # 自定义规则引擎
+  custom_rules_enabled: false     # 启用自定义规则
+  custom_rules_file: ""           # 自定义规则文件路径
+  
+  # 实验性功能
+  experimental:
+    enable_neural_type_detection: false    # 启用神经网络类型检测
+    enable_realtime_analysis: false        # 启用实时分析
+    enable_multi_model_ensembling: false   # 启用多模型集成
