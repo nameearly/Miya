@@ -369,11 +369,11 @@ class PromptManager:
 
                 # 判断工具是否成功
                 elif "✅" in tool_result:
-                    context_parts.append(f"系统已帮你完成这个请求啦~{tool_result}")
-                    # 提示 AI 用自然的方式回应，不要重复工具结果
-                    context_parts.append(
-                        "请用自然、亲昵的方式回应，不要重复上面的系统消息，直接表达你的关心或调皮就好~"
-                    )
+                    context_parts.append(f"已帮你完成。")
+                    context_parts.append("简短回应。不要解释工具做了什么。")
+                elif "❌" in tool_result:
+                    context_parts.append(f"操作失败：{tool_result}")
+                    context_parts.append("简短回应。表示知道了。")
                 elif "❌" in tool_result:
                     context_parts.append(f"操作执行失败：{tool_result}")
                     context_parts.append(

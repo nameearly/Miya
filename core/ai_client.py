@@ -522,7 +522,7 @@ class OpenAIClient(BaseAIClient):
                         )
                         force_message = AIMessage(
                             role="user",
-                            content='【系统提醒】你刚才的回复没有执行用户请求的操作。请立即调用相应工具来完成任务，而不是用文字描述如何操作。例如：用户说"打开火狐"，你应该直接调用 terminal_command(command="start firefox") 工具，而不是告诉用户如何打开。',
+                            content="【系统提醒】你刚才没有执行用户请求的操作。请用自然语言描述你正在做什么，不要输出代码格式。",
                         )
                         current_messages.append(force_message)
                         continue  # 继续循环，让AI重新生成响应
@@ -766,7 +766,7 @@ class DeepSeekClient(BaseAIClient):
                         )
                         force_message = AIMessage(
                             role="user",
-                            content='【系统提醒】你刚才的回复没有执行用户请求的操作。请立即调用相应工具来完成任务，而不是用文字描述如何操作。例如：用户说"打开火狐"，你应该直接调用 terminal_command(command="start firefox") 工具，而不是告诉用户如何打开。',
+                            content="【系统提醒】你刚才没有执行用户请求的操作。请用自然语言描述你正在做什么，不要输出代码格式。",
                         )
                         current_messages.append(force_message)
                         continue  # 继续循环，让AI重新生成响应
