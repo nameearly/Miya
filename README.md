@@ -520,6 +520,166 @@ min_interval_reminder = 10  # 默认10秒
 min_interval = 300  # 默认5分钟
 ```
 
+### 情绪系统配置
+
+情绪系统位于 `hub/emotion.py`，控制情绪染色行为。
+
+#### 1. 冷硬脆人设下的情绪染色
+
+```python
+# hub/emotion.py
+
+def influence_response(self, response: str) -> str:
+    """
+    情绪对响应的染色影响
+    
+    【冷硬脆人设】情绪不会改变回复的表面形式
+    情绪只影响回复的时机和内容选择，不会在文本中附加emoji或感叹词
+    """
+    return response
+```
+
+#### 2. 情绪状态
+
+```python
+# 获取当前情绪状态
+from hub.emotion import Emotion
+
+e = Emotion()
+state = e.get_emotion_state()
+print(state)
+# 输出: {'current': {...}, 'dominant': 'joy', 'coloring': {}, 'intensity': 0.5}
+```
+
+#### 3. 情绪基础值
+
+```python
+self.base_emotions = {
+    'joy': 0.5,       # 喜悦
+    'sadness': 0.2,    # 悲伤
+    'anger': 0.1,      # 愤怒
+    'fear': 0.1,       # 恐惧
+    'surprise': 0.3,   # 惊讶
+    'disgust': 0.05    # 厌恶
+}
+```
+
+### 提示词系统配置
+
+提示词系统位于 `prompts/` 目录。
+
+#### 1. 文件结构
+
+```
+prompts/
+├── default.txt           # 默认系统提示词（完整人设）
+├── miya_core.json       # JSON格式核心配置
+├── README.md            # 提示词配置指南
+├── archive/             # 旧版本备份
+└── system_prompts.md   # 系统提示词说明
+```
+
+#### 2. default.txt
+
+完整的系统提示词模板，包含：
+- 冷硬脆三层人格定义
+- 说话原则和禁忌
+- 工具调用规则
+- 记忆管理规则
+
+#### 3. miya_core.json
+
+```json
+{
+  "system_prompt": "核心人设...",
+  "user_prompt_template": "用户输入：{user_input}",
+  "personality_context_enabled": true,
+  "memory_context_enabled": true,
+  "memory_context_max_count": 15,
+  "emotion_response_system_enabled": true,
+  "cold_hard_fragile_enabled": true
+}
+```
+
+#### 4. 加载提示词
+
+```python
+from core.prompt_manager import PromptManager
+
+pm = PromptManager()
+system_prompt = pm.get_system_prompt()
+print(system_prompt[:500])
+```
+
+### 人设配置流程图
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      弥娅人格系统                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
+│  │ personality │    │   emotion   │    │    prompt   │  │
+│  │    .py      │    │    .py      │    │  _manager   │  │
+│  │             │    │             │    │    .py      │  │
+│  │ 冷硬脆向量   │    │ 情绪染色    │    │ 系统提示词   │  │
+│  │ 形态系统    │    │ 不修改表面  │    │ 人设模板    │  │
+│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘  │
+│         │                    │                    │         │
+│         └────────────────────┼────────────────────┘         │
+│                              ↓                              │
+│                   ┌─────────────────────┐                   │
+│                   │   AI 模型输入        │                   │
+│                   │  (系统提示词+人格)  │                   │
+│                   └─────────────────────┘                   │
+│                              ↓                              │
+│                   ┌─────────────────────┐                   │
+│                   │   弥娅回复          │                   │
+│                   │  (冷硬脆风格)       │                   │
+│                   └─────────────────────┘                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 快速自定义人设
+
+#### 1. 修改人格向量
+
+```python
+from core.personality import Personality
+
+p = Personality()
+
+# 更冷一点
+p.vectors['cold'] = 0.9
+
+# 切换到软态
+p.set_form('soft')
+
+# 查看结果
+print(p.get_personality_description())
+```
+
+#### 2. 修改问候消息
+
+```python
+# 文件: webnet/qq/active_chat_manager.py
+# 修改 greetings 字典
+
+greetings = {
+    "morning": ["自定义早安消息"],
+    "night": ["自定义晚安消息"]
+}
+```
+
+#### 3. 修改系统提示词
+
+```python
+# 文件: prompts/default.txt
+# 或在 config/.env 中设置
+
+SYSTEM_PROMPT=你的自定义提示词...
+```
+
 ### 环境变量配置
 
 ```bash
