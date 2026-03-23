@@ -1,7 +1,7 @@
 # MIYA - 弥娅 AI 虚拟化身系统
 
 <p align="center">
-  <img src="docs/icon.svg" width="200" alt="MIYA Logo"/>
+  <img src="docs/miya.jpg" width="300" alt="弥娅"/>
 </p>
 
 <p align="center">
