@@ -59,7 +59,7 @@ echo "[成功] pip镜像配置已清除"
 echo ""
 
 # 安装依赖
-echo "[6/6] 安装依赖包..."
+echo "[5/6] 安装依赖包..."
 echo "[信息] 这可能需要几分钟，请耐心等待..."
 pip install -r requirements.txt
 if [ $? -ne 0 ]; then
@@ -67,6 +67,19 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 echo "[成功] 依赖安装完成"
+echo ""
+
+# 安装前端依赖
+echo "[6/6] 安装前端依赖..."
+if command -v pnpm &> /dev/null; then
+    pnpm install
+    echo "[成功] 前端依赖安装完成"
+elif command -v npm &> /dev/null; then
+    npm install
+    echo "[成功] 前端依赖安装完成"
+else
+    echo "[警告] 未找到 pnpm 或 npm，跳过前端依赖安装"
+fi
 echo ""
 
 # 创建必要目录
