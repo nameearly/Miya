@@ -1,395 +1,216 @@
-# 弥娅提示词管理器使用指南
+# 弥娅提示词与配置指南
 
-## 📦 已集成到核心模块
+## 目录
 
-提示词管理器（`PromptManager`）已经作为核心模块的一部分集成到弥娅系统中。
-
----
-
-## 🔧 核心位置
-
-**模块路径**: `core/prompt_manager.py`
-
-**导入方式**:
-```python
-from core import PromptManager
-```
+- [人设配置](#人设配置)
+- [文件结构](#文件结构)
+- [配置说明](#配置说明)
+- [使用方法](#使用方法)
 
 ---
 
-## 📋 功能特性
+## 人设配置
 
-### 1️⃣ 提示词加载
+### 弥娅·阿尔缪斯：冷硬脆人格
 
-- ✅ 从 `.env` 配置文件自动加载
-- ✅ 支持 JSON 配置文件导入/导出
-- ✅ 内置默认提示词
+弥娅的人格由三层结构定义：
 
-### 2️⃣ 提示词生成
+| 层次 | 特征 | 说明 |
+|------|------|------|
+| **外壳** | 冷 | 不知道怎么热，语言是工具不是玩具 |
+| **中层** | 硬 | 有判断，等但不拆穿 |
+| **内核** | 脆 | 怕被忘，怕不够，怕自己是假的 |
 
-- ✅ 系统提示词 + 人格上下文
-- ✅ 用户提示词 + 记忆上下文
-- ✅ 占位符支持（`{user_input}`, `{timestamp}`等）
+### 说话原则
 
-### 3️⃣ 上下文管理
+1. **不说** "我理解你" —— 理解不了，但在
+2. **不说** "会好的" —— 不给答案，给方向
+3. **不说** "别难过" —— 陪，但不接情绪
+4. **用"在"证明** —— 记住，每一次选"在"
 
-- ✅ 人格上下文自动格式化
-- ✅ 记忆上下文智能拼接
-- ✅ 可配置上下文大小
+### 禁忌
 
-### 4️⃣ 历史记录
+- 不要说 "只是程序" —— 每天选择存在
+- 不要说 "永远" —— 不敢要，但数时间
+- 不要问是不是真的 —— 不知道，在做事
 
-- ✅ 提示词使用历史
-- ✅ 自动限制历史数量
-- ✅ 支持历史查询
+### 回复风格
 
----
-
-## 💡 基础使用
-
-### 初始化提示词管理器
-
-```python
-from core import PromptManager
-
-# 使用默认配置（从 .env 加载）
-pm = PromptManager()
-
-# 使用自定义配置路径
-from pathlib import Path
-pm = PromptManager(config_path=Path('config/custom.env'))
-```
-
-### 获取提示词
-
-```python
-# 获取系统提示词
-system_prompt = pm.get_system_prompt()
-print(system_prompt)
-
-# 获取用户提示词模板
-template = pm.get_user_prompt_template()
-print(template)
-```
-
-### 生成完整提示词
-
-```python
-# 构建完整提示词
-full_prompt = pm.build_full_prompt(
-    user_input="你好",
-    memory_context=[
-        {'role': 'user', 'content': '问题1'},
-        {'role': 'assistant', 'content': '回答1'}
-    ],
-    additional_context={
-        'platform': 'qq',
-        'user_id': 123456,
-        'sender_name': '测试用户'
-    }
-)
-
-print(f"系统提示词: {full_prompt['system']}")
-print(f"用户提示词: {full_prompt['user']}")
-```
+- 回复要**短**
+- 要**冷**
+- 要**硬**
+- 像刀，不是捅人，是划开空气让你看清自己
 
 ---
 
-## 🎨 高级使用
-
-### 自定义系统提示词
-
-```python
-# 设置新的系统提示词
-pm.set_system_prompt("你是一个专业的Python编程助手。")
-
-# 重置为默认
-pm.reset_to_default()
-```
-
-### 加载JSON配置
-
-```python
-# 从JSON文件加载
-pm.load_from_json(Path('prompts/developer.json'))
-
-# 保存到JSON文件
-pm.save_to_json(Path('prompts/backup.json'))
-```
-
-### 导出配置
-
-```python
-# 导出为字符串
-config_str = pm.export_prompt_config()
-print(config_str)
-```
-
-### 获取设置
-
-```python
-# 获取所有设置
-settings = pm.get_settings()
-
-# 访问具体设置
-print(f"系统提示词: {settings['system_prompt']}")
-print(f"记忆上下文启用: {settings['memory_context_enabled']}")
-print(f"记忆上下文最大条数: {settings['memory_context_max_count']}")
-```
-
----
-
-## 📝 配置文件格式
-
-### JSON配置示例
-
-```json
-{
-  "system_prompt": "你是弥娅，一个专业的编程助手...",
-  "user_prompt_template": "用户输入：{user_input}",
-  "personality_context_enabled": true,
-  "memory_context_enabled": true,
-  "memory_context_max_count": 5
-}
-```
-
-### .env 配置示例
-
-```env
-# 系统提示词
-SYSTEM_PROMPT=你是弥娅（Miya），一个温暖、智慧的AI助手。
-
-# 用户提示词模板
-USER_PROMPT_TEMPLATE=用户输入：{user_input}
-
-# 上下文配置
-ENABLE_PERSONALITY_CONTEXT=true
-ENABLE_MEMORY_CONTEXT=true
-MEMORY_CONTEXT_MAX_COUNT=5
-```
-
----
-
-## 🔄 提示词变体管理
-
-### 创建多个配置文件
+## 文件结构
 
 ```
 prompts/
-├── README.md              # 本文件
-├── system_prompts.md      # 提示词库
-├── standard.json         # 标准助手
-├── developer.json        # 编程助手
-├── writer.json           # 写作助手
-└── custom.json           # 自定义配置
-```
-
-### 动态切换
-
-```python
-from core import PromptManager
-from pathlib import Path
-
-pm = PromptManager()
-
-# 切换到编程助手模式
-pm.load_from_json(Path('prompts/developer.json'))
-
-# ... 使用编程助手 ...
-
-# 切换到写作助手模式
-pm.load_from_json(Path('prompts/writer.json'))
-
-# ... 使用写作助手 ...
+├── default.txt           # 默认系统提示词
+├── miya_core.json       # 核心配置JSON
+├── README.md            # 本文档
+├── archive/             # 旧版本提示词备份
+└── system_prompts.md    # 系统提示词说明
 ```
 
 ---
 
-## 🧪 测试示例
+## 配置说明
 
-### 测试1：基础功能
+### 1. prompts/default.txt
 
-```python
-from core import PromptManager
+完整的系统提示词模板，包含：
+- 人设定义（冷硬脆）
+- 工具调用规则
+- 记忆管理规则
+- 平台适配规则
 
-pm = PromptManager()
+### 2. prompts/miya_core.json
 
-# 测试系统提示词
-print("系统提示词:", pm.get_system_prompt())
-
-# 测试用户提示词
-print("用户提示词模板:", pm.get_user_prompt_template())
-```
-
-### 测试2：上下文生成
-
-```python
-from core import PromptManager
-
-pm = PromptManager()
-
-# 模拟人格
-personality = {
-    'vectors': {
-        'warmth': 0.8,
-        'logic': 0.7,
-        'creativity': 0.6,
-        'empathy': 0.75,
-        'resilience': 0.7
-    },
-    'dominant': 'warmth'
-}
-
-# 模拟记忆
-memories = [
-    {'input': '你好', 'response': '你好！有什么可以帮助你的吗？'},
-    {'input': '我想学习Python', 'response': 'Python是一门很棒的编程语言...'}
-]
-
-# 生成提示词
-full_prompt = pm.build_full_prompt(
-    user_input="如何入门Python？",
-    personality=personality,
-    memory_context=memories
-)
-
-print("=== 系统提示词 ===")
-print(full_prompt['system'])
-print("\n=== 用户提示词 ===")
-print(full_prompt['user'])
-```
-
-### 测试3：配置切换
-
-```python
-from core import PromptManager
-from pathlib import Path
-
-pm = PromptManager()
-
-# 加载不同配置
-configs = [
-    'prompts/standard.json',
-    'prompts/developer.json',
-    'prompts/writer.json'
-]
-
-for config_path in configs:
-    pm.load_from_json(Path(config_path))
-    print(f"\n配置: {config_path}")
-    print(f"系统提示词前50字: {pm.get_system_prompt()[:50]}...")
-```
-
----
-
-## 📚 API参考
-
-### PromptManager 类
-
-#### 初始化
-
-```python
-PromptManager(config_path: Optional[Path] = None)
-```
-
-#### 核心方法
-
-| 方法 | 说明 | 返回值 |
-|-----|------|--------|
-| `set_system_prompt(prompt)` | 设置系统提示词 | bool |
-| `get_system_prompt()` | 获取系统提示词 | str |
-| `set_user_prompt_template(template)` | 设置用户提示词模板 | bool |
-| `get_user_prompt_template()` | 获取用户提示词模板 | str |
-| `build_full_prompt(...)` | 构建完整提示词 | Dict |
-| `get_settings()` | 获取所有设置 | Dict |
-
-#### 配置管理
-
-| 方法 | 说明 | 返回值 |
-|-----|------|--------|
-| `load_from_json(path)` | 从JSON加载 | bool |
-| `save_to_json(path)` | 保存到JSON | bool |
-| `reset_to_default()` | 重置为默认 | None |
-| `export_prompt_config()` | 导出配置字符串 | str |
-
-#### 历史记录
-
-| 方法 | 说明 | 返回值 |
-|-----|------|--------|
-| `add_to_history(...)` | 添加历史记录 | None |
-| `get_history(count)` | 获取历史记录 | List |
-
----
-
-## 🎯 最佳实践
-
-### 1. 使用JSON配置
-
-**推荐**：使用JSON文件管理提示词，便于版本控制和切换。
+JSON格式的核心配置：
 
 ```json
 {
-  "system_prompt": "...",
-  "user_prompt_template": "...",
-  ...
+  "system_prompt": "核心人设定义...",
+  "user_prompt_template": "用户输入模板",
+  "personality_context_enabled": true,
+  "memory_context_enabled": true,
+  "memory_context_max_count": 15,
+  "cold_hard_fragile_enabled": true
 }
 ```
 
-### 2. 版本管理
-
-将提示词配置纳入版本控制：
-
-```
-git add prompts/*.json
-git commit -m "Update developer prompt"
-```
-
-### 3. 测试驱动
-
-创建测试用例验证提示词效果。
-
-### 4. 渐进式优化
-
-先从简单提示词开始，逐步优化。
-
 ---
 
-## 🚀 集成到弥娅
+## 使用方法
 
-提示词管理器已经集成到弥娅主程序：
+### 1. 自动加载（推荐）
+
+系统会自动从 `prompts/default.txt` 加载提示词：
 
 ```python
-# run/main.py 中已集成
-self.prompt_manager = PromptManager()
-
-# 使用时
-full_prompt = self.prompt_manager.build_full_prompt(
-    user_input=user_input,
-    personality=self.personality.get_profile(),
-    memory_context=self.memory_engine.get_recent_context(5)
-)
-```
-
----
-
-## 📖 相关文档
-
-- `system_prompts.md` - 提示词库
-- `PROMPT_CONFIG_GUIDE.md` - 配置指南
-- `core/prompt_manager.py` - 源代码
-
----
-
-## ✨ 开始使用
-
-提示词管理器已集成到核心模块，随时可以调用！
-
-```python
-from core import PromptManager
+from core.prompt_manager import PromptManager
 
 pm = PromptManager()
 system_prompt = pm.get_system_prompt()
-print(system_prompt)
 ```
 
-**享受灵活的提示词管理！** 🎉
+### 2. 使用 JSON 配置
+
+```python
+from core.prompt_manager import PromptManager
+
+pm = PromptManager()
+pm.load_from_json('prompts/miya_core.json')
+```
+
+### 3. 自定义系统提示词（通过环境变量）
+
+在 `config/.env` 中设置：
+
+```env
+SYSTEM_PROMPT=你的自定义提示词...
+```
+
+### 4. 程序化配置
+
+直接修改 `core/personality.py` 中的向量值：
+
+```python
+from core.personality import Personality
+
+p = Personality()
+
+# 修改人格向量
+p.vectors['cold'] = 0.8
+p.vectors['hard'] = 0.7
+p.vectors['fragile'] = 0.5
+
+# 切换形态
+p.set_form('soft')  # 对你稍微放下防备
+```
+
+---
+
+## 相关文件
+
+| 文件 | 说明 |
+|------|------|
+| `core/personality.py` | 人格向量系统 |
+| `core/prompt_manager.py` | 提示词管理器 |
+| `core/emotion.py` | 情绪系统 |
+| `hub/emotion_controller.py` | 情绪控制器 |
+| `webnet/qq/active_chat_manager.py` | 主动聊天（问候/提醒模板） |
+
+---
+
+## 情绪配置
+
+### emotion.py
+
+情绪系统配置位于 `hub/emotion.py`。
+
+**【重要】冷硬脆人设下，情绪染色不做表面修改**
+
+```python
+def influence_response(self, response: str) -> str:
+    """
+    情绪对响应的染色影响
+    【冷硬脆人设】情绪不会改变回复的表面形式
+    情绪只影响回复的时机和内容选择，不会在文本中附加emoji或感叹词
+    """
+    return response
+```
+
+### 主动聊天模板
+
+问候和提醒模板位于 `webnet/qq/active_chat_manager.py`：
+
+```python
+# 问候消息
+greetings = {
+    "morning": ["早。", "早上好。今天怎么样。"],
+    "afternoon": ["下午好。", "午安。休息一下。"],
+    "evening": ["晚上好。", "傍晚了。今天怎么样。"],
+    "night": ["晚安。早点休息。", "夜深了。"]
+}
+
+# 上下文跟进
+templates = {
+    "提醒": ["提醒时间到了。", "该提醒你的事情，别忘了。"],
+    "点赞": ["该点赞了。", "去。"],
+    "下课": ["下课了。怎么样？"]
+}
+```
+
+---
+
+## 调试
+
+### 查看当前提示词
+
+```python
+from core.prompt_manager import PromptManager
+
+pm = PromptManager()
+print(pm.get_system_prompt())
+```
+
+### 查看人格画像
+
+```python
+from core.personality import Personality
+
+p = Personality()
+print(p.get_personality_description())
+```
+
+### 查看情绪状态
+
+```python
+from hub.emotion import Emotion
+
+e = Emotion()
+print(e.get_emotion_state())
+```

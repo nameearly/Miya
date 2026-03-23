@@ -2,6 +2,7 @@
 情绪调控与染色
 实现情绪状态管理和情绪染色机制
 """
+
 from typing import Dict, List
 import random
 
@@ -12,12 +13,12 @@ class Emotion:
     def __init__(self):
         # 基础情绪状态
         self.base_emotions = {
-            'joy': 0.5,
-            'sadness': 0.2,
-            'anger': 0.1,
-            'fear': 0.1,
-            'surprise': 0.3,
-            'disgust': 0.05
+            "joy": 0.5,
+            "sadness": 0.2,
+            "anger": 0.1,
+            "fear": 0.1,
+            "surprise": 0.3,
+            "disgust": 0.05,
         }
 
         # 当前情绪状态（受染色影响）
@@ -43,8 +44,9 @@ class Emotion:
         """
         if emotion_type in self.current_emotions:
             # 叠加染色效果
-            self.current_emotions[emotion_type] = min(1.0,
-                self.current_emotions[emotion_type] * (1 + intensity))
+            self.current_emotions[emotion_type] = min(
+                1.0, self.current_emotions[emotion_type] * (1 + intensity)
+            )
 
             # 更新染色层
             self.coloring_layer[emotion_type] = intensity
@@ -66,7 +68,9 @@ class Emotion:
             if new_intensity > 0:
                 self.coloring_layer[emotion_type] = new_intensity
                 # 恢复基础情绪
-                self.current_emotions[emotion_type] = self.base_emotions[emotion_type] * (1 + new_intensity)
+                self.current_emotions[emotion_type] = self.base_emotions[
+                    emotion_type
+                ] * (1 + new_intensity)
             else:
                 del self.coloring_layer[emotion_type]
                 self.current_emotions[emotion_type] = self.base_emotions[emotion_type]
@@ -75,25 +79,12 @@ class Emotion:
         """
         情绪对响应的染色影响
 
+        【冷硬脆人设】情绪不会改变回复的表面形式
+        情绪只影响回复的时机和内容选择，不会在文本中附加emoji或感叹词
+
         Returns:
-            染色后的响应文本
+            染色后的响应文本（不做表面修改）
         """
-        dominant = self.get_dominant_emotion()
-        intensity = self.current_emotions[dominant]
-
-        if intensity > 0.7:
-            # 强情绪染色
-            modifiers = {
-                'joy': ['😊', '真棒！', '太好了！'],
-                'sadness': ['😢', '我理解', '抱歉'],
-                'anger': ['😠', '请注意'],
-                'fear': ['😨', '小心'],
-                'surprise': ['😮', '哇！'],
-                'disgust': ['😖']
-            }
-            modifier = random.choice(modifiers.get(dominant, ['']))
-            return f"{modifier} {response}"
-
         return response
 
     def reset_to_base(self) -> None:
@@ -103,11 +94,13 @@ class Emotion:
 
     def _record_emotion_change(self, emotion: str, intensity: float) -> None:
         """记录情绪变化"""
-        self.emotion_history.append({
-            'emotion': emotion,
-            'intensity': intensity,
-            'dominant': self.get_dominant_emotion()
-        })
+        self.emotion_history.append(
+            {
+                "emotion": emotion,
+                "intensity": intensity,
+                "dominant": self.get_dominant_emotion(),
+            }
+        )
 
         # 只保留最近100条
         if len(self.emotion_history) > 100:
@@ -116,8 +109,8 @@ class Emotion:
     def get_emotion_state(self) -> Dict:
         """获取当前情绪状态"""
         return {
-            'current': self.current_emotions.copy(),
-            'dominant': self.get_dominant_emotion(),
-            'coloring': self.coloring_layer.copy(),
-            'intensity': self.current_emotions[self.get_dominant_emotion()]
+            "current": self.current_emotions.copy(),
+            "dominant": self.get_dominant_emotion(),
+            "coloring": self.coloring_layer.copy(),
+            "intensity": self.current_emotions[self.get_dominant_emotion()],
         }
