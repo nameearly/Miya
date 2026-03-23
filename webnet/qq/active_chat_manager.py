@@ -296,10 +296,38 @@ class IntelligentActiveChatManager:
         """解析提醒时间"""
         import re
 
-        match = re.search(r"(\d+)\s*(秒|分钟|分|时|小时|天)", message)
+        # 中文数字映射
+        chinese_nums = {
+            "零": 0,
+            "一": 1,
+            "二": 2,
+            "两": 2,
+            "三": 3,
+            "四": 4,
+            "五": 5,
+            "六": 6,
+            "七": 7,
+            "八": 8,
+            "九": 9,
+            "十": 10,
+        }
+
+        def parse_chinese_num(s):
+            """解析中文数字"""
+            if s in chinese_nums:
+                return chinese_nums[s]
+            # 处理 "十几" 的情况
+            if s.startswith("十"):
+                if len(s) == 1:
+                    return 10
+                return 10 + chinese_nums.get(s[1], 0)
+            return None
+
+        # 尝试匹配阿拉伯数字
+        match = re.search(r"(\d+)\s*(秒|分钟|分|时|小时|天|分钟后|秒后)", message)
         if match:
             value = int(match.group(1))
-            unit = match.group(2)
+            unit = match.group(2).rstrip("后")  # 去掉可能的"后"字
 
             now = datetime.now()
             if unit in ["秒"]:
@@ -310,6 +338,25 @@ class IntelligentActiveChatManager:
                 return now + timedelta(hours=value)
             elif unit in ["天"]:
                 return now + timedelta(days=value)
+
+        # 尝试匹配中文数字
+        chinese_pattern = r"(一二三四五六七八九十|十?[一二三四五六七八九]|二十[一二三四五六七八九十]?|三十[一二]?)\s*(秒|分钟|分|时|小时|天|分钟后|秒后)"
+        match = re.search(chinese_pattern, message)
+        if match:
+            num_str = match.group(1)
+            unit = match.group(2).rstrip("后")
+
+            value = parse_chinese_num(num_str)
+            if value is not None:
+                now = datetime.now()
+                if unit in ["秒"]:
+                    return now + timedelta(seconds=value)
+                elif unit in ["分钟", "分"]:
+                    return now + timedelta(minutes=value)
+                elif unit in ["时", "小时"]:
+                    return now + timedelta(hours=value)
+                elif unit in ["天"]:
+                    return now + timedelta(days=value)
 
         # 默认30分钟
         return datetime.now() + timedelta(minutes=30)
@@ -554,7 +601,7 @@ class IntelligentActiveChatManager:
             try:
                 # 详细日志（每10次检查输出一次）
                 if check_count % 10 == 1:
-                    logger.debug(
+                    logger.info(
                         f"[ActiveChat] [#{check_count}] 检查开始 {now.strftime('%H:%M:%S')}"
                     )
 
@@ -567,13 +614,13 @@ class IntelligentActiveChatManager:
                 # 3. 检查定时主动聊天
                 scheduled_count = await self._check_scheduled_messages()
 
-                # 详细日志
-                if check_count % 10 == 1:
-                    total_pending = sum(
-                        len(self.get_pending_contexts(int(k)))
-                        for k in self.user_contexts.keys()
-                    )
-                    logger.debug(
+                # 详细日志（每次都输出，帮助调试）
+                total_pending = sum(
+                    len(self.get_pending_contexts(int(k)))
+                    for k in self.user_contexts.keys()
+                )
+                if context_count > 0 or total_pending > 0 or check_count % 10 == 1:
+                    logger.info(
                         f"[ActiveChat] [#{check_count}] 检查完成: "
                         f"contexts={context_count}, greetings={greeting_count}, "
                         f"scheduled={scheduled_count}, pending_total={total_pending}"
@@ -594,18 +641,24 @@ class IntelligentActiveChatManager:
             pending = self.get_pending_contexts(user_id)
 
             for context in pending:
-                # 检查冷却时间
+                # 检查冷却时间（提醒类消息使用特殊冷却时间）
                 prefs = self.user_preferences.get(user_id_str, {})
-                min_interval = prefs.get("min_interval", 300)
+
+                # 提醒类消息使用更短的冷却时间（30秒），避免延迟太久
+                if context.context_type == ContextType.REMINDER:
+                    min_interval = prefs.get("min_interval_reminder", 30)
+                else:
+                    min_interval = prefs.get("min_interval", 300)
+
                 last_sent = prefs.get("last_message_time")
 
                 if last_sent:
                     last_time = datetime.fromisoformat(last_sent)
                     elapsed = (now - last_time).total_seconds()
                     if elapsed < min_interval:
-                        logger.debug(
-                            f"[ActiveChat] 用户{user_id}冷却中 "
-                            f"({elapsed:.0f}s/{min_interval}s)，跳过"
+                        logger.warning(
+                            f"[ActiveChat] 用户{user_id}提醒冷却中 "
+                            f"({elapsed:.0f}s/{min_interval}s)，将在 {(min_interval - elapsed):.0f}s 后重试"
                         )
                         continue
 

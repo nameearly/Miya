@@ -270,9 +270,26 @@ class MiyaQQ:
 
                 if success:
                     # 决策层处理感知数据并返回响应（使用新版 ToolNet 架构）
+                    self.logger.info(f"[QQ消息] → 弥娅处理中...")
+
+                    # 获取决策中心处理的详细信息（工具调用等）
+                    tool_info = ""
+                    if hasattr(self.miya.decision_hub, "tool_subnet"):
+                        tool_info = (
+                            self.miya.decision_hub.tool_subnet.get_last_execution_info()
+                        )
+
                     response_text = await self.miya.decision_hub.process_perception(
                         message
                     )
+
+                    # 记录弥娅的回复
+                    if response_text:
+                        self.logger.info(f"[弥娅回复] {response_text[:200]}")
+                        if tool_info:
+                            self.logger.info(f"[工具调用] {tool_info}")
+                    else:
+                        self.logger.warning("[弥娅回复] 无回复内容")
 
                     # 发送响应
                     if response_text:

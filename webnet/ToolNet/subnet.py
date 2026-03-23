@@ -3,6 +3,7 @@ ToolNet 子网基类
 
 第1层：子网控制层规划设计
 """
+
 import logging
 import asyncio
 from typing import Any, Dict, List, Optional, Callable
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SubnetConfig:
     """子网配置"""
+
     subnet_name: str = "ToolNet"
     subnet_id: str = "subnet.toolnet"
     version: str = "2.0.0"
@@ -46,7 +48,7 @@ class ToolSubnet:
     - 支持工具路由到不同业务子子网
     - 提供统一的下文管理
     - 支持工具统计和监控
-    
+
     子网分类：
     - BasicNet: 基础工具 (3个)
     - MessageNet: 消息工具 (4个)
@@ -65,7 +67,7 @@ class ToolSubnet:
         cognitive_memory: Any = None,
         onebot_client: Any = None,
         scheduler: Any = None,
-        config: Optional[SubnetConfig] = None
+        config: Optional[SubnetConfig] = None,
     ):
         """初始化子子网
 
@@ -80,7 +82,7 @@ class ToolSubnet:
             memory_engine=memory_engine,
             cognitive_memory=cognitive_memory,
             onebot_client=onebot_client,
-            scheduler=scheduler
+            scheduler=scheduler,
         )
 
         # 工具注册表
@@ -96,6 +98,9 @@ class ToolSubnet:
         logger.info(f"已加载 {len(self.registry.tools)} 个工具")
         logger.info(f"已初始化 {len(self.router.subnets)} 个子子网")
 
+        # 最后执行的工具信息
+        self._last_execution_info: Optional[Dict[str, Any]] = None
+
     async def execute_tool(
         self,
         tool_name: str,
@@ -104,7 +109,7 @@ class ToolSubnet:
         group_id: Optional[int] = None,
         message_type: Optional[str] = None,
         sender_name: Optional[str] = None,
-        lifenet: Any = None
+        lifenet: Any = None,
     ) -> str:
         """执行工具
 
@@ -132,7 +137,7 @@ class ToolSubnet:
             user_id=user_id,
             group_id=group_id,
             message_type=message_type,
-            sender_name=sender_name
+            sender_name=sender_name,
         )
 
         try:
@@ -142,10 +147,31 @@ class ToolSubnet:
             self.config.success_calls += 1
             self.config.last_call_time = datetime.now()
 
+            # 记录最后执行的工具信息
+            self._last_execution_info = {
+                "tool_name": tool_name,
+                "args": args,
+                "result": result[:200] if len(result) > 200 else result,
+                "success": True,
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            logger.info(f"[ToolNet] 工具执行: {tool_name} - 成功")
+
             return result
         except Exception as e:
             self.config.failed_calls += 1
             logger.error(f"执行工具 {tool_name} 失败: {e}", exc_info=True)
+
+            # 记录失败的执行
+            self._last_execution_info = {
+                "tool_name": tool_name,
+                "args": args,
+                "error": str(e),
+                "success": False,
+                "timestamp": datetime.now().isoformat(),
+            }
+
             return f"❌ 工具执行失败: {str(e)}"
 
     def get_tools_schema(self) -> List[Dict[str, Any]]:
@@ -160,26 +186,37 @@ class ToolSubnet:
         """获取子网统计信息"""
         success_rate = (
             self.config.success_calls / self.config.total_calls * 100
-            if self.config.total_calls > 0 else 0
+            if self.config.total_calls > 0
+            else 0
         )
 
         return {
-            'subnet': self.config.subnet_name,
-            'version': self.config.version,
-            'total_tools': len(self.registry.tools),
-            'total_calls': self.config.total_calls,
-            'success_calls': self.config.success_calls,
-            'failed_calls': self.config.failed_calls,
-            'success_rate': f"{success_rate:.1f}%",
-            'last_call': self.config.last_call_time.isoformat() if self.config.last_call_time else None
+            "subnet": self.config.subnet_name,
+            "version": self.config.version,
+            "total_tools": len(self.registry.tools),
+            "total_calls": self.config.total_calls,
+            "success_calls": self.config.success_calls,
+            "failed_calls": self.config.failed_calls,
+            "success_rate": f"{success_rate:.1f}%",
+            "last_call": self.config.last_call_time.isoformat()
+            if self.config.last_call_time
+            else None,
         }
+
+    def get_last_execution_info(self) -> Optional[str]:
+        """获取最后执行的工具信息（用于日志）"""
+        if not self._last_execution_info:
+            return None
+
+        info = self._last_execution_info
+        if info.get("success"):
+            return f"{info['tool_name']}({', '.join(info['args'].keys())})"
+        else:
+            return f"{info['tool_name']} - 失败: {info.get('error', '未知错误')}"
 
     def health_check(self) -> bool:
         """健康检查"""
-        return (
-            len(self.registry.tools) > 0 and
-            self.config.enabled
-        )
+        return len(self.registry.tools) > 0 and self.config.enabled
 
     async def shutdown(self):
         """关闭子网"""
