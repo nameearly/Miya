@@ -78,11 +78,15 @@ print(template)
 # 构建完整提示词
 full_prompt = pm.build_full_prompt(
     user_input="你好",
-    personality={'vectors': {'warmth': 0.8, 'logic': 0.7}},
     memory_context=[
-        {'input': '问题1', 'response': '回答1'},
-        {'input': '问题2', 'response': '回答2'}
-    ]
+        {'role': 'user', 'content': '问题1'},
+        {'role': 'assistant', 'content': '回答1'}
+    ],
+    additional_context={
+        'platform': 'qq',
+        'user_id': 123456,
+        'sender_name': '测试用户'
+    }
 )
 
 print(f"系统提示词: {full_prompt['system']}")
