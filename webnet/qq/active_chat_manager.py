@@ -430,22 +430,37 @@ class IntelligentActiveChatManager:
         if user_id_str not in self.user_contexts:
             self.user_contexts[user_id_str] = []
 
-        # 检查是否重复
+        # 检查是否重复（包括已发送的）
         for existing in self.user_contexts[user_id_str]:
             if existing.content == context.content:
-                # 更新已有上下文
-                existing.follow_up_at = context.follow_up_at
-                existing.relevance_score = max(
-                    existing.relevance_score, context.relevance_score
-                )
-                self._save_persisted_data()
-                return
+                # 如果之前的还没有发送，更新它
+                if not existing.follow_up_sent:
+                    existing.follow_up_at = context.follow_up_at
+                    existing.relevance_score = max(
+                        existing.relevance_score, context.relevance_score
+                    )
+                    logger.info(
+                        f"[IntelligentActiveChat] 更新已有上下文: user={context.user_id}, "
+                        f"content={context.content[:30]}, follow_up_at={context.follow_up_at}"
+                    )
+                    self._save_persisted_data()
+                    return
+                else:
+                    # 如果之前的已经发送了，创建新的（带时间戳区分）
+                    context.content = f"{context.content} [重复#{datetime.now().strftime('%H:%M:%S')}]"
+                    logger.info(
+                        f"[IntelligentActiveChat] 检测到重复但已发送，创建新上下文: "
+                        f"user={context.user_id}, content={context.content[:30]}"
+                    )
+                    break
 
         self.user_contexts[user_id_str].append(context)
         self._cleanup_old_contexts(user_id_str)
         self._save_persisted_data()
         logger.info(
-            f"[IntelligentActiveChat] 添加上下文: user={context.user_id}, content={context.content[:30]}"
+            f"[IntelligentActiveChat] 添加新上下文: user={context.user_id}, "
+            f"content={context.content[:30]}, type={context.context_type.value}, "
+            f"follow_up_at={context.follow_up_at}"
         )
 
     def _cleanup_old_contexts(self, user_id: str):
@@ -644,9 +659,9 @@ class IntelligentActiveChatManager:
                 # 检查冷却时间（提醒类消息使用特殊冷却时间）
                 prefs = self.user_preferences.get(user_id_str, {})
 
-                # 提醒类消息使用更短的冷却时间（30秒），避免延迟太久
+                # 提醒类消息使用更短的冷却时间（10秒），避免延迟太久
                 if context.context_type == ContextType.REMINDER:
-                    min_interval = prefs.get("min_interval_reminder", 30)
+                    min_interval = prefs.get("min_interval_reminder", 10)
                 else:
                     min_interval = prefs.get("min_interval", 300)
 
@@ -656,11 +671,26 @@ class IntelligentActiveChatManager:
                     last_time = datetime.fromisoformat(last_sent)
                     elapsed = (now - last_time).total_seconds()
                     if elapsed < min_interval:
-                        logger.warning(
-                            f"[ActiveChat] 用户{user_id}提醒冷却中 "
-                            f"({elapsed:.0f}s/{min_interval}s)，将在 {(min_interval - elapsed):.0f}s 后重试"
-                        )
-                        continue
+                        # 提醒类消息更宽容，即使在冷却中也考虑发送
+                        if context.context_type == ContextType.REMINDER:
+                            # 检查提醒时间是否已经过了很久（比如超过2分钟）
+                            overdue_seconds = elapsed - min_interval
+                            if overdue_seconds < 120:  # 超过2分钟才强制发送
+                                logger.warning(
+                                    f"[ActiveChat] 用户{user_id}提醒冷却中 "
+                                    f"({elapsed:.0f}s/{min_interval}s)，跳过"
+                                )
+                                continue
+                            else:
+                                logger.warning(
+                                    f"[ActiveChat] 用户{user_id}提醒已超时2分钟，强制发送"
+                                )
+                        else:
+                            logger.warning(
+                                f"[ActiveChat] 用户{user_id}冷却中 "
+                                f"({elapsed:.0f}s/{min_interval}s)，跳过"
+                            )
+                            continue
 
                 # 生成跟进消息
                 follow_up_msg = self.generate_follow_up_message(context)

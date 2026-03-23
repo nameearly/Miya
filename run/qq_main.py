@@ -272,6 +272,11 @@ class MiyaQQ:
                     # 决策层处理感知数据并返回响应（使用新版 ToolNet 架构）
                     self.logger.info(f"[QQ消息] → 弥娅处理中...")
 
+                    # 记录处理开始时间，用于检测延迟
+                    import time
+
+                    start_time = time.time()
+
                     # 获取决策中心处理的详细信息（工具调用等）
                     tool_info = ""
                     if hasattr(self.miya.decision_hub, "tool_subnet"):
@@ -283,8 +288,18 @@ class MiyaQQ:
                         message
                     )
 
+                    # 记录处理耗时
+                    process_time = time.time() - start_time
+                    self.logger.info(f"[QQ消息] 弥娅处理耗时: {process_time:.2f}秒")
+
                     # 记录弥娅的回复
                     if response_text:
+                        # 检查回复是否包含换行或多个段落（可能包含历史内容）
+                        lines = response_text.strip().split("\n")
+                        if len(lines) > 3:
+                            self.logger.warning(
+                                f"[弥娅回复] 警告: 回复包含 {len(lines)} 行，可能包含历史内容"
+                            )
                         self.logger.info(f"[弥娅回复] {response_text[:200]}")
                         if tool_info:
                             self.logger.info(f"[工具调用] {tool_info}")
