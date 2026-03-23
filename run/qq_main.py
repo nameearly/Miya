@@ -4,6 +4,7 @@
 
 启动弥娅 QQ 机器人
 """
+
 import sys
 import os
 import logging
@@ -39,7 +40,7 @@ class MiyaQQ:
 
     def _setup_logger(self) -> logging.Logger:
         """设置日志"""
-        logger = logging.getLogger('MiyaQQ')
+        logger = logging.getLogger("MiyaQQ")
         logger.setLevel(logging.INFO)
 
         # 控制台处理器
@@ -47,18 +48,15 @@ class MiyaQQ:
         console_handler.setLevel(logging.INFO)
 
         # 文件处理器
-        log_dir = Path(__file__).parent.parent / 'logs'
+        log_dir = Path(__file__).parent.parent / "logs"
         log_dir.mkdir(exist_ok=True)
 
-        file_handler = logging.FileHandler(
-            log_dir / 'miya_qq.log',
-            encoding='utf-8'
-        )
+        file_handler = logging.FileHandler(log_dir / "miya_qq.log", encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)
 
         # 格式化
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
         console_handler.setFormatter(formatter)
         file_handler.setFormatter(formatter)
@@ -73,14 +71,14 @@ class MiyaQQ:
         self.logger.info("初始化弥娅 QQ 系统...")
 
         # 加载环境变量
-        env_path = Path(__file__).parent.parent / 'config' / '.env'
+        env_path = Path(__file__).parent.parent / "config" / ".env"
         load_dotenv(env_path)
 
         # 读取 QQ 配置
-        onebot_ws_url = os.getenv('QQ_ONEBOT_WS_URL', '')
-        onebot_token = os.getenv('QQ_ONEBOT_TOKEN', '')
-        bot_qq = int(os.getenv('QQ_BOT_QQ', '0'))
-        superadmin_qq = int(os.getenv('QQ_SUPERADMIN_QQ', '0'))
+        onebot_ws_url = os.getenv("QQ_ONEBOT_WS_URL", "")
+        onebot_token = os.getenv("QQ_ONEBOT_TOKEN", "")
+        bot_qq = int(os.getenv("QQ_BOT_QQ", "0"))
+        superadmin_qq = int(os.getenv("QQ_SUPERADMIN_QQ", "0"))
 
         if not onebot_ws_url:
             raise RuntimeError("未配置 QQ_ONEBOT_WS_URL，请在 config/.env 中设置")
@@ -113,7 +111,7 @@ class MiyaQQ:
             miya_core=self.miya,
             mlink=self.miya.mlink,
             memory_net=self.miya.memory_net,
-            tts_net=self.tts_net
+            tts_net=self.tts_net,
         )
 
         # 设置消息处理回调
@@ -122,12 +120,15 @@ class MiyaQQ:
         # 注册 M-Link 节点
         self._register_mlink_nodes()
 
+        # 注册跨端终端
+        self._register_cross_terminal()
+
         # 配置 QQNet
         self.qq_net.configure(
             onebot_ws_url=onebot_ws_url,
             onebot_token=onebot_token,
             bot_qq=bot_qq,
-            superadmin_qq=superadmin_qq
+            superadmin_qq=superadmin_qq,
         )
 
         self.logger.info("QQNet 配置完成")
@@ -143,9 +144,11 @@ class MiyaQQ:
             self.tts_net = TTSNet(self.miya.mlink)
 
             # 加载TTS配置
-            tts_config_path = Path(__file__).parent.parent / 'config' / 'tts_config.json'
+            tts_config_path = (
+                Path(__file__).parent.parent / "config" / "tts_config.json"
+            )
             if tts_config_path.exists():
-                with open(tts_config_path, 'r', encoding=Encoding.UTF8) as f:
+                with open(tts_config_path, "r", encoding=Encoding.UTF8) as f:
                     tts_config = json.load(f)
                 self.tts_net.initialize(tts_config)
                 self.logger.info("TTS系统初始化成功")
@@ -164,27 +167,41 @@ class MiyaQQ:
 
         try:
             # 注册 QQNet 节点
-            self.miya.mlink.register_node('qq_net', [
-                'qq_group_chat',
-                'qq_private_chat',
-                'qq_command',
-                'qq_message_history',
-                'qq_poke',
-                'qq_multimedia',
-                'qq_tts'
-            ])
+            self.miya.mlink.register_node(
+                "qq_net",
+                [
+                    "qq_group_chat",
+                    "qq_private_chat",
+                    "qq_command",
+                    "qq_message_history",
+                    "qq_poke",
+                    "qq_multimedia",
+                    "qq_tts",
+                ],
+            )
 
             # 注册 TTSNet 节点（如果存在）
             if self.tts_net:
-                self.miya.mlink.register_node('tts_net', [
-                    'tts_generation',
-                    'voice_synthesis',
-                    'audio_output'
-                ])
+                self.miya.mlink.register_node(
+                    "tts_net", ["tts_generation", "voice_synthesis", "audio_output"]
+                )
 
             self.logger.info("M-Link 节点注册完成")
         except Exception as e:
             self.logger.error(f"M-Link 节点注册失败: {e}")
+
+    def _register_cross_terminal(self):
+        """注册跨端终端"""
+        try:
+            from webnet.ToolNet.tools.cross_terminal.cross_terminal import (
+                get_cross_terminal_hub,
+            )
+
+            hub = get_cross_terminal_hub()
+            hub.register_terminal("qq")
+            self.logger.info("跨端终端 QQ 已注册")
+        except Exception as e:
+            self.logger.warning(f"跨端终端注册失败: {e}")
 
     async def _handle_qq_callback(self, qq_message: Any) -> None:
         """
@@ -202,31 +219,31 @@ class MiyaQQ:
 
             # 构建感知数据
             perception = {
-                'source': 'qq',
-                'message_type': qq_message.message_type,
-                'user_id': qq_message.sender_id,
-                'sender_id': qq_message.sender_id,
-                'sender_name': qq_message.sender_name,
-                'group_id': qq_message.group_id,
-                'group_name': qq_message.group_name,
-                'content': qq_message.message,
-                'is_at_bot': qq_message.is_at_bot,
-                'at_list': qq_message.at_list,
-                'bot_qq': self.qq_net.bot_qq if self.qq_net else 0,
-                'timestamp': datetime.now().isoformat()
+                "source": "qq",
+                "message_type": qq_message.message_type,
+                "user_id": qq_message.sender_id,
+                "sender_id": qq_message.sender_id,
+                "sender_name": qq_message.sender_name,
+                "group_id": qq_message.group_id,
+                "group_name": qq_message.group_name,
+                "content": qq_message.message,
+                "is_at_bot": qq_message.is_at_bot,
+                "at_list": qq_message.at_list,
+                "bot_qq": self.qq_net.bot_qq if self.qq_net else 0,
+                "timestamp": datetime.now().isoformat(),
             }
 
             # 检查用户输入是否是TTS切换指令
-            content_str = str(perception.get('content', '')).strip().lower()
+            content_str = str(perception.get("content", "")).strip().lower()
             direct_response = None
 
-            if content_str in ['/voice', '/语音']:
+            if content_str in ["/voice", "/语音"]:
                 if self.qq_net:
-                    _ = self.qq_net.set_tts_mode('voice')
+                    _ = self.qq_net.set_tts_mode("voice")
                 direct_response = "[OK] 已切换为语音模式"
-            elif content_str in ['/text', '/文本']:
+            elif content_str in ["/text", "/文本"]:
                 if self.qq_net:
-                    _ = self.qq_net.set_tts_mode('text')
+                    _ = self.qq_net.set_tts_mode("text")
                 direct_response = "[OK] 已切换为文本模式"
 
             # 如果是直接命令，直接发送响应
@@ -242,18 +259,20 @@ class MiyaQQ:
                 message = Message(
                     msg_type=MessageType.DATA.value,
                     content=perception,
-                    source='qq_net',
-                    destination='decision_hub',
-                    priority=1
+                    source="qq_net",
+                    destination="decision_hub",
+                    priority=1,
                 )
 
                 # 通过 M-Link 发送消息
-                available_nodes = ['decision_hub']
+                available_nodes = ["decision_hub"]
                 success = await self.miya.mlink.send(message, available_nodes)
 
                 if success:
                     # 决策层处理感知数据并返回响应（使用新版 ToolNet 架构）
-                    response_text = await self.miya.decision_hub.process_perception(message)
+                    response_text = await self.miya.decision_hub.process_perception(
+                        message
+                    )
 
                     # 发送响应
                     if response_text:
@@ -282,27 +301,23 @@ class MiyaQQ:
             if qq_message.message_type == "poke":
                 if qq_message.group_id and qq_message.group_id > 0:
                     _ = await self.qq_net.send_group_message(
-                        qq_message.group_id,
-                        response_text
+                        qq_message.group_id, response_text
                     )
                 elif qq_message.user_id and qq_message.user_id > 0:
                     # 私聊拍一拍
                     _ = await self.qq_net.send_private_message(
-                        qq_message.user_id,
-                        response_text
+                        qq_message.user_id, response_text
                     )
             elif qq_message.message_type == "group":
                 self.logger.info(f"[QQBot] 发送群消息: group_id={qq_message.group_id}")
                 _ = await self.qq_net.send_group_message(
-                    qq_message.group_id,
-                    response_text
+                    qq_message.group_id, response_text
                 )
                 self.logger.info(f"[QQBot] 群消息发送完成")
             elif qq_message.message_type == "private":
                 self.logger.info(f"[QQBot] 发送私聊消息: user_id={qq_message.user_id}")
                 _ = await self.qq_net.send_private_message(
-                    qq_message.user_id,
-                    response_text
+                    qq_message.user_id, response_text
                 )
                 self.logger.info(f"[QQBot] 私聊消息发送完成")
         except Exception as e:
@@ -310,29 +325,72 @@ class MiyaQQ:
 
     async def start(self):
         """启动 QQ 机器人"""
-        self.logger.info("正在启动弥娅 QQ 机器人...")
+        self.logger.info("")
+        self.logger.info("=" * 70)
+        self.logger.info("                    弥娅 QQ 机器人启动中...")
+        self.logger.info("=" * 70)
 
         try:
             # 连接到 QQ
             if self.qq_net:
+                self.logger.info("[1/5] 连接到 OneBot WebSocket...")
                 await self.qq_net.connect()
                 self.logger.info("[OK] QQ 机器人连接成功！")
 
                 # 设置 onebot_client 到 decision_hub
-                if self.miya.decision_hub and hasattr(self.qq_net, 'onebot_client') and self.qq_net.onebot_client:
+                if (
+                    self.miya.decision_hub
+                    and hasattr(self.qq_net, "onebot_client")
+                    and self.qq_net.onebot_client
+                ):
                     self.miya.decision_hub.onebot_client = self.qq_net.onebot_client
-                    self.logger.info("DecisionHub 已设置 onebot_client")
+                    self.logger.info("[OK] DecisionHub onebot_client 已设置")
 
-                # 开始运行
-                self.logger.info("弥娅 QQ 机器人已启动，等待消息...")
-                self.logger.info("=" * 50)
+                # 2. 启动主动聊天管理器
+                self.logger.info("[2/5] 启动主动聊天管理器...")
+                if hasattr(self.qq_net, "active_chat_manager"):
+                    await self.qq_net.active_chat_manager.start()
+                    self.logger.info(
+                        f"[OK] 主动聊天管理器已启动 "
+                        f"(检查间隔: {self.qq_net.active_chat_manager.check_interval}s)"
+                    )
+                else:
+                    self.logger.warning("[!] 主动聊天管理器未初始化")
+
+                # 3. 跨端终端注册
+                self.logger.info("[3/5] 注册跨端终端...")
+                self._register_cross_terminal()
+
+                # 4. 加载定时任务
+                self.logger.info("[4/5] 加载定时任务...")
+                self.logger.info(
+                    f"[OK] 已加载 {len(self.qq_net.active_chat_manager.get_pending_messages())} 个待发消息"
+                )
+
+                # 5. 启动消息接收循环
+                self.logger.info("[5/5] 启动消息接收循环...")
+                self.logger.info("")
+                self.logger.info("=" * 70)
+                self.logger.info("                 弥娅 QQ 机器人已启动！")
+                self.logger.info("=" * 70)
+
                 if self.miya.identity:
-                    self.logger.info(f"        {self.miya.identity.name} QQ机器人")
-                    self.logger.info(f"        UUID: {self.miya.identity.uuid}")
-                    self.logger.info(f"        版本: {self.miya.identity.version}")
-                self.logger.info(f"        工具系统: ToolNet (新版架构)")
-                self.logger.info("=" * 50)
+                    self.logger.info(f"  名称: {self.miya.identity.name} QQ机器人")
+                    self.logger.info(f"  UUID: {self.miya.identity.uuid}")
+                    self.logger.info(f"  版本: {self.miya.identity.version}")
+                self.logger.info(f"  工具: ToolNet (新版架构)")
+                self.logger.info(f"  主动聊天: 已启用 (定时+上下文)")
+                self.logger.info(f"  跨端联动: 已启用")
+                self.logger.info("=" * 70)
+                self.logger.info("")
+                self.logger.info("  功能说明:")
+                self.logger.info('  - 上下文感知: 自动识别"去上课了"等消息并跟进')
+                self.logger.info('  - 定时提醒: 支持"30秒后提醒我"等')
+                self.logger.info("  - 定时问候: 自动早安、晚安问候")
+                self.logger.info("  - 跨端联动: QQ/终端/Web 消息互通")
+                self.logger.info("")
 
+                # 启动 QQNet
                 await self.qq_net.start()
 
         except KeyboardInterrupt:

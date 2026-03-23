@@ -221,7 +221,17 @@ class Miya:
 
     def _init_databases(self):
         """初始化可选数据库"""
-        enable_db = os.getenv("ENABLE_DATABASES", "false").lower() == "true"
+        # 自动检测：检查环境变量或 Neo4j 密码是否配置
+        enable_db = os.getenv("ENABLE_DATABASES", "").lower() == "true"
+
+        # 如果没有显式设置，检查配置是否可用
+        if not enable_db:
+            from dotenv import load_dotenv
+
+            load_dotenv(Path(__file__).parent.parent / "config" / ".env")
+            # 如果配置了 Neo4j 密码，启用数据库
+            if os.getenv("NEO4J_PASSWORD"):
+                enable_db = True
 
         if enable_db:
             self.logger.info(f"  [数据库] Redis 初始化中...")

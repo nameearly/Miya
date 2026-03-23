@@ -8,9 +8,16 @@ import asyncio
 import weakref
 from typing import List, Dict, Optional, Tuple
 from .quintuple_extractor import extract_quintuples_async
-from .quintuple_graph import store_quintuples, query_graph_by_keywords, get_all_quintuples
-from .semantic_dynamics_engine import SemanticDynamicsEngine, get_semantic_dynamics_engine
-from .vector_cache import get_vector_cache_manager
+from .quintuple_graph import (
+    store_quintuples,
+    query_graph_by_keywords,
+    get_all_quintuples,
+)
+from .semantic_dynamics_engine import (
+    SemanticDynamicsEngine,
+    get_semantic_dynamics_engine,
+)
+from .real_vector_cache import get_vector_cache_manager
 from core.constants import NetworkTimeout
 
 # AI名称常量
@@ -24,10 +31,10 @@ class GRAGMemoryManager:
 
     def __init__(self, config: Optional[Dict] = None, neo4j_client=None):
         self.config = config or {}
-        self.enabled = self.config.get('enabled', True)
-        self.auto_extract = self.config.get('auto_extract', True)
-        self.context_length = self.config.get('context_length', 20)
-        self.similarity_threshold = self.config.get('similarity_threshold', 0.7)
+        self.enabled = self.config.get("enabled", True)
+        self.auto_extract = self.config.get("auto_extract", True)
+        self.context_length = self.config.get("context_length", 20)
+        self.similarity_threshold = self.config.get("similarity_threshold", 0.7)
 
         # Neo4j客户端
         self.neo4j_client = neo4j_client
@@ -65,7 +72,7 @@ class GRAGMemoryManager:
             # 更新recent_context（限制长度）
             self.recent_context.append(conversation_text)
             if len(self.recent_context) > self.context_length:
-                self.recent_context = self.recent_context[-self.context_length:]
+                self.recent_context = self.recent_context[-self.context_length :]
 
             # 异步提取五元组
             if self.auto_extract:
@@ -85,6 +92,7 @@ class GRAGMemoryManager:
         """提取并存储五元组"""
         try:
             import hashlib
+
             text_hash = hashlib.sha256(text.encode()).hexdigest()
 
             if text_hash in self.extraction_cache:
@@ -92,12 +100,12 @@ class GRAGMemoryManager:
                 return True
 
             logger.info(f"提取五元组: {text[:100]}...")
-            
+
             # 添加超时保护
             try:
                 quintuples = await asyncio.wait_for(
-                    extract_quintuples_async(text), 
-                    timeout=NetworkTimeout.API_REQUEST_TIMEOUT  # 30秒超时
+                    extract_quintuples_async(text),
+                    timeout=NetworkTimeout.API_REQUEST_TIMEOUT,  # 30秒超时
                 )
             except asyncio.TimeoutError:
                 logger.warning("五元组提取超时，跳过本次提取")
@@ -113,7 +121,7 @@ class GRAGMemoryManager:
             try:
                 store_success = await asyncio.wait_for(
                     asyncio.to_thread(store_quintuples, quintuples),
-                    timeout=15.0  # 15秒超时
+                    timeout=15.0,  # 15秒超时
                 )
             except asyncio.TimeoutError:
                 logger.warning("五元组存储超时，跳过本次存储")
@@ -130,65 +138,70 @@ class GRAGMemoryManager:
         except Exception as e:
             logger.error(f"提取和存储五元组失败: {str(e)}")
             import traceback
+
             logger.error(traceback.format_exc())
             return False
-    
+
     async def query_memory(self, question: str) -> Optional[str]:
         """查询记忆"""
         if not self.enabled:
             return None
-            
+
         try:
             # 从Neo4j查询相关五元组
             quintuples = await asyncio.to_thread(query_graph_by_keywords, [question])
-            
+
             if quintuples:
                 # 格式化返回结果
                 result_text = "相关知识：\n"
-                for i, (subject, subject_type, predicate, obj, obj_type) in enumerate(quintuples[:5], 1):
+                for i, (subject, subject_type, predicate, obj, obj_type) in enumerate(
+                    quintuples[:5], 1
+                ):
                     result_text += f"{i}. {subject}({subject_type}) {predicate} {obj}({obj_type})\n"
-                
+
                 logger.info("从记忆中找到相关信息")
                 return result_text
             return None
         except Exception as e:
             logger.error(f"查询记忆失败: {e}")
             return None
-    
-    async def get_relevant_memories(self, query: str, limit: int = 3) -> List[Tuple[str, str, str, str, str]]:
+
+    async def get_relevant_memories(
+        self, query: str, limit: int = 3
+    ) -> List[Tuple[str, str, str, str, str]]:
         """获取相关记忆（五元组格式）"""
         if not self.enabled:
             return []
-            
+
         try:
             # 从Neo4j查询相关五元组
             quintuples = await asyncio.to_thread(query_graph_by_keywords, [query])
-            
+
             # 限制返回数量
             return quintuples[:limit]
         except Exception as e:
             logger.error(f"获取相关记忆失败: {e}")
             return []
-    
+
     def get_memory_stats(self) -> Dict:
         """获取记忆统计信息"""
         if not self.enabled:
             return {"enabled": False}
-            
+
         try:
             all_quintuples = get_all_quintuples()
-            
+
             return {
                 "enabled": True,
                 "total_quintuples": len(all_quintuples),
                 "context_length": len(self.recent_context),
                 "cache_size": len(self.extraction_cache),
-                "active_tasks": len(self.active_tasks)
+                "active_tasks": len(self.active_tasks),
             }
         except Exception as e:
             logger.error(f"获取记忆统计失败: {e}")
             return {"enabled": False, "error": str(e)}
-    
+
     async def clear_memory(self) -> bool:
         """清空记忆"""
         if not self.enabled:
@@ -200,6 +213,7 @@ class GRAGMemoryManager:
 
             # 清空语义动力学缓存
             from .context_vector_manager import get_context_manager
+
             context_mgr = get_context_manager()
             context_mgr.clear()
 
@@ -215,7 +229,7 @@ class GRAGMemoryManager:
         self,
         messages: List[Dict],
         enable_meta_thinking: bool = False,
-        enable_semantic_groups: bool = True
+        enable_semantic_groups: bool = True,
     ):
         """
         使用语义动力学处理对话
@@ -237,7 +251,7 @@ class GRAGMemoryManager:
             result = await self.semantic_dynamics.process_conversation(
                 messages=messages,
                 enable_meta_thinking=enable_meta_thinking,
-                enable_semantic_groups=enable_semantic_groups
+                enable_semantic_groups=enable_semantic_groups,
             )
 
             logger.info(

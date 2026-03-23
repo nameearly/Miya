@@ -19,7 +19,6 @@
   <img src="https://img.shields.io/badge/Python-3.10+-yellow.svg" alt="Python">
   <img src="https://img.shields.io/badge/React-18-blue.svg" alt="React">
 </p>
-
 ---
 
 ## 目录
@@ -663,5 +662,6 @@ docker run -d -p 7474:7474 -p 7687:7687 neo4j
 ---
 
 <p align="center">
-  Made with ❤️ by MIYA Team
+  Made with ❤️ by Jia
 </p>
+
