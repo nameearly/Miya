@@ -33,6 +33,13 @@
 - [开发指南](#开发指南)
 - [部署方式](#部署方式)
 - [常见问题](#常见问题)
+- [新功能教程](#新功能教程-v41-upgrade)
+  - [Skills 热重载](#1-skills-热重载-skills-hot-reload)
+  - [三层认知记忆](#2-三层认知记忆-three-layer-cognitive-memory)
+  - [WebUI 管理界面](#3-webui-管理界面-miya-management-webui)
+  - [MCP 支持](#4-mcp-支持-model-context-protocol)
+  - [安全防护](#5-安全防护-security-service)
+  - [并发工具执行](#6-并发工具执行)
 
 ---
 
@@ -244,6 +251,9 @@ Miya/
 │   ├── entropy.py         # 熵监测
 │   ├── ai_client.py        # AI 客户端工厂
 │   ├── terminal_manager.py # 终端管理
+│   ├── skills_hot_reload.py # Skills 热重载
+│   ├── mcp_client.py       # MCP 协议支持
+│   ├── security_service.py # 安全防护模块
 │   └── web_api/            # Web API 端点
 │
 ├── hub/                    # 决策中心 (Cognitive Core)
@@ -265,6 +275,7 @@ Miya/
 │
 ├── webnet/                 # Web 子网 (The Spider Web)
 │   ├── webnet.py          # 主网络管理器
+│   ├── miya_webui.py      # Web 管理界面
 │   ├── qq/                # QQ 机器人
 │   │   ├── client.py
 │   │   ├── message_handler.py
@@ -284,7 +295,8 @@ Miya/
 │   ├── temporal_knowledge_graph.py  # 时序知识图谱
 │   ├── quintuple_graph.py # 五元组图
 │   ├── session_manager.py # 会话管理
-│   └── memory_compressor.py  # 记忆压缩
+│   ├── memory_compressor.py  # 记忆压缩
+│   └── three_layer_cognitive.py  # 三层认知记忆
 │
 ├── storage/               # 存储层
 │   ├── redis_client.py    # Redis 客户端
@@ -316,7 +328,8 @@ Miya/
 │   ├── .env               # 环境变量
 │   ├── qq_config.yaml     # QQ 配置
 │   ├── permissions.json   # 权限配置
-│   └── terminal_config.json  # 终端配置
+│   ├── terminal_config.json  # 终端配置
+│   └── mcp.json          # MCP 服务器配置
 │
 ├── frontend/              # 前端应用
 │   └── packages/
@@ -993,15 +1006,425 @@ docker run -d -p 7474:7474 -p 7687:7687 neo4j
 
 ---
 
+## 新功能教程 (v4.1 Upgrade)
+
+本节介绍 v4.1 升级引入的新功能，包括 Skills 热重载、三层认知记忆、WebUI 管理界面、MCP 支持和安全防护。
+
+### 1. Skills 热重载 (Skills Hot Reload)
+
+参考 Undefined 项目的实现，新增 Skills 目录文件监控和自动重载功能。
+
+#### 功能特性
+
+- 监控 `webnet/ToolNet/tools` 目录下的技能文件变化
+- 支持 `config.json`、`handler.py`、`prompt.md`、`intro.md` 文件变更检测
+- 防抖机制（2秒）避免频繁重载
+- 支持 watchdog 实时监控或轮询模式（备选）
+
+#### 使用方法
+
+```python
+from core.skills_hot_reload import SkillsHotReloader, start_skills_hot_reload
+from pathlib import Path
+
+# 方式一：使用便捷函数
+reloader = start_skills_hot_reload(
+    skills_dir=Path("webnet/ToolNet/tools"),
+    watch_subdirs=["basic", "terminal", "message", "group"],
+    on_reload_callback=my_callback  # 可选：重载回调
+)
+
+# 方式二：手动创建
+reloader = SkillsHotReloader(
+    skills_dir=Path("webnet/ToolNet/tools"),
+    watch_subdirs=["basic", "terminal", "message", "group", "memory", "bilibili"],
+    on_reload_callback=my_callback
+)
+reloader.start()
+
+# 获取统计信息
+stats = reloader.get_stats()
+print(f"重载次数: {stats['total_reloads']}")
+print(f"缓存技能: {stats['cached_skills']}")
+
+# 停止监控
+reloader.stop()
+```
+
+#### 配置说明
+
+热重载默认监控以下子目录：
+- `basic` - 基础工具
+- `terminal` - 终端命令
+- `message` - 消息处理
+- `group` - 群管理
+- `memory` - 记忆工具
+- `knowledge` - 知识库
+- `bilibili` - B站功能
+- `scheduler` - 定时任务
+
+### 2. 三层认知记忆 (Three-Layer Cognitive Memory)
+
+全新认知记忆系统，参考 Undefined 项目的三层架构设计。
+
+#### 架构说明
+
+| 记忆层 | 类型 | 说明 |
+|--------|------|------|
+| **ShortTermMemory** | 短期便签 | 会话内便签 memo，最近 N 条始终注入 |
+| **CognitiveMemory** | 认知记忆 | ChromaDB 向量存储 + 用户/群侧写 + 后台史官 |
+| **TopMemory** | 置顶备忘录 | AI 自我提醒，每轮固定注入 |
+
+#### 使用方法
+
+```python
+import asyncio
+from pathlib import Path
+from memory.three_layer_cognitive import ThreeLayerCognitiveMemory
+
+# 初始化
+memory = ThreeLayerCognitiveMemory(
+    data_dir=Path("data"),
+    embedding_client=embedding_client  # 可选：embedding 客户端
+)
+
+# 启动后台史官
+await memory.initialize()
+
+# 添加短期便签
+memory.add_short_term_memo(
+    session_id="user_123_session",
+    content="用户提到喜欢科幻电影",
+    context={"source": "chat"}
+)
+
+# 获取短期便签（格式化后）
+memos = memory.get_short_term_memos("user_123_session", count=5)
+
+# 添加认知观察
+memory.add_cognitive_observation(
+    content="用户今天问了很多关于编程的问题",
+    entity_type="user",
+    entity_id="123456",
+    observations=["对编程感兴趣", "学习能力强"]
+)
+
+# 搜索认知记忆
+results = memory.search_cognitive(
+    query="用户的兴趣爱好",
+    entity_id="123456",
+    top_k=5
+)
+
+# 获取用户/群侧写
+profile = memory.get_profile("user", "123456")
+
+# 添加置顶备忘录
+memory.add_top_memory(
+    content="每周日晚提醒用户提交周报",
+    tags=["reminder", "weekly"],
+    created_by="system"
+)
+
+# 获取置顶备忘录
+top_memory = memory.get_top_memory()
+
+# 构建完整记忆上下文
+context = memory.build_memory_context(
+    session_id="user_123_session",
+    entity_type="user",
+    entity_id="123456",
+    query="用户的兴趣偏好"
+)
+# context 包含: short_term, cognitive, profile, top_memory
+
+# 关闭
+await memory.shutdown()
+```
+
+#### 全局实例
+
+```python
+from memory.three_layer_cognitive import get_global_cognitive_memory
+
+memory = get_global_cognitive_memory(
+    data_dir=Path("data"),
+    embedding_client=None
+)
+```
+
+### 3. WebUI 管理界面 (Miya Management WebUI)
+
+提供管理 API 和运行时 API，支持 Bot 状态管理、日志查看、健康监控。
+
+#### 功能特性
+
+- **Management API**: 配置状态、Bot 启停、日志查看
+- **Runtime API**: 运行时探针、记忆只读查询
+- **Web 管理界面**: 状态监控、健康报告
+
+#### 使用方法
+
+```python
+from webnet.miya_webui import MiyaWebUI, get_global_webui
+from pathlib import Path
+
+# 方式一：使用全局实例
+webui = get_global_webui(
+    config_dir=Path("config"),
+    data_dir=Path("data")
+)
+
+# 方式二：手动创建
+webui = MiyaWebUI(
+    config_dir=Path("config"),
+    data_dir=Path("data")
+)
+
+# 设置 Miya 实例
+webui.set_miya_instance(miya_instance)
+
+# Bot 控制
+await webui.start_bot()
+await webui.stop_bot()
+
+# 获取状态
+status = webui.get_bot_status()
+print(f"Bot 状态: {status['status']}")  # stopped/running/starting/stopping/error
+
+# 系统统计
+stats = webui.get_system_stats()
+print(f"运行时长: {stats.uptime}")
+print(f"消息数: {stats.total_messages}")
+print(f"内存: {stats.memory_usage_mb} MB")
+
+# 配置状态
+config = webui.get_config_status()
+print(f"API Key: {config.ai_api_key}")
+print(f"AI Model: {config.ai_model}")
+
+# 日志查看
+logs = webui.get_logs(lines=100, level="ERROR")
+
+# 健康报告
+health = webui.get_health_report()
+print(f"健康状态: {health['status']}")  # healthy/degraded
+
+# 记忆统计
+memory_stats = webui.get_memory_stats()
+print(f"短期记忆: {memory_stats['short_term']['count']}")
+```
+
+#### FastAPI 集成
+
+```python
+from fastapi import FastAPI
+from webnet.miya_webui import MiyaWebUI, create_management_routes, create_runtime_routes
+
+app = FastAPI()
+webui = MiyaWebUI()
+
+# 注册管理 API
+create_management_routes(app, webui)
+
+# 注册运行时 API
+create_runtime_routes(app, webui)
+```
+
+#### API 端点
+
+**Management API** (`/api/management/`):
+- `GET /status` - 获取 Bot 状态
+- `POST /bot/start` - 启动 Bot
+- `POST /bot/stop` - 停止 Bot
+- `GET /stats` - 获取系统统计
+- `GET /config/status` - 获取配置状态
+- `GET /logs` - 获取日志
+- `GET /health` - 获取健康报告
+- `GET /memory` - 获取记忆统计
+
+**Runtime API** (`/api/runtime/`):
+- `GET /probe` - 运行态探针
+- `GET /memory/query` - 查询记忆（只读）
+- `GET /profile/{entity_type}/{entity_id}` - 获取用户/群侧写
+
+### 4. MCP 支持 (Model Context Protocol)
+
+新增 MCP (Model Context Protocol) 支持，可连接外部 MCP Server。
+
+#### 功能特性
+
+- MCP 工具注册表
+- 连接 MCP Server
+- 工具发现和注册
+- Agent 私有 MCP 配置
+
+#### 使用方法
+
+```python
+import asyncio
+from core.mcp_client import MCPToolRegistry, get_global_mcp_registry
+
+# 方式一：使用全局实例
+registry = get_global_mcp_registry()
+
+# 方式二：手动创建
+registry = MCPToolRegistry()
+
+# 初始化（连接所有配置的 MCP Server）
+await registry.initialize()
+
+# 获取工具 Schema（用于 Function Calling）
+tools = registry.get_tools_schema()
+for tool in tools:
+    print(f"工具: {tool['function']['name']}")
+
+# 执行 MCP 工具
+result = await registry.execute_tool(
+    server_name="my_server",
+    tool_name="my_tool",
+    arguments={"param1": "value1"}
+)
+print(result)
+
+# 获取服务器状态
+status = registry.get_server_status("my_server")
+print(f"状态: {status['status']}")
+
+# 断开服务器
+await registry.disconnect_server("my_server")
+
+# 关闭所有连接
+await registry.shutdown()
+```
+
+#### MCP 配置文件
+
+在 `config/mcp.json` 中配置 MCP 服务器：
+
+```json
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/dir"]
+    },
+    {
+      "name": "github",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "your_token"
+      }
+    }
+  ]
+}
+```
+
+### 5. 安全防护 (Security Service)
+
+新增多层安全防护，包括注入检测、敏感词过滤、速率限制。
+
+#### 功能特性
+
+- **InjectionDetector**: 检测 Prompt Injection、SQL Injection、Code Injection、Command Injection
+- **SensitiveWordFilter**: 敏感词过滤和阻断
+- **RateLimiter**: 基于时间窗口的速率限制
+
+#### 使用方法
+
+```python
+from core.security_service import SecurityService, get_global_security_service
+from core.security_service import SecurityLevel
+
+# 方式一：使用全局实例
+security = get_global_security_service()
+
+# 方式二：手动创建
+security = SecurityService(
+    rate_limit_max=30,      # 时间窗口内最大请求数
+    rate_limit_window=60    # 时间窗口大小（秒）
+)
+
+# 执行安全检查
+result = security.check(
+    content="用户输入内容",
+    user_id="user_123"
+)
+
+print(f"安全级别: {result.level.value}")  # safe/suspicious/dangerous/blocked
+print(f"消息: {result.message}")
+print(f"是否阻断: {result.blocked}")
+print(f"原因: {result.reason}")
+
+# 获取安全统计
+stats = security.get_stats()
+print(f"总检查数: {stats['total_checks']}")
+print(f"阻断数: {stats['blocked_count']}")
+print(f"可疑数: {stats['suspicious_count']}")
+print(f"通过率: {stats['pass_rate']:.1f}%")
+```
+
+#### 自定义敏感词
+
+```python
+from core.security_service import SensitiveWordFilter
+
+sensitive_filter = SensitiveWordFilter()
+
+# 添加敏感词（标记为可疑）
+sensitive_filter.add_sensitive_word("自定义敏感词")
+
+# 添加阻断词（直接阻断）
+sensitive_filter.add_blocked_word("违禁词")
+
+# 检查
+result = sensitive_filter.check("内容包含自定义敏感词")
+```
+
+#### 检测的攻击类型
+
+1. **Prompt Injection**: 
+   - `ignore all previous instructions`
+   - `act as a different AI`
+   - `system prompt`
+
+2. **SQL Injection**:
+   - `SELECT * FROM users`
+   - `UNION SELECT`
+   - `' OR '1'='1`
+
+3. **Code Injection**:
+   - `eval()`, `exec()`, `compile()`
+   - `import os`
+   - `lambda x:`
+
+4. **Command Injection**:
+   - `; ls`
+   - `| cat`
+   - `$(command)`
+
+### 6. 并发工具执行
+
+参考 Undefined 项目，优化工具执行效率，支持多工具并发调用。
+
+> 已在 `core/ai_client.py` 中实现，使用 `asyncio.gather` 并发执行多个工具。
+
+---
+
 ## 更新日志
 
-### v4.0 (Ultimate Edition)
+### v4.1 (Upgrade Edition)
 
-- 全新决策中心架构
-- 多层记忆系统重构
-- Tauri 桌面应用
-- Live2D 虚拟形象支持
-- 自我进化能力增强
+- Skills 热重载功能
+- 三层认知记忆系统
+- WebUI 管理界面
+- MCP 协议支持
+- 安全防护模块
+- 并发工具执行优化
+
+### v4.0 (Ultimate Edition)
 
 ### v3.0
 

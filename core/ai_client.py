@@ -558,14 +558,28 @@ class OpenAIClient(BaseAIClient):
                     )
                 )
 
-                # 执行工具
-                for tool_call in tool_calls:
+                # 执行工具（支持并发执行）
+                import asyncio
+
+                async def execute_single_tool(tool_call):
+                    """执行单个工具调用的异步函数"""
                     from .tool_adapter import get_tool_adapter
 
                     adapter = get_tool_adapter()
 
-                    # 解析工具参数（使用 JSON 而不是 eval）
-                    tool_args = json.loads(tool_call.function.arguments)
+                    # 解析工具参数，增加错误处理
+                    try:
+                        tool_args = (
+                            json.loads(tool_call.function.arguments)
+                            if tool_call.function.arguments
+                            else {}
+                        )
+                    except json.JSONDecodeError as e:
+                        logger.warning(
+                            f"[AIClient] 工具参数解析失败: {e}, 参数: {tool_call.function.arguments}"
+                        )
+                        tool_args = {}
+
                     logger.info(
                         f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
                     )
@@ -573,6 +587,47 @@ class OpenAIClient(BaseAIClient):
                     result = await adapter.execute_tool(
                         tool_call.function.name, tool_args, self.tool_context or {}
                     )
+
+                    return tool_call, result
+
+                # 判断是否可以并发执行
+                # 只有当多个工具之间没有依赖关系时才并发执行
+                concurrent_tool_names = [
+                    "get_recent_messages",
+                    "get_user_info",
+                    "get_current_time",
+                    "search_knowledge",
+                    "search_memory",
+                    "get_profile",
+                    "bilibili_video",
+                    "web_search",
+                    "web_research",
+                ]
+
+                can_concurrent = (
+                    any(tc.function.name in concurrent_tool_names for tc in tool_calls)
+                    and len(tool_calls) > 1
+                )
+
+                if can_concurrent:
+                    # 并发执行多个工具调用
+                    logger.info(f"[AIClient] 并发执行 {len(tool_calls)} 个工具调用")
+                    tool_results = await asyncio.gather(
+                        *[execute_single_tool(tc) for tc in tool_calls],
+                        return_exceptions=True,
+                    )
+
+                    # 处理结果
+                    for tool_result in tool_results:
+                        if isinstance(tool_result, Exception):
+                            logger.error(f"[AIClient] 并发工具执行异常: {tool_result}")
+                            continue
+
+                        tool_call, result = tool_result
+                else:
+                    # 串行执行（保持兼容性）
+                    for tool_call in tool_calls:
+                        _, result = await execute_single_tool(tool_call)
 
                     # 检查是否是直接返回工具（如运势、抽签、游戏存档等）
                     # 这些工具返回的结果已经是格式化的，直接返回给用户
@@ -803,7 +858,92 @@ class DeepSeekClient(BaseAIClient):
                     )
                 )
 
-                # 执行工具
+                # 执行工具（支持并发执行）
+                import asyncio
+
+                async def execute_single_tool_deepseek(tool_call):
+                    """执行单个工具调用的异步函数（DeepSeek版本）"""
+                    from .tool_adapter import get_tool_adapter
+
+                    adapter = get_tool_adapter()
+
+                    # 解析工具参数
+                    arguments_str = tool_call.function.arguments
+
+                    try:
+                        tool_args = json.loads(arguments_str)
+                    except json.JSONDecodeError as e:
+                        logger.error(f"[AIClient] JSON解析失败: {arguments_str}")
+                        fixed_str = arguments_str
+
+                        try:
+                            fixed_str = fixed_str.rstrip(", ")
+                            tool_args = json.loads(fixed_str)
+                        except:
+                            import re
+
+                            def add_quotes(match):
+                                key_part = match.group(1)
+                                value_part = match.group(2)
+                                if '"' not in value_part:
+                                    value_part = '"' + value_part + '"'
+                                return key_part + value_part
+
+                            fixed_str2 = re.sub(
+                                r'("[\w\u4e00-\u9fa5]+":\s*)([\w\u4e00-\u9fa5]+)',
+                                add_quotes,
+                                fixed_str,
+                            )
+                            tool_args = json.loads(fixed_str2)
+
+                    logger.info(
+                        f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
+                    )
+
+                    result = await adapter.execute_tool(
+                        tool_call.function.name, tool_args, self.tool_context or {}
+                    )
+
+                    return tool_call, result
+
+                # 判断是否可以并发执行
+                concurrent_tool_names = [
+                    "get_recent_messages",
+                    "get_user_info",
+                    "get_current_time",
+                    "search_knowledge",
+                    "search_memory",
+                    "get_profile",
+                    "bilibili_video",
+                    "web_search",
+                    "web_research",
+                ]
+
+                can_concurrent = (
+                    any(tc.function.name in concurrent_tool_names for tc in tool_calls)
+                    and len(tool_calls) > 1
+                )
+
+                if can_concurrent:
+                    # 并发执行多个工具调用
+                    logger.info(f"[AIClient] 并发执行 {len(tool_calls)} 个工具调用")
+                    tool_results = await asyncio.gather(
+                        *[execute_single_tool_deepseek(tc) for tc in tool_calls],
+                        return_exceptions=True,
+                    )
+
+                    # 处理结果
+                    for tool_result in tool_results:
+                        if isinstance(tool_result, Exception):
+                            logger.error(f"[AIClient] 并发工具执行异常: {tool_result}")
+                            continue
+
+                        tool_call, result = tool_result
+                else:
+                    # 串行执行
+                    pass
+
+                # 恢复原有的串行执行逻辑用于无法并发的情况
                 for tool_call in tool_calls:
                     from .tool_adapter import get_tool_adapter
 

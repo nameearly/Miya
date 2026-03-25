@@ -163,10 +163,16 @@ class UndefinedMemoryAdapter:
 
         return results[:limit]
 
-    async def get_all(self) -> List[SimpleMemory]:
-        """获取所有记忆"""
+    async def get_all(self, limit: int = 10) -> List[SimpleMemory]:
+        """获取所有记忆（可限制数量）"""
         await self._load()
-        return self._legacy_memories.copy()
+        return self._legacy_memories[-limit:]
+
+    async def get_by_tag(self, tag: str, limit: int = 10) -> List[SimpleMemory]:
+        """按标签获取记忆"""
+        await self._load()
+        results = [m for m in self._legacy_memories if tag in m.tags]
+        return results[:limit]
 
     def count(self) -> int:
         """获取记忆数量"""

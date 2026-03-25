@@ -157,13 +157,18 @@ class EmbeddingClient:
         if self._client is None:
             await self.initialize()
 
+        import os
+
         try:
             if self.provider == EmbeddingProvider.SENTENCE_TRANSFORMERS:
                 # 本地模型（同步）- 检测CUDA兼容性
                 import torch
 
+                # 检查环境变量，强制使用CPU
+                force_cpu = os.environ.get("MIYA_FORCE_CPU", "true").lower() == "true"
+
                 device = "cpu"
-                if torch.cuda.is_available():
+                if not force_cpu and torch.cuda.is_available():
                     try:
                         # 检测 compute capability
                         cap = torch.cuda.get_device_capability(0)
@@ -221,6 +226,8 @@ class EmbeddingClient:
         if self._client is None:
             await self.initialize()
 
+        import os
+
         vectors = []
 
         try:
@@ -228,8 +235,11 @@ class EmbeddingClient:
                 # 本地模型支持批量处理 - 检测CUDA兼容性
                 import torch
 
+                # 检查环境变量，强制使用CPU
+                force_cpu = os.environ.get("MIYA_FORCE_CPU", "true").lower() == "true"
+
                 device = "cpu"
-                if torch.cuda.is_available():
+                if not force_cpu and torch.cuda.is_available():
                     try:
                         cap = torch.cuda.get_device_capability(0)
                         if cap[0] >= 5:

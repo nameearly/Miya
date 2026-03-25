@@ -284,6 +284,23 @@ class MiyaQQ:
                             self.miya.decision_hub.tool_subnet.get_last_execution_info()
                         )
 
+                    # 记录更多详细信息
+                    perception = message.content
+                    self.logger.info(
+                        f"[QQ详细] 用户输入: {perception.get('content', '')[:100]}"
+                    )
+                    self.logger.info(f"[QQ详细] 用户ID: {perception.get('user_id')}")
+                    self.logger.info(
+                        f"[QQ详细] 消息类型: {perception.get('message_type')}"
+                    )
+
+                    # 检查是否有可用模型
+                    if hasattr(self.miya.decision_hub, "multi_model_manager"):
+                        mm = self.miya.decision_hub.multi_model_manager
+                        self.logger.info(
+                            f"[QQ详细] 可用模型: {list(mm.model_clients.keys())}"
+                        )
+
                     response_text = await self.miya.decision_hub.process_perception(
                         message
                     )

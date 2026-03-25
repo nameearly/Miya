@@ -155,10 +155,11 @@ class EmbeddingService:
             model_name = self.config.get(
                 "local_model", "paraphrase-multilingual-MiniLM-L12-v2"
             )
-            self._model = SentenceTransformer(model_name)
+            # 强制使用 CPU 模式，避免 CUDA 兼容性问题
+            self._model = SentenceTransformer(model_name, device="cpu")
             self.embedding_func = self._local_embed
             self.dimension = 384
-            logger.info(f"[Embedding] 本地模型已初始化: {model_name}")
+            logger.info(f"[Embedding] 本地模型已初始化: {model_name} (CPU模式)")
         except ImportError:
             logger.warning("[Embedding] sentence-transformers未安装，使用简化实现")
             self._init_fallback()

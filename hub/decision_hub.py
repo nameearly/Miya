@@ -912,12 +912,20 @@ class DecisionHub:
                     f"[决策层-跨平台] 使用平台工具: {platform}, 工具数量: {len(tools_schema)}"
                 )
 
+                # 记录模型信息
+                model_name = getattr(ai_client_to_use, "model", "unknown")
+                logger.info(f"[决策层-跨平台] 使用模型: {model_name}")
+                logger.info(f"[决策层-跨平台] 用户输入: {content[:100]}")
+
                 try:
                     response = await ai_client_to_use.chat_with_system_prompt(
                         system_prompt=prompt_info["system"],
                         user_message=prompt_info["user"],
                         tools=tools_schema,
                         tool_choice=tool_choice,
+                    )
+                    logger.info(
+                        f"[决策层-跨平台] AI响应: {response[:100] if response else '(空)'}"
                     )
                 except Exception as tool_error:
                     # 工具调用失败时,尝试不使用工具重新生成
