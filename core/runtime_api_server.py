@@ -917,6 +917,7 @@ class RuntimeAPIServer:
             host=self.host,
             port=self.port,
             log_level="info",
+            log_config=None,
         )
         server = uvicorn.Server(config)
 
