@@ -52,62 +52,230 @@ class MemoryManager:
             perception: 感知数据
         """
         try:
+            # 获取统一记忆系统
+            from memory.unified_memory import (
+                get_unified_memory,
+                init_unified_memory,
+                MemoryCategory,
+            )
+
+            unified_memory = get_unified_memory("data/memory")
+
+            # 确保初始化
+            try:
+                await init_unified_memory("data/memory")
+            except Exception as e:
+                logger.warning(f"[记忆管理器] 统一记忆初始化失败: {e}")
+
+            content = perception.get("content", "")
+            user_id = perception.get("user_id", "unknown")
+            group_id = perception.get("group_id", "")
+            platform = perception.get("platform", "qq")
+            sender_name = perception.get("sender_name", "用户")
+            message_type = perception.get("message_type", "")
+
+            logger.info(f"[记忆管理器] 收到消息: {content[:50]}...")
+
             # 存储到 MemoryNet 对话历史
             if self.memory_net and self.memory_net.conversation_history:
-                session_id = f"qq_{perception.get('user_id', 'unknown')}"
-
+                session_id = f"qq_{user_id}"
                 await self.memory_net.conversation_history.add_message(
                     session_id=session_id,
                     role="user",
-                    content=perception.get("content", ""),
+                    content=content,
                     metadata={
-                        "user_id": perception.get("user_id"),
-                        "group_id": perception.get("group_id"),
-                        "message_type": perception.get("message_type"),
-                        "sender": perception.get("sender_name", ""),
+                        "user_id": user_id,
+                        "group_id": group_id,
+                        "message_type": message_type,
+                        "sender": sender_name,
                     },
                 )
 
-                logger.debug("[记忆管理器] 用户消息已存储到对话历史")
+            # 自动检测并存储重要信息
+            important_patterns = [
+                (r"生日", "生日"),
+                (r"我喜欢", "喜好"),
+                (r"喜欢(.+)", "喜好"),
+                (r"我叫", "名字"),
+                (r"讨厌", "厌恶"),
+                (r"星座", "星座"),
+                (r"电话", "电话"),
+                (r"邮箱", "邮箱"),
+                (r"记住", "明确要求"),
+                (r"你记着", "明确要求"),
+                (r"帮我记住", "明确要求"),
+            ]
 
-            # 存储到统一记忆系统（JSON持久化）
-            if self.unified_memory:
+            import re
+
+            matched_info_type = None
+            for pattern, info_type in important_patterns:
+                if re.search(pattern, content):
+                    matched_info_type = info_type
+                    logger.warning(
+                        f"[记忆管理器] 检测到重要信息: {info_type}, pattern={pattern}"
+                    )
+                    break
+
+            if matched_info_type:
+                priority = (
+                    0.9
+                    if matched_info_type in ["生日", "电话", "邮箱", "明确要求"]
+                    else 0.7
+                )
+                category = (
+                    MemoryCategory.IMPORTANT
+                    if matched_info_type in ["生日", "电话", "邮箱", "明确要求"]
+                    else MemoryCategory.EMOTION
+                )
+
+                add_method = getattr(unified_memory, "add_short_term", None)
+                logger.warning(f"[记忆管理器] add_method={add_method is not None}")
+
+                if add_method:
+                    try:
+                        # 直接调用，不用 await
+                        result = add_method(
+                            content=content,
+                            user_id=str(user_id),
+                            group_id=str(group_id) if group_id else "",
+                            priority=priority,
+                            tags=[matched_info_type],
+                            metadata={
+                                "source": "auto_extract",
+                                "info_type": matched_info_type,
+                            },
+                            category=category,
+                        )
+                        # 如果返回协程，需要 await
+                        if asyncio.iscoroutine(result):
+                            memory_id = await result
+                        else:
+                            memory_id = result
+                        logger.warning(
+                            f"[记忆管理器] ✅ 已自动存储重要信息: {matched_info_type}, id={memory_id}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"[记忆管理器] ❌ 自动存储失败: {e}", exc_info=True
+                        )
+
+            # 存储到统一记忆系统（普通消息）
+            if unified_memory:
                 try:
-                    content = perception.get("content", "")
-                    user_id = perception.get("user_id", "unknown")
-                    platform = perception.get("platform", "qq")
-
-                    if asyncio.iscoroutinefunction(self.unified_memory.add_short_term):
-                        await self.unified_memory.add_short_term(
-                            content=content,
-                            user_id=user_id,
-                            group_id=perception.get("group_id", ""),
-                            priority=0.5,
-                            metadata={
-                                "platform": platform,
-                                "role": "user",
-                                "sender_name": perception.get("sender_name", "用户"),
-                                "message_type": perception.get("message_type", ""),
-                            },
-                        )
-                    else:
-                        self.unified_memory.add_short_term(
-                            content=content,
-                            user_id=user_id,
-                            group_id=perception.get("group_id", ""),
-                            priority=0.5,
-                            metadata={
-                                "platform": platform,
-                                "role": "user",
-                                "sender_name": perception.get("sender_name", "用户"),
-                                "message_type": perception.get("message_type", ""),
-                            },
-                        )
-                    logger.debug("[记忆管理器] 用户消息已持久化到JSON")
+                    add_method = getattr(unified_memory, "add_short_term", None)
+                    if add_method:
+                        if asyncio.iscoroutinefunction(add_method):
+                            await add_method(
+                                content=content,
+                                user_id=str(user_id),
+                                group_id=str(group_id) if group_id else "",
+                                priority=0.5,
+                                metadata={
+                                    "platform": platform,
+                                    "role": "user",
+                                    "sender_name": sender_name,
+                                    "message_type": message_type,
+                                },
+                                category=None,
+                            )
+                        else:
+                            add_method(
+                                content=content,
+                                user_id=str(user_id),
+                                group_id=str(group_id) if group_id else "",
+                                priority=0.5,
+                                metadata={
+                                    "platform": platform,
+                                    "role": "user",
+                                    "sender_name": sender_name,
+                                    "message_type": message_type,
+                                },
+                                category=None,
+                            )
                 except Exception as e:
                     logger.warning(f"[记忆管理器] 统一记忆存储失败: {e}")
         except Exception as e:
-            logger.error(f"[记忆管理器] 存储用户消息失败: {e}")
+            logger.error(f"[记忆管理器] 存储用户消息失败: {e}", exc_info=True)
+
+    async def _auto_extract_important_info(self, perception: Dict) -> None:
+        """自动检测并存储重要信息"""
+        from memory.unified_memory import get_unified_memory, init_unified_memory
+
+        unified_memory = get_unified_memory("data/memory")
+
+        logger.info(
+            f"[记忆管理器] 检查自动提取, unified_memory={unified_memory is not None}"
+        )
+
+        if not unified_memory:
+            logger.warning("[记忆管理器] unified_memory 未初始化")
+            return
+
+        try:
+            await init_unified_memory("data/memory")
+        except Exception as e:
+            logger.warning(f"[记忆管理器] 初始化失败: {e}")
+
+        content = perception.get("content", "")
+        logger.info(f"[记忆管理器] 内容: {content[:50]}...")
+
+        important_patterns = [
+            (r"生日", "生日"),
+            (r"我叫", "名字"),
+            (r"喜欢", "喜好"),
+            (r"讨厌", "厌恶"),
+            (r"星座", "星座"),
+            (r"电话", "电话"),
+            (r"邮箱", "邮箱"),
+            (r"记住", "明确要求"),
+            (r"你记着", "明确要求"),
+            (r"帮我记住", "明确要求"),
+        ]
+
+        import re
+
+        for pattern, info_type in important_patterns:
+            match = re.search(pattern, content)
+            if match:
+                logger.info(f"[记忆管理器] 匹配成功: {info_type}, pattern={pattern}")
+                fact = content.strip()
+                priority = (
+                    0.9 if info_type in ["生日", "电话", "邮箱", "明确要求"] else 0.7
+                )
+
+                try:
+                    add_method = getattr(unified_memory, "add_short_term", None)
+                    if add_method and asyncio.iscoroutinefunction(add_method):
+                        memory_id = await add_method(
+                            content=fact,
+                            user_id=str(perception.get("user_id", "unknown")),
+                            group_id=str(perception.get("group_id", "")),
+                            priority=priority,
+                            tags=[info_type],
+                            metadata={"source": "auto_extract", "info_type": info_type},
+                            category=None,
+                        )
+                        logger.info(
+                            f"[记忆管理器] 自动提取成功: {info_type} - {fact[:30]}..., id={memory_id}"
+                        )
+                    elif add_method:
+                        memory_id = add_method(
+                            content=fact,
+                            user_id=str(perception.get("user_id", "unknown")),
+                            group_id=str(perception.get("group_id", "")),
+                            priority=priority,
+                            tags=[info_type],
+                            metadata={"source": "auto_extract", "info_type": info_type},
+                            category=None,
+                        )
+                        logger.info(
+                            f"[记忆管理器] 自动提取成功(同步): {info_type} - {fact[:30]}..."
+                        )
+                    else:
+                        logger.warning("[记忆管理器] add_short_term 方法不存在")
+                except Exception as e:
+                    logger.error(f"[记忆管理器] 自动提取失败: {e}", exc_info=True)
 
     async def store_assistant_response(self, perception: Dict, response: str) -> None:
         """
@@ -314,7 +482,7 @@ class MemoryManager:
         # 检测是否需要回忆
         needs_recall = self._check_needs_recall(current_input)
 
-        max_messages = 20 if needs_recall else 3
+        max_messages = 30 if needs_recall else 8
 
         try:
             messages = await self.memory_net.conversation_history.get_history(

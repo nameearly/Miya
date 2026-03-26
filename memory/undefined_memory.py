@@ -103,7 +103,12 @@ class UndefinedMemoryAdapter:
 
         unified = await get_unified_memory_backend()
         await unified.add_short_term(
-            content=fact, user_id="undefined", priority=0.5, tags=tags or []
+            content=fact,
+            user_id="undefined",
+            priority=0.7,
+            tags=tags or [],
+            metadata={"source": "undefined_memory"},
+            category=None,  # 让系统自动分类
         )
 
         if len(self._legacy_memories) > self.max_memories:

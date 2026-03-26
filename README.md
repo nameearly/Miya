@@ -2502,6 +2502,370 @@ class ResponseGenerator:
 
 ---
 
+### 统一记忆系统详解 (Unified Memory System)
+
+弥娅的记忆系统经历了多次迭代，最新版本为统一记忆系统 (Unified Memory System)，整合了多种记忆存储方案，提供了自动分类和智能提取功能。
+
+##### 1. 统一记忆系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    统一记忆系统架构                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │              UnifiedMemoryManager (统一记忆管理器)        │   │
+│  │  ┌─────────────────┐  ┌────────────────────────────┐   │   │
+│  │  │ 短期记忆        │  │  认知记忆                  │   │   │
+│  │  │ short_term      │  │  cognitive                │   │   │
+│  │  │ • 最近50条      │  │  • ChromaDB向量存储       │   │   │
+│  │  │ • 自动分类      │  │  • 用户/群侧写            │   │   │
+│  │  │ • JSON持久化    │  │  • 史官改写               │   │   │
+│  │  └─────────────────┘  └────────────────────────────┘   │   │
+│  │  ┌─────────────────┐  ┌────────────────────────────┐   │   │
+│  │  │ 长期记忆        │  │  置顶备忘录                │   │   │
+│  │  │ long_term      │  │  pinned                   │   │   │
+│  │  │ • 持久化存储    │  │  • 重要提醒               │   │   │
+│  │  │ • 定期压缩      │  │  • 固定注入               │   │   │
+│  │  └─────────────────┘  └────────────────────────────┘   │   │
+│  │                                                          │   │
+│  │  ┌────────────────────────────────────────────────┐    │   │
+│  │  │           EmbeddingService (向量服务)            │    │   │
+│  │  │  • OpenAI/智谱/本地模型                          │    │   │
+│  │  │  • 语义相似度搜索                               │    │   │
+│  │  └────────────────────────────────────────────────┘    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                              │                                    │
+│                              ▼                                    │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │               MemoryCategory (记忆分类系统)               │   │
+│  │  • emotion (情感类)   • chat (闲聊类)                   │   │
+│  │  • daily (日常类)      • important (重要记录)            │   │
+│  │  • task (任务类)      • knowledge (知识类)               │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+##### 2. 记忆分类系统 (MemoryCategory)
+
+弥娅自动对记忆进行分类，便于后续检索和分析：
+
+| 分类 | 枚举值 | 说明 | 自动识别关键词 |
+|------|--------|------|---------------|
+| **情感类** | emotion | 用户的情感表达、喜好、厌恶 | 喜欢、爱、开心、难过、想你、爱你 |
+| **闲聊类** | chat | 普通对话内容 | 默认分类 |
+| **日常类** | daily | 生活日常、吃饭睡觉等 | 吃饭、睡觉、今天、天气 |
+| **重要记录** | important | 重要信息、优先级>=0.8 | 生日、电话、邮箱、记住 |
+| **任务类** | task | 待办事项、任务提醒 | 任务、待办、提醒、记得 |
+| **知识类** | knowledge | 知识问答、学习内容 | 什么是、怎么、如何、为什么 |
+
+##### 3. 自动提取重要信息
+
+弥娅会自动检测用户消息中的重要信息并存储：
+
+```python
+# 位于 hub/memory_manager.py
+
+important_patterns = [
+    (r"生日", "生日"),
+    (r"我喜欢", "喜好"),
+    (r"我叫", "名字"),
+    (r"讨厌", "厌恶"),
+    (r"星座", "星座"),
+    (r"电话", "电话"),
+    (r"邮箱", "邮箱"),
+    (r"记住", "明确要求"),
+    (r"你记着", "明确要求"),
+    (r"帮我记住", "明确要求"),
+]
+
+# 当检测到匹配时，自动以对应优先级存储
+priority = 0.9 if info_type in ["生日", "电话", "邮箱", "明确要求"] else 0.7
+category = MemoryCategory.IMPORTANT if priority >= 0.8 else MemoryCategory.EMOTION
+```
+
+##### 4. 统一记忆系统核心类
+
+```python
+# memory/unified_memory.py
+
+from memory.unified_memory import (
+    UnifiedMemoryManager,
+    get_unified_memory,
+    init_unified_memory,
+    MemoryType,
+    MemoryCategory,
+    MemoryItem,
+)
+
+# 获取全局实例
+memory = get_unified_memory("data/memory")
+await init_unified_memory("data/memory")
+
+# 添加短期记忆（自动分类）
+memory_id = await memory.add_short_term(
+    content="用户喜欢折耳根",
+    user_id="1523878699",
+    group_id="",
+    priority=0.7,
+    tags=["喜好", "食物"],
+    category=MemoryCategory.EMOTION  # 可选，不填则自动分类
+)
+
+# 搜索记忆
+results = await memory.search(
+    query="用户的爱好",
+    user_id="1523878699",
+    top_k=10
+)
+
+# 按分类获取
+emotion_memories = memory.get_by_category(MemoryCategory.EMOTION)
+
+# 获取统计
+stats = memory.get_stats()
+# {'short_term_count': 50, 'cognitive_count': 0, 'important': 6, 'emotion': 5, ...}
+
+# 获取分类统计
+categories = memory.get_all_categories()
+# {'emotion': 5, 'chat': 22, 'important': 6, ...}
+```
+
+##### 5. 统一记忆适配器 (Adapter)
+
+兼容旧接口的适配器：
+
+```python
+# memory/unified_memory_adapter.py
+
+from memory.unified_memory_adapter import create_memory_adapter
+
+adapter = create_memory_adapter(unified_memory)
+
+# 旧接口方法
+await adapter.add_memo(content, user_id, group_id, priority)
+await adapter.update_memo(memory_id, content, priority)
+await adapter.delete_memo(memory_id)
+results = await adapter.search_memories(query, user_id, group_id, limit)
+pinned = adapter.get_pinned_memories()
+profile = adapter.get_user_profile(user_id)
+```
+
+##### 6. 数据存储结构
+
+```
+data/memory/
+├── short_term/
+│   └── cache.json      # 短期记忆 (JSON)
+├── cognitive/
+│   └── memory.json    # 认知记忆 (ChromaDB)
+├── long_term/
+│   └── cache.json     # 长期记忆
+├── pinned_memories.json  # 置顶备忘录
+└── profiles/          # 用户/群侧写
+    ├── user_{id}.json
+    └── group_{id}.json
+```
+
+##### 7. 统一记忆工具 (ToolNet)
+
+通过 ToolNet 可调用的记忆工具：
+
+| 工具名称 | 功能 | 使用场景 |
+|---------|------|----------|
+| `memory_add` | 手动添加记忆 | 用户明确要求记住某事 |
+| `memory_list` | 列出记忆 | 查看记忆列表 |
+| `memory_update` | 更新记忆 | 修改记忆内容 |
+| `memory_delete` | 删除记忆 | 删除某条记忆 |
+| `memory_stats` | 查看统计 | 查看记忆数量和分类 |
+| `memory_search_by_category` | 按分类搜索 | 查看特定分类的记忆 |
+| `auto_extract_memory` | 自动提取 | 系统自动调用存储重要信息 |
+
+```python
+# 使用 memory_stats 工具
+# 输入: /memory_stats
+# 输出:
+# 📊 记忆统计
+# ├─ 短期记忆: 50 条
+# ├─ 认知记忆: 0 条
+# └─ 长期记忆: 0 条
+#
+# 📈 分类统计:
+#   • 重要记录: 6
+#   • 情感类: 5
+#   • 闲聊类: 22
+#   • 任务类: 1
+
+# 使用 memory_search_by_category 工具
+# 输入: category="important", limit=10
+# 输出: 重要记录列表
+```
+
+##### 8. 记忆系统工作流程
+
+```
+用户消息 → MemoryManager.store_user_message()
+                │
+                ├─► 检测重要信息 (正则匹配)
+                │      │
+                │      └─► 匹配成功 → 存储为 MemoryCategory.IMPORTANT/EMOTION
+                │
+                ├─► 存储到 MemoryNet 对话历史
+                │
+                └─► 存储到统一记忆系统 (JSON持久化)
+                        │
+                        └─► 自动分类 (_auto_classify)
+```
+
+##### 9. 初始化和使用示例
+
+```python
+import asyncio
+from memory.unified_memory import get_unified_memory, init_unified_memory
+
+async def main():
+    # 获取实例
+    memory = get_unified_memory("data/memory")
+    
+    # 初始化（加载数据、启动后台任务）
+    await memory.initialize()
+    
+    # 添加记忆
+    memory_id = await memory.add_short_term(
+        content="用户的生日是2005年3月20日",
+        user_id="1523878699",
+        priority=0.9,
+        tags=["生日", "个人信息"],
+        category=MemoryCategory.IMPORTANT
+    )
+    
+    # 查看统计
+    stats = memory.get_stats()
+    print(f"短期记忆: {stats['short_term_count']}")
+    print(f"分类统计: {stats['category_stats']}")
+    
+    # 搜索
+    results = await memory.search("生日", top_k=5)
+    for r in results:
+        print(f"- {r.content}")
+
+asyncio.run(main())
+```
+
+##### 10. 与旧系统对比
+
+| 特性 | 旧系统 | 统一记忆系统 |
+|------|--------|-------------|
+| 存储方式 | 多系统分散 | 统一管理 |
+| 分类 | 无 | 自动6分类 |
+| 优先级 | 手动设置 | 自动推断+手动 |
+| 接口 | 不统一 | 统一入口 |
+| 向量检索 | 依赖Milvus | 本地模型优先 |
+
+##### 11. LifeBook 人生记录系统
+
+LifeBook 是弥娅的人生记录模块，用于存储用户的人生轨迹、重要事件和节点信息。
+
+```
+data/lifebook/
+├── daily/          # 日记 (YYYY-MM-DD.md)
+├── weekly/         # 周记 (YYYY-Wxx.md)
+├── monthly/        # 月报 (YYYY-MM.md)
+├── quarterly/      # 季报 (YYYY-Qx.md)
+├── yearly/         # 年鉴 (YYYY.md)
+└── nodes/          # 节点
+    ├── characters/  # 角色节点
+    └── stages/       # 阶段节点
+```
+
+**核心功能：**
+
+| 功能 | 说明 |
+|------|------|
+| **日记记录** | 用户通过对话创建日记，自动格式化存储 |
+| **层级总结** | 日记→周记→月报→季报→年鉴 滚动压缩 |
+| **一键回溯** | 智能加载：年鉴→季度→月度→周度→日 |
+| **节点管理** | 角色节点(Character)、阶段节点(Stage) |
+
+**使用示例：**
+
+```python
+# memory/lifebook_manager.py
+
+from memory.lifebook_manager import LifeBookManager, MemoryLevel
+
+lifebook = LifeBookManager(
+    base_dir=Path("data/lifebook"),
+    ai_client=ai_client  # 可选，用于自动总结
+)
+
+# 添加日记
+entry = lifebook.add_entry(
+    level=MemoryLevel.DAILY,
+    title="2026年3月26日 日记",
+    content="今天优化了弥娅的记忆系统...",
+    tags=["技术", "开发"],
+    mood="充实"
+)
+
+# 获取日记
+diary = lifebook.get_entry(MemoryLevel.DAILY, "2026-03-26")
+
+# 获取一周回顾
+weekly_context = lifebook.get_context(
+    start_date="2026-03-20",
+    end_date="2026-03-26"
+)
+
+# 添加角色节点
+lifebook.add_node(
+    name="佳",
+    node_type="character",
+    description="弥娅的创造者",
+    tags=["创造者", "重要"]
+)
+
+# 一键回溯
+full_context = lifebook.get_full_context(date="2026-03-26")
+# 返回: 年鉴 + 季度 + 月度 + 周度 + 当日日记
+```
+
+**LifeNet 接口：**
+
+```python
+# webnet/life.py
+
+lifenet = LifeNet(base_dir="data/lifebook")
+
+# 添加日记
+result = await lifenet.add_diary("今天的心情很好", mood="开心")
+
+# 获取日记
+diary = await lifenet.get_diary("2026-03-26")
+
+# 人生回顾
+review = await lifenet.get_life_review("2026")
+# 返回: 年度总结 + 季度亮点 + 月度大事
+
+# 节点查询
+nodes = await lifenet.search_nodes("佳")
+```
+
+**自动总结配置：**
+
+LifeBook 支持自动生成周报/月报，需要配置 AI 客户端：
+
+```python
+lifebook = LifeBookManager(
+    base_dir=Path("data/lifebook"),
+    ai_client=ai_client,  # 传入 AI 客户端
+    auto_weekly=True,     # 自动生成周报
+    auto_monthly=True,     # 自动生成月报
+)
+```
+
+---
+
 ### 工具系统详解 (Tool System)
 
 弥娅的工具系统是其执行能力的核心，支持68+工具。

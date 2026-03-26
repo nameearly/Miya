@@ -47,16 +47,133 @@ class UnifiedMemoryAdapter:
         )
 
     async def update_memo(
-        self, memory_id: str, content: str = None, priority: float = None
+        self,
+        memory_id: str,
+        content: Optional[str] = None,
+        priority: Optional[float] = None,
     ) -> bool:
-        """更新记忆（简化实现）"""
-        logger.info(f"[V2适配器] 更新记忆: {memory_id}")
-        return True
+        """更新记忆"""
+        if not memory_id:
+            return False
+        try:
+            memory_type = memory_id.split("_")[0] if "_" in memory_id else None
+
+            if memory_type == "st":
+                return await self._update_short_term(memory_id, content, priority)
+            elif memory_type == "cg":
+                return await self._update_cognitive(memory_id, content, priority)
+            elif memory_type == "lt":
+                return await self._update_long_term(memory_id, content, priority)
+            else:
+                logger.warning(f"[V2适配器] 未知的记忆类型: {memory_id}")
+                return False
+        except Exception as e:
+            logger.error(f"[V2适配器] 更新记忆失败: {e}")
+            return False
+
+    async def _update_short_term(
+        self,
+        memory_id: str,
+        content: Optional[str],
+        priority: Optional[float],
+    ) -> bool:
+        """更新短期记忆"""
+        for mem in self.unified.short_term_memories:
+            if mem.id == memory_id:
+                if content is not None:
+                    mem.content = content
+                if priority is not None:
+                    mem.priority = priority
+                await self.unified._save_short_term()
+                logger.info(f"[V2适配器] 已更新短期记忆: {memory_id}")
+                return True
+        return False
+
+    async def _update_cognitive(
+        self,
+        memory_id: str,
+        content: Optional[str],
+        priority: Optional[float],
+    ) -> bool:
+        """更新认知记忆"""
+        for mem in self.unified.cognitive_memories:
+            if mem.id == memory_id:
+                if content is not None:
+                    mem.content = content
+                if priority is not None:
+                    mem.priority = priority
+                await self.unified._save_cognitive()
+                logger.info(f"[V2适配器] 已更新认知记忆: {memory_id}")
+                return True
+        return False
+
+    async def _update_long_term(
+        self,
+        memory_id: str,
+        content: Optional[str],
+        priority: Optional[float],
+    ) -> bool:
+        """更新长期记忆"""
+        for mem in self.unified.long_term_memories:
+            if mem.id == memory_id:
+                if content is not None:
+                    mem.content = content
+                if priority is not None:
+                    mem.priority = priority
+                await self.unified._save_long_term()
+                logger.info(f"[V2适配器] 已更新长期记忆: {memory_id}")
+                return True
+        return False
 
     async def delete_memo(self, memory_id: str) -> bool:
-        """删除记忆（简化实现）"""
-        logger.info(f"[V2适配器] 删除记忆: {memory_id}")
-        return True
+        """删除记忆"""
+        if not memory_id:
+            return False
+        try:
+            memory_type = memory_id.split("_")[0] if "_" in memory_id else None
+
+            if memory_type == "st":
+                return await self._delete_short_term(memory_id)
+            elif memory_type == "cg":
+                return await self._delete_cognitive(memory_id)
+            elif memory_type == "lt":
+                return await self._delete_long_term(memory_id)
+            else:
+                logger.warning(f"[V2适配器] 未知的记忆类型: {memory_id}")
+                return False
+        except Exception as e:
+            logger.error(f"[V2适配器] 删除记忆失败: {e}")
+            return False
+
+    async def _delete_short_term(self, memory_id: str) -> bool:
+        """删除短期记忆"""
+        for i, mem in enumerate(self.unified.short_term_memories):
+            if mem.id == memory_id:
+                self.unified.short_term_memories.pop(i)
+                await self.unified._save_short_term()
+                logger.info(f"[V2适配器] 已删除短期记忆: {memory_id}")
+                return True
+        return False
+
+    async def _delete_cognitive(self, memory_id: str) -> bool:
+        """删除认知记忆"""
+        for i, mem in enumerate(self.unified.cognitive_memories):
+            if mem.id == memory_id:
+                self.unified.cognitive_memories.pop(i)
+                await self.unified._save_cognitive()
+                logger.info(f"[V2适配器] 已删除认知记忆: {memory_id}")
+                return True
+        return False
+
+    async def _delete_long_term(self, memory_id: str) -> bool:
+        """删除长期记忆"""
+        for i, mem in enumerate(self.unified.long_term_memories):
+            if mem.id == memory_id:
+                self.unified.long_term_memories.pop(i)
+                await self.unified._save_long_term()
+                logger.info(f"[V2适配器] 已删除长期记忆: {memory_id}")
+                return True
+        return False
 
     async def search_memories(
         self, query: str, user_id: str = "", group_id: str = "", limit: int = 10

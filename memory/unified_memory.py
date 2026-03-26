@@ -51,6 +51,18 @@ class MemoryPriority(Enum):
     CRITICAL = 1.0
 
 
+class MemoryCategory(Enum):
+    """记忆分类"""
+
+    EMOTION = "emotion"  # 情感类
+    CHAT = "chat"  # 闲聊类
+    DAILY = "daily"  # 日常类
+    IMPORTANT = "important"  # 重要记录
+    TASK = "task"  # 任务类
+    KNOWLEDGE = "knowledge"  # 知识类
+    UNKNOWN = "unknown"  # 未分类
+
+
 @dataclass
 class MemoryItem:
     """记忆项"""
@@ -66,6 +78,7 @@ class MemoryItem:
     metadata: Dict[str, Any] = field(default_factory=dict)
     embedding: Optional[List[float]] = None
     is_absolute: bool = False  # 是否经过史官改写
+    category: MemoryCategory = MemoryCategory.UNKNOWN  # 记忆分类
 
     def to_dict(self) -> Dict:
         return {
@@ -79,11 +92,18 @@ class MemoryItem:
             "tags": self.tags,
             "metadata": self.metadata,
             "is_absolute": self.is_absolute,
+            "category": self.category.value
+            if self.category
+            else MemoryCategory.UNKNOWN.value,
         }
 
     @classmethod
     def from_dict(cls, d: Dict) -> "MemoryItem":
         d["memory_type"] = MemoryType(d["memory_type"])
+        if "category" in d and d["category"]:
+            d["category"] = MemoryCategory(d["category"])
+        else:
+            d["category"] = MemoryCategory.UNKNOWN
         return cls(**d)
 
 
@@ -216,11 +236,6 @@ class EmbeddingService:
 
         vector = []
         for i in range(self.dimension):
-            hash_val = (
-                hash((text + str(i)).encode()).hex_val
-                if hasattr(hash, "hex_val")
-                else 0
-            )
             freq_sum = sum(1 for w in words if hash(w) % self.dimension == i)
             vector.append(float(freq_sum) / (len(words) + 1) + 0.01 * math.sin(i))
 
@@ -711,11 +726,15 @@ class UnifiedMemoryManager:
         priority: float = 0.5,
         tags: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
+        category: Optional[MemoryCategory] = None,
     ) -> str:
         """添加短期记忆"""
         memory_id = f"st_{int(time.time() * 1000)}_{len(self.short_term_memories)}"
 
         embedding = await self.embedding_service.get_embedding(content)
+
+        if category is None:
+            category = self._auto_classify(content, priority)
 
         memory = MemoryItem(
             id=memory_id,
@@ -728,6 +747,7 @@ class UnifiedMemoryManager:
             tags=tags or [],
             metadata=metadata or {},
             embedding=embedding,
+            category=category,
         )
 
         self.short_term_memories.append(memory)
@@ -738,6 +758,93 @@ class UnifiedMemoryManager:
         await self._save_short_term()
 
         return memory_id
+
+    def _auto_classify(self, content: str, priority: float) -> MemoryCategory:
+        """自动分类记忆"""
+        content_lower = content.lower()
+
+        if priority >= 0.8:
+            return MemoryCategory.IMPORTANT
+
+        emotion_keywords = [
+            "喜欢",
+            "爱",
+            "开心",
+            "难过",
+            "生气",
+            "害怕",
+            "担心",
+            "想",
+            "想你",
+            "爱你",
+            "感动",
+            "温暖",
+            "幸福",
+            "伤心",
+            "失望",
+            "焦虑",
+            "压力大",
+            "累",
+            "疲惫",
+        ]
+        for kw in emotion_keywords:
+            if kw in content_lower:
+                return MemoryCategory.EMOTION
+
+        task_keywords = [
+            "任务",
+            "todo",
+            "待办",
+            "提醒",
+            "记得",
+            "不要忘记",
+            "完成",
+            "执行",
+            "操作",
+            "做一下",
+            "帮我",
+        ]
+        for kw in task_keywords:
+            if kw in content_lower:
+                return MemoryCategory.TASK
+
+        knowledge_keywords = [
+            "什么是",
+            "怎么",
+            "如何",
+            "为什么",
+            "解释",
+            "知识",
+            "学习",
+            "教我",
+            "问一下",
+        ]
+        for kw in knowledge_keywords:
+            if kw in content_lower:
+                return MemoryCategory.KNOWLEDGE
+
+        daily_keywords = [
+            "吃饭",
+            "睡觉",
+            "起床",
+            "休息",
+            "上班",
+            "下班",
+            "回家",
+            "出门",
+            "今天",
+            "昨天",
+            "明天",
+            "天气",
+            "早餐",
+            "午餐",
+            "晚餐",
+        ]
+        for kw in daily_keywords:
+            if kw in content_lower:
+                return MemoryCategory.DAILY
+
+        return MemoryCategory.CHAT
 
     async def add_cognitive(
         self,
@@ -891,6 +998,11 @@ class UnifiedMemoryManager:
 
     def get_stats(self) -> Dict[str, Any]:
         """获取记忆统计"""
+        category_stats = {}
+        for cat in MemoryCategory:
+            count = sum(1 for m in self.short_term_memories if m.category == cat)
+            category_stats[cat.value] = count
+
         return {
             "short_term_count": len(self.short_term_memories),
             "cognitive_count": len(self.cognitive_memories),
@@ -900,7 +1012,51 @@ class UnifiedMemoryManager:
             "group_profiles_count": len(self.group_profiles),
             "embedding_dimension": self.embedding_service.dimension,
             "historian_enabled": self.historian.enabled,
+            "category_stats": category_stats,
         }
+
+    def get_by_category(
+        self, category: MemoryCategory, limit: int = 20
+    ) -> List[MemoryItem]:
+        """按分类获取记忆"""
+        results = [m for m in self.short_term_memories if m.category == category]
+        return results[-limit:]
+
+    def get_all_categories(self) -> Dict[str, int]:
+        """获取所有分类统计"""
+        stats = {}
+        for cat in MemoryCategory:
+            stats[cat.value] = sum(
+                1 for m in self.short_term_memories if m.category == cat
+            )
+        return stats
+
+    async def export_memories(
+        self,
+        memory_type: Optional[MemoryType] = None,
+        user_id: Optional[str] = None,
+        category: Optional[MemoryCategory] = None,
+    ) -> List[Dict]:
+        """导出记忆"""
+        results = []
+
+        source_lists = []
+        if memory_type is None or memory_type == MemoryType.SHORT_TERM:
+            source_lists.append(self.short_term_memories)
+        if memory_type is None or memory_type == MemoryType.COGNITIVE:
+            source_lists.append(self.cognitive_memories)
+        if memory_type is None or memory_type == MemoryType.LONG_TERM:
+            source_lists.append(self.long_term_memories)
+
+        for mem_list in source_lists:
+            for mem in mem_list:
+                if user_id and mem.user_id != user_id:
+                    continue
+                if category and mem.category != category:
+                    continue
+                results.append(mem.to_dict())
+
+        return results
 
     async def cleanup(self):
         """清理资源"""
@@ -920,16 +1076,29 @@ class UnifiedMemoryManager:
 
 
 _global_memory_manager: Optional[UnifiedMemoryManager] = None
+_global_initialized: bool = False
 
 
 def get_unified_memory(
     data_dir: str = "data/memory", config: Optional[Dict[str, Any]] = None
 ) -> UnifiedMemoryManager:
     """获取全局统一记忆管理器"""
-    global _global_memory_manager
+    global _global_memory_manager, _global_initialized
     if _global_memory_manager is None:
         _global_memory_manager = UnifiedMemoryManager(data_dir, config)
     return _global_memory_manager
+
+
+async def init_unified_memory(
+    data_dir: str = "data/memory", config: Optional[Dict[str, Any]] = None
+) -> UnifiedMemoryManager:
+    """初始化并获取统一记忆管理器"""
+    global _global_initialized
+    memory = get_unified_memory(data_dir, config)
+    if not _global_initialized:
+        await memory.initialize()
+        _global_initialized = True
+    return memory
 
 
 __all__ = [

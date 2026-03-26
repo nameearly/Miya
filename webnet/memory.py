@@ -8,6 +8,7 @@
 - 潮汐记忆/梦境压缩
 - 提供 M-Link memory_flow 接口
 """
+
 import asyncio
 import logging
 from typing import Dict, List, Optional
@@ -45,7 +46,7 @@ class MemoryNet:
             "total_messages_stored": 0,
             "total_memories_added": 0,
             "total_retrievals": 0,
-            "last_access": None
+            "last_access": None,
         }
 
         logger.info("全局记忆子网初始化完成")
@@ -59,15 +60,16 @@ class MemoryNet:
             self.memory_system = await get_memory_system_initializer()
 
             # 获取各个子系统
-            self.conversation_history = await self.memory_system.get_conversation_history_manager()
+            self.conversation_history = (
+                await self.memory_system.get_conversation_history_manager()
+            )
             self.undefined_memory = await self.memory_system.get_undefined_memory()
+            self.unified_memory = await self.memory_system.get_memory_engine()
 
             # 注册 M-Link 节点
-            self.mlink.register_node("memory", [
-                "conversation_history",
-                "undefined_memory",
-                "memory_flow"
-            ])
+            self.mlink.register_node(
+                "memory", ["conversation_history", "undefined_memory", "memory_flow"]
+            )
 
             logger.info("[MemoryNet] 全局记忆系统初始化成功")
             logger.info(f"[MemoryNet] 记忆流 (memory_flow) 已启用")
@@ -115,7 +117,7 @@ class MemoryNet:
                     type=MessageType.ERROR,
                     source="memory",
                     target=message.source,
-                    content={"error": f"未知操作: {action}"}
+                    content={"error": f"未知操作: {action}"},
                 )
 
         except Exception as e:
@@ -124,7 +126,7 @@ class MemoryNet:
                 type=MessageType.ERROR,
                 source="memory",
                 target=message.source,
-                content={"error": str(e)}
+                content={"error": str(e)},
             )
 
     async def _handle_add_conversation(self, message: Message) -> Message:
@@ -147,7 +149,7 @@ class MemoryNet:
                 content=content,
                 agent_id=agent_id,
                 images=images,
-                metadata=metadata
+                metadata=metadata,
             )
 
             # 更新统计
@@ -163,8 +165,8 @@ class MemoryNet:
                 content={
                     "action": "add_conversation",
                     "success": True,
-                    "session_id": session_id
-                }
+                    "session_id": session_id,
+                },
             )
 
         except Exception as e:
@@ -173,7 +175,7 @@ class MemoryNet:
                 type=MessageType.ERROR,
                 source="memory",
                 target=message.source,
-                content={"error": str(e)}
+                content={"error": str(e)},
             )
 
     async def _handle_get_conversation(self, message: Message) -> Message:
@@ -192,7 +194,9 @@ class MemoryNet:
             self.stats["total_retrievals"] += 1
             self.stats["last_access"] = datetime.now().isoformat()
 
-            logger.debug(f"[MemoryNet] 获取对话: session={session_id}, count={len(messages)}")
+            logger.debug(
+                f"[MemoryNet] 获取对话: session={session_id}, count={len(messages)}"
+            )
 
             return Message(
                 type=MessageType.RESPONSE,
@@ -208,11 +212,11 @@ class MemoryNet:
                             "timestamp": m.timestamp,
                             "images": m.images,
                             "agent_id": m.agent_id,
-                            "metadata": m.metadata
+                            "metadata": m.metadata,
                         }
                         for m in messages
-                    ]
-                }
+                    ],
+                },
             )
 
         except Exception as e:
@@ -221,7 +225,7 @@ class MemoryNet:
                 type=MessageType.ERROR,
                 source="memory",
                 target=message.source,
-                content={"error": str(e)}
+                content={"error": str(e)},
             )
 
     async def _handle_add_memory(self, message: Message) -> Message:
@@ -246,11 +250,7 @@ class MemoryNet:
                 type=MessageType.RESPONSE,
                 source="memory",
                 target=message.source,
-                content={
-                    "action": "add_memory",
-                    "success": True,
-                    "uuid": uuid
-                }
+                content={"action": "add_memory", "success": True, "uuid": uuid},
             )
 
         except Exception as e:
@@ -259,7 +259,7 @@ class MemoryNet:
                 type=MessageType.ERROR,
                 source="memory",
                 target=message.source,
-                content={"error": str(e)}
+                content={"error": str(e)},
             )
 
     async def _handle_search_memory(self, message: Message) -> Message:
@@ -278,7 +278,9 @@ class MemoryNet:
             self.stats["total_retrievals"] += 1
             self.stats["last_access"] = datetime.now().isoformat()
 
-            logger.debug(f"[MemoryNet] 搜索记忆: keyword={keyword}, count={len(memories)}")
+            logger.debug(
+                f"[MemoryNet] 搜索记忆: keyword={keyword}, count={len(memories)}"
+            )
 
             return Message(
                 type=MessageType.RESPONSE,
@@ -292,11 +294,11 @@ class MemoryNet:
                             "uuid": m.uuid,
                             "fact": m.fact,
                             "created_at": m.created_at,
-                            "tags": m.tags
+                            "tags": m.tags,
                         }
                         for m in memories
-                    ]
-                }
+                    ],
+                },
             )
 
         except Exception as e:
@@ -305,7 +307,7 @@ class MemoryNet:
                 type=MessageType.ERROR,
                 source="memory",
                 target=message.source,
-                content={"error": str(e)}
+                content={"error": str(e)},
             )
 
     async def _handle_get_statistics(self, message: Message) -> Message:
@@ -315,19 +317,13 @@ class MemoryNet:
             system_stats = await self.memory_system.get_statistics()
 
             # 合并内部统计
-            stats = {
-                **system_stats,
-                "memory_net": self.stats
-            }
+            stats = {**system_stats, "memory_net": self.stats}
 
             return Message(
                 type=MessageType.RESPONSE,
                 source="memory",
                 target=message.source,
-                content={
-                    "action": "get_statistics",
-                    "statistics": stats
-                }
+                content={"action": "get_statistics", "statistics": stats},
             )
 
         except Exception as e:
@@ -336,7 +332,7 @@ class MemoryNet:
                 type=MessageType.ERROR,
                 source="memory",
                 target=message.source,
-                content={"error": str(e)}
+                content={"error": str(e)},
             )
 
     async def _handle_export(self, message: Message) -> Message:
@@ -358,8 +354,8 @@ class MemoryNet:
                 content={
                     "action": "export",
                     "success": True,
-                    "export_files": export_files
-                }
+                    "export_files": export_files,
+                },
             )
 
         except Exception as e:
@@ -368,12 +364,14 @@ class MemoryNet:
                 type=MessageType.ERROR,
                 source="memory",
                 target=message.source,
-                content={"error": str(e)}
+                content={"error": str(e)},
             )
 
     # ==================== 辅助方法 ====================
 
-    async def get_recent_conversations(self, user_id: str = None, limit: int = 20) -> List[Dict]:
+    async def get_recent_conversations(
+        self, user_id: str = None, limit: int = 20
+    ) -> List[Dict]:
         """
         获取最近的对话历史（辅助方法）
 
@@ -397,17 +395,21 @@ class MemoryNet:
                 return []
 
             # 获取该会话的历史
-            messages = await self.conversation_history.get_history(session_id, limit=limit)
+            messages = await self.conversation_history.get_history(
+                session_id, limit=limit
+            )
 
             # 转换为字典格式
             conversations = []
             for msg in messages:
-                conversations.append({
-                    'role': msg.role,
-                    'content': msg.content,
-                    'timestamp': msg.timestamp,
-                    'session_id': session_id
-                })
+                conversations.append(
+                    {
+                        "role": msg.role,
+                        "content": msg.content,
+                        "timestamp": msg.timestamp,
+                        "session_id": session_id,
+                    }
+                )
 
             return conversations
 
@@ -433,15 +435,20 @@ class MemoryNet:
             all_conversations = []
 
             # ConversationHistoryManager有_memory_cache属性
-            if hasattr(self.conversation_history, '_memory_cache'):
-                for session_id, messages in self.conversation_history._memory_cache.items():
+            if hasattr(self.conversation_history, "_memory_cache"):
+                for (
+                    session_id,
+                    messages,
+                ) in self.conversation_history._memory_cache.items():
                     for msg in messages:
-                        all_conversations.append({
-                            'role': msg.role,
-                            'content': msg.content,
-                            'timestamp': msg.timestamp,
-                            'session_id': session_id
-                        })
+                        all_conversations.append(
+                            {
+                                "role": msg.role,
+                                "content": msg.content,
+                                "timestamp": msg.timestamp,
+                                "session_id": session_id,
+                            }
+                        )
 
             return all_conversations
 
@@ -457,22 +464,21 @@ class MemoryNet:
             memory_data: 记忆数据字典
         """
         try:
-            memory_type = memory_data.get('type', 'conversation')
+            memory_type = memory_data.get("type", "conversation")
 
-            if memory_type == 'conversation':
+            if memory_type == "conversation":
                 # 添加到对话历史
                 await self.conversation_history.add_message(
-                    session_id=str(memory_data.get('session_id', 'default')),
-                    role=memory_data.get('role', 'user'),
-                    content=memory_data.get('content', ''),
-                    agent_id=memory_data.get('agent_id'),
-                    metadata=memory_data.get('metadata', {})
+                    session_id=str(memory_data.get("session_id", "default")),
+                    role=memory_data.get("role", "user"),
+                    content=memory_data.get("content", ""),
+                    agent_id=memory_data.get("agent_id"),
+                    metadata=memory_data.get("metadata", {}),
                 )
-            elif memory_type == 'undefined':
+            elif memory_type == "undefined":
                 # 添加到 Undefined 记忆
                 await self.undefined_memory.add(
-                    fact=memory_data.get('fact', ''),
-                    tags=memory_data.get('tags', [])
+                    fact=memory_data.get("fact", ""), tags=memory_data.get("tags", [])
                 )
 
             logger.debug(f"[MemoryNet] 记忆已存储: {memory_type}")
@@ -502,8 +508,9 @@ class MemoryNet:
             logger.error(f"[MemoryNet] 搜索记忆失败: {e}")
             return []
 
-    async def search_all_conversations(self, query: str, limit: int = 20, 
-                                    user_id: str = None) -> List[Dict]:
+    async def search_all_conversations(
+        self, query: str, limit: int = 20, user_id: str = None
+    ) -> List[Dict]:
         """
         全局语义搜索 - 搜索所有会话中的相关对话（跨平台）
 
@@ -526,7 +533,9 @@ class MemoryNet:
 
             # 遍历所有会话进行匹配
             for session_id in session_ids:
-                messages = await self.conversation_history.get_history(session_id, limit=50)
+                messages = await self.conversation_history.get_history(
+                    session_id, limit=50
+                )
 
                 for msg in messages:
                     # 简单关键词匹配（未来可升级为语义搜索）
@@ -551,16 +560,18 @@ class MemoryNet:
 
                     # 4. 最近的对话权重更高
                     if score > 0:
-                        all_conversations.append({
-                            'role': msg.role,
-                            'content': msg.content,
-                            'timestamp': msg.timestamp,
-                            'session_id': session_id,
-                            'relevance_score': score
-                        })
+                        all_conversations.append(
+                            {
+                                "role": msg.role,
+                                "content": msg.content,
+                                "timestamp": msg.timestamp,
+                                "session_id": session_id,
+                                "relevance_score": score,
+                            }
+                        )
 
             # 按相关性排序
-            all_conversations.sort(key=lambda x: x['relevance_score'], reverse=True)
+            all_conversations.sort(key=lambda x: x["relevance_score"], reverse=True)
 
             # 返回前N条
             return all_conversations[:limit]
@@ -569,7 +580,9 @@ class MemoryNet:
             logger.error(f"[MemoryNet] 全局搜索失败: {e}")
             return []
 
-    async def get_cross_platform_memories(self, user_id: str, limit: int = 10) -> List[Dict]:
+    async def get_cross_platform_memories(
+        self, user_id: str, limit: int = 10
+    ) -> List[Dict]:
         """
         获取跨平台记忆 - 整合所有平台的相关记忆
 
@@ -588,12 +601,14 @@ class MemoryNet:
             undefined_memories = []
             if self.undefined_memory:
                 # 获取所有手动记忆
-                if hasattr(self.undefined_memory, 'get_all'):
+                if hasattr(self.undefined_memory, "get_all"):
                     all_undefined = await self.undefined_memory.get_all()
                     undefined_memories = all_undefined[:limit]
                 else:
                     # 备用方法：搜索空关键词获取前几条
-                    undefined_memories = await self.undefined_memory.search('', limit=limit)
+                    undefined_memories = await self.undefined_memory.search(
+                        "", limit=limit
+                    )
 
             # 3. 整合记忆
             cross_platform_memories = []
@@ -601,65 +616,77 @@ class MemoryNet:
             # 添加对话历史
             for mem in current_memories:
                 # 创建副本避免修改原始数据
-                new_mem = dict(mem) if isinstance(mem, dict) else {
-                    'role': getattr(mem, 'role', 'user'),
-                    'content': getattr(mem, 'content', ''),
-                    'timestamp': getattr(mem, 'timestamp', ''),
-                    'session_id': getattr(mem, 'session_id', '')
-                }
-                new_mem['source'] = 'conversation'
-                new_mem['memory_type'] = 'dialogue'
+                new_mem = (
+                    dict(mem)
+                    if isinstance(mem, dict)
+                    else {
+                        "role": getattr(mem, "role", "user"),
+                        "content": getattr(mem, "content", ""),
+                        "timestamp": getattr(mem, "timestamp", ""),
+                        "session_id": getattr(mem, "session_id", ""),
+                    }
+                )
+                new_mem["source"] = "conversation"
+                new_mem["memory_type"] = "dialogue"
                 cross_platform_memories.append(new_mem)
 
             # 添加 Undefined 记忆
             for mem in undefined_memories:
                 # 处理不同类型的记忆对象
-                if hasattr(mem, 'fact'):
+                if hasattr(mem, "fact"):
                     # SimpleMemory 对象
-                    cross_platform_memories.append({
-                        'role': 'system',
-                        'content': mem.fact,
-                        'timestamp': mem.created_at,
-                        'session_id': 'undefined_global',
-                        'uuid': mem.uuid,
-                        'tags': mem.tags,
-                        'source': 'undefined',
-                        'memory_type': 'fact'
-                    })
+                    cross_platform_memories.append(
+                        {
+                            "role": "system",
+                            "content": mem.fact,
+                            "timestamp": mem.created_at,
+                            "session_id": "undefined_global",
+                            "uuid": mem.uuid,
+                            "tags": mem.tags,
+                            "source": "undefined",
+                            "memory_type": "fact",
+                        }
+                    )
                 else:
                     # 字典类型
-                    cross_platform_memories.append({
-                        'role': 'system',
-                        'content': mem.get('fact', ''),
-                        'timestamp': mem.get('created_at', ''),
-                        'session_id': 'undefined_global',
-                        'uuid': mem.get('uuid', ''),
-                        'tags': mem.get('tags', []),
-                        'source': 'undefined',
-                        'memory_type': 'fact'
-                    })
+                    cross_platform_memories.append(
+                        {
+                            "role": "system",
+                            "content": mem.get("fact", ""),
+                            "timestamp": mem.get("created_at", ""),
+                            "session_id": "undefined_global",
+                            "uuid": mem.get("uuid", ""),
+                            "tags": mem.get("tags", []),
+                            "source": "undefined",
+                            "memory_type": "fact",
+                        }
+                    )
 
             # 4. 如果有记忆引擎，添加潮汐记忆
-            if self.memory_system and hasattr(self.memory_system, 'memory_engine'):
+            if self.memory_system and hasattr(self.memory_system, "memory_engine"):
                 try:
                     engine = await self.memory_system.get_memory_engine()
-                    if engine and hasattr(engine, 'retrieve_tide'):
+                    if engine and hasattr(engine, "retrieve_tide"):
                         # 尝试获取最近的潮汐记忆
                         tide_memory = engine.retrieve_tide(user_id)
                         if tide_memory:
-                            cross_platform_memories.append({
-                                'role': 'system',
-                                'content': tide_memory.get('content', ''),
-                                'timestamp': tide_memory.get('timestamp', ''),
-                                'session_id': 'tide_memory',
-                                'source': 'tide',
-                                'memory_type': 'tide'
-                            })
+                            cross_platform_memories.append(
+                                {
+                                    "role": "system",
+                                    "content": tide_memory.get("content", ""),
+                                    "timestamp": tide_memory.get("timestamp", ""),
+                                    "session_id": "tide_memory",
+                                    "source": "tide",
+                                    "memory_type": "tide",
+                                }
+                            )
                             logger.debug("[MemoryNet] 已添加潮汐记忆")
                 except Exception as e:
                     logger.debug(f"[MemoryNet] 获取潮汐记忆失败: {e}")
 
-            logger.info(f"[MemoryNet] 跨平台记忆整合: {len(cross_platform_memories)} 条")
+            logger.info(
+                f"[MemoryNet] 跨平台记忆整合: {len(cross_platform_memories)} 条"
+            )
 
             return cross_platform_memories[:limit]
 
@@ -695,49 +722,100 @@ class MemoryNet:
                 else:
                     # 其他类型转换为字符串
                     content = str(content)
-            
+
             if not content or len(content.strip()) < 2:
                 # 空内容或过短内容，不需要提取
                 return
-            
-            # 简单规则提取（未来可使用 AI 智能提取）
+
+            # 增强版规则提取
             important_patterns = [
                 # 个人信息
-                (r'我是(.{1,10})', '用户身份'),
-                (r'我叫(.{1,10})', '用户身份'),
-                (r'我的名字是(.{1,10})', '用户身份'),
-
+                (r"我是(.{1,10})", "用户身份"),
+                (r"我叫(.{1,10})", "用户身份"),
+                (r"我的名字是(.{1,10})", "用户身份"),
                 # 偏好信息
-                (r'我喜欢(.{1,30})', '偏好'),
-                (r'我讨厌(.{1,30})', '偏好'),
-                (r'我不喜欢(.{1,30})', '偏好'),
-
+                (r"我喜欢(.{1,30})", "偏好"),
+                (r"我讨厌(.{1,30})", "偏好"),
+                (r"我不喜欢(.{1,30})", "偏好"),
                 # 重要事项
-                (r'记住(.{1,50})', '重要事项'),
-                (r'别忘了(.{1,50})', '重要事项'),
-                (r'下次(.{1,50})', '重要事项'),
-
+                (r"记住(.{1,50})", "重要事项"),
+                (r"别忘了(.{1,50})", "重要事项"),
+                (r"下次(.{1,50})", "重要事项"),
+                (r"存.*记忆", "重要事项"),
+                (r"记下来", "重要事项"),
                 # 工作/学习信息
-                (r'我在(.{1,30})工作', '工作'),
-                (r'我是(.{1,20})学生', '学生身份'),
-                (r'我在学习(.{1,20})', '学习'),
-
+                (r"我在(.{1,30})工作", "工作"),
+                (r"我是(.{1,20})学生", "学生身份"),
+                (r"我在学习(.{1,20})", "学习"),
                 # 联系信息（脱敏）
-                (r'我的电话是(.{11})', '联系方式'),
-                (r'我的邮箱是([^\s]+)', '联系方式'),
+                (r"我的电话是(.{11})", "联系方式"),
+                (r"我的邮箱是([^\s]+)", "联系方式"),
             ]
 
+            # 日期相关模式（新增）
+            date_patterns = [
+                # 完整日期：2005年3月20日
+                (r"(\d{4}年\d{1,2}月\d{1,2}日)", "日期"),
+                # 月日：3月20日、12月25日
+                (r"(\d{1,2}月\d{1,2}日)", "日期"),
+                # 带年份缩写：05年3月20日
+                (r"(\d{2}年\d{1,2}月\d{1,2}日)", "日期"),
+            ]
+
+            # 事件标记词（新增）
+            event_keywords = [
+                "生日",
+                "纪念日",
+                "节日",
+                "开学",
+                "放假",
+                "毕业",
+                "考试",
+                "补课",
+                "晚自习",
+                "周末",
+                "假期",
+            ]
+            for kw in event_keywords:
+                important_patterns.append((rf"{kw}", f"事件-{kw}"))
+
             import re
+
             extracted_count = 0
 
+            # 提取规则模式
             for pattern, tag in important_patterns:
                 matches = re.findall(pattern, content)
                 for match in matches:
                     fact = match.strip()
-                    if len(fact) > 1:  # 过滤过短的内容
-                        await self.undefined_memory.add(fact, tags=[tag, 'auto_extracted'])
+                    if len(fact) > 1:
+                        await self.undefined_memory.add(
+                            fact, tags=[tag, "auto_extracted"]
+                        )
                         extracted_count += 1
                         logger.info(f"[MemoryNet] 自动提取记忆: {tag} - {fact}")
+
+            # 提取日期模式
+            for pattern, tag in date_patterns:
+                matches = re.findall(pattern, content)
+                for match in matches:
+                    # 检查是否是生日相关
+                    is_birthday = "生日" in content or "出生" in content
+                    fact_tag = "生日" if is_birthday else tag
+
+                    # 提取完整事实
+                    fact = match
+                    if is_birthday:
+                        # 尝试提取更多上下文
+                        date_match = re.search(rf"({pattern}).*?(生日|出生)", content)
+                        if date_match:
+                            fact = date_match.group(0)
+
+                    await self.undefined_memory.add(
+                        fact, tags=[fact_tag, "auto_extracted", "日期记忆"]
+                    )
+                    extracted_count += 1
+                    logger.info(f"[MemoryNet] 自动提取日期: {fact_tag} - {fact}")
 
             if extracted_count > 0:
                 logger.info(f"[MemoryNet] 自动提取了 {extracted_count} 条重要信息")
@@ -747,7 +825,9 @@ class MemoryNet:
 
     # ==================== 潮汐记忆/知识图谱集成 ====================
 
-    async def store_to_memory_engine(self, memory_data: Dict, memory_type: str = 'tide'):
+    async def store_to_memory_engine(
+        self, memory_data: Dict, memory_type: str = "tide"
+    ):
         """
         存储到 MemoryEngine（潮汐记忆/知识图谱）
 
@@ -765,30 +845,32 @@ class MemoryNet:
                 logger.warning("[MemoryNet] MemoryEngine 不可用")
                 return
 
-            if memory_type == 'tide':
+            if memory_type == "tide":
                 # 存储到潮汐记忆
-                memory_id = memory_data.get('memory_id', f"auto_{datetime.now().timestamp()}")
-                content = memory_data.get('content', '')
-                priority = memory_data.get('priority', 0.5)
-                ttl = memory_data.get('ttl', 3600)
+                memory_id = memory_data.get(
+                    "memory_id", f"auto_{datetime.now().timestamp()}"
+                )
+                content = memory_data.get("content", "")
+                priority = memory_data.get("priority", 0.5)
+                ttl = memory_data.get("ttl", 3600)
 
                 engine.store_tide(
                     memory_id=memory_id,
-                    content={'content': content, **memory_data.get('metadata', {})},
+                    content={"content": content, **memory_data.get("metadata", {})},
                     priority=priority,
-                    ttl=ttl
+                    ttl=ttl,
                 )
                 logger.info(f"[MemoryNet] 已存储潮汐记忆: {memory_id}")
 
-            elif memory_type == 'graph':
+            elif memory_type == "graph":
                 # 存储到知识图谱（Neo4j）
                 if self.memory_system.neo4j_client:
                     neo4j = self.memory_system.neo4j_client
-                    subject = memory_data.get('subject')
-                    predicate = memory_data.get('predicate')
-                    obj = memory_data.get('object')
-                    context = memory_data.get('context', '')
-                    emotion = memory_data.get('emotion', 'neutral')
+                    subject = memory_data.get("subject")
+                    predicate = memory_data.get("predicate")
+                    obj = memory_data.get("object")
+                    context = memory_data.get("context", "")
+                    emotion = memory_data.get("emotion", "neutral")
 
                     if all([subject, predicate, obj]):
                         rel_id = neo4j.create_memory_quintuple(
@@ -799,8 +881,9 @@ class MemoryNet:
         except Exception as e:
             logger.error(f"[MemoryNet] 存储到 MemoryEngine 失败: {e}")
 
-    async def retrieve_from_memory_engine(self, memory_type: str = 'tide',
-                                       query: str = None) -> List[Dict]:
+    async def retrieve_from_memory_engine(
+        self, memory_type: str = "tide", query: str = None
+    ) -> List[Dict]:
         """
         从 MemoryEngine 检索记忆
 
@@ -821,37 +904,43 @@ class MemoryNet:
 
             results = []
 
-            if memory_type == 'tide':
+            if memory_type == "tide":
                 # 检索潮汐记忆
                 if query and isinstance(query, str):
                     memory = engine.retrieve_tide(query)
                     if memory:
-                        results.append({
-                            'type': 'tide',
-                            'memory_id': query,
-                            'content': memory,
-                            'source': 'memory_engine'
-                        })
+                        results.append(
+                            {
+                                "type": "tide",
+                                "memory_id": query,
+                                "content": memory,
+                                "source": "memory_engine",
+                            }
+                        )
                 else:
                     # 获取所有潮汐记忆（通过优先级队列）
                     # 注意：这里简化处理，实际应该按优先级返回
                     logger.warning("[MemoryNet] 检索潮汐记忆需要 memory_id")
 
-            elif memory_type == 'graph':
+            elif memory_type == "graph":
                 # 检索知识图谱
                 if query and isinstance(query, str):
                     # 按情绪检索
-                    memories = self.memory_system.neo4j_client.query_memory_by_emotion(query)
+                    memories = self.memory_system.neo4j_client.query_memory_by_emotion(
+                        query
+                    )
                     for mem in memories:
-                        results.append({
-                            'type': 'graph',
-                            'subject': mem['subject'],
-                            'predicate': mem['predicate'],
-                            'object': mem['object'],
-                            'context': mem['context'],
-                            'emotion': mem['emotion'],
-                            'source': 'neo4j'
-                        })
+                        results.append(
+                            {
+                                "type": "graph",
+                                "subject": mem["subject"],
+                                "predicate": mem["predicate"],
+                                "object": mem["object"],
+                                "context": mem["context"],
+                                "emotion": mem["emotion"],
+                                "source": "neo4j",
+                            }
+                        )
 
             return results
 
@@ -859,8 +948,9 @@ class MemoryNet:
             logger.error(f"[MemoryNet] 从 MemoryEngine 检索失败: {e}")
             return []
 
-    async def compress_conversation_to_tide(self, session_id: str, 
-                                         recent_count: int = 10):
+    async def compress_conversation_to_tide(
+        self, session_id: str, recent_count: int = 10
+    ):
         """
         将对话历史压缩为潮汐记忆
 
@@ -873,7 +963,9 @@ class MemoryNet:
                 return
 
             # 获取对话历史
-            messages = await self.conversation_history.get_history(session_id, limit=100)
+            messages = await self.conversation_history.get_history(
+                session_id, limit=100
+            )
 
             if len(messages) <= recent_count:
                 return  # 对话不够长，无需压缩
@@ -886,26 +978,32 @@ class MemoryNet:
 
             # 生成摘要
             import json
+
             summary = self._generate_conversation_summary(old_messages)
 
             # 存储到潮汐记忆
             memory_id = f"{session_id}_{int(datetime.now().timestamp())}"
-            await self.store_to_memory_engine({
-                'memory_id': memory_id,
-                'content': summary,
-                'metadata': {
-                    'session_id': session_id,
-                    'original_count': len(old_messages),
-                    'compression_time': datetime.now().isoformat()
+            await self.store_to_memory_engine(
+                {
+                    "memory_id": memory_id,
+                    "content": summary,
+                    "metadata": {
+                        "session_id": session_id,
+                        "original_count": len(old_messages),
+                        "compression_time": datetime.now().isoformat(),
+                    },
+                    "priority": 0.3,  # 压缩记忆优先级较低
+                    "ttl": 7200,  # 2小时TTL
                 },
-                'priority': 0.3,  # 压缩记忆优先级较低
-                'ttl': 7200  # 2小时TTL
-            }, memory_type='tide')
+                memory_type="tide",
+            )
 
             # 更新对话历史（只保留最近的）
             # 注意：这里需要实现一个截断方法
-            logger.info(f"[MemoryNet] 已压缩对话 {session_id}: "
-                       f"{len(old_messages)} 条 -> 1 条摘要")
+            logger.info(
+                f"[MemoryNet] 已压缩对话 {session_id}: "
+                f"{len(old_messages)} 条 -> 1 条摘要"
+            )
 
         except Exception as e:
             logger.error(f"[MemoryNet] 压缩对话失败: {e}")
@@ -925,7 +1023,7 @@ class MemoryNet:
             summary_parts = []
 
             for msg in messages[:20]:  # 最多分析前20条
-                if msg.role == 'user' and len(msg.content) > 10:
+                if msg.role == "user" and len(msg.content) > 10:
                     summary_parts.append(f"用户说: {msg.content[:50]}")
 
             return "\n".join(summary_parts) if summary_parts else "对话历史"
@@ -933,5 +1031,3 @@ class MemoryNet:
         except Exception as e:
             logger.error(f"[MemoryNet] 生成对话摘要失败: {e}")
             return "对话历史"
-
-

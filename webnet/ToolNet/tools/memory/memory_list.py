@@ -3,6 +3,7 @@
 
 本工具整合 Undefined 记忆系统和弥娅原生记忆系统
 """
+
 from typing import Dict, Any
 import logging
 from webnet.ToolNet.base import BaseTool, ToolContext
@@ -27,21 +28,18 @@ class MemoryList(BaseTool):
                         "description": "返回的最大数量，默认10",
                         "default": 10,
                         "minimum": 1,
-                        "maximum": 50
+                        "maximum": 50,
                     },
-                    "tag": {
-                        "type": "string",
-                        "description": "按标签筛选记忆"
-                    },
+                    "tag": {"type": "string", "description": "按标签筛选记忆"},
                     "memory_type": {
                         "type": "string",
                         "description": "记忆类型：auto(自动选择), undefined(Undefined轻量记忆), cognitive(认知记忆), tide(潮汐记忆)",
                         "enum": ["auto", "undefined", "cognitive", "tide"],
-                        "default": "auto"
-                    }
+                        "default": "auto",
+                    },
                 },
-                "required": []
-            }
+                "required": [],
+            },
         }
 
     async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
@@ -51,9 +49,10 @@ class MemoryList(BaseTool):
         memory_type = args.get("memory_type", "auto")
 
         # 优先级 1: Undefined 轻量记忆系统
-        if memory_type in ['auto', 'undefined']:
+        if memory_type in ["auto", "undefined"]:
             try:
                 from memory.undefined_memory import get_undefined_memory_adapter
+
                 adapter = get_undefined_memory_adapter()
 
                 if tag:
@@ -66,7 +65,9 @@ class MemoryList(BaseTool):
 
                 result = f"📚 记忆列表（Undefined轻量记忆）\n共 {len(memories)} 条\n\n"
                 for i, mem in enumerate(memories, 1):
-                    content_preview = mem.fact[:100] + "..." if len(mem.fact) > 100 else mem.fact
+                    content_preview = (
+                        mem.fact[:100] + "..." if len(mem.fact) > 100 else mem.fact
+                    )
                     tags_str = ", ".join(mem.tags) if mem.tags else "无"
                     result += f"{i}. **{mem.uuid}**\n"
                     result += f"   时间: {mem.created_at}\n"
@@ -80,14 +81,12 @@ class MemoryList(BaseTool):
                 logger.error(f"调用 Undefined 记忆系统失败: {e}", exc_info=True)
 
         # 优先级 2: 认知记忆系统
-        if memory_type in ['auto', 'cognitive']:
-            cognitive_memory = getattr(context, 'cognitive_memory', None)
+        if memory_type in ["auto", "cognitive"]:
+            cognitive_memory = getattr(context, "cognitive_memory", None)
             if cognitive_memory:
                 try:
                     results = await cognitive_memory.search(
-                        query=tag if tag else "",
-                        limit=limit,
-                        memory_type="pinned"
+                        query=tag if tag else "", top_k=limit
                     )
 
                     if not results:
@@ -95,10 +94,14 @@ class MemoryList(BaseTool):
 
                     result = f"📚 记忆列表（认知记忆系统）\n共 {len(results)} 条\n\n"
                     for i, mem in enumerate(results, 1):
-                        content_preview = mem.get('content', '')[:100] + "..." if len(mem.get('content', '')) > 100 else mem.get('content', '')
+                        content_preview = (
+                            mem.get("content", "")[:100] + "..."
+                            if len(mem.get("content", "")) > 100
+                            else mem.get("content", "")
+                        )
                         result += f"{i}. **{mem.get('id', 'unknown')}**\n"
                         result += f"   内容: {content_preview}\n"
-                        tags = mem.get('tags', [])
+                        tags = mem.get("tags", [])
                         tag_str = ", ".join(tags) if tags else "无"
                         result += f"   标签: {tag_str}\n\n"
 
@@ -117,19 +120,27 @@ class MemoryList(BaseTool):
 
                 memory_list = []
                 for memory_id, content in memories.items():
-                    memory_data = content if isinstance(content, dict) else {'content': str(content)}
+                    memory_data = (
+                        content
+                        if isinstance(content, dict)
+                        else {"content": str(content)}
+                    )
 
                     if tag:
-                        memory_tags = memory_data.get('tags', [])
-                        if tag not in memory_tags and f"tag:{tag}" not in str(memory_tags):
+                        memory_tags = memory_data.get("tags", [])
+                        if tag not in memory_tags and f"tag:{tag}" not in str(
+                            memory_tags
+                        ):
                             continue
 
-                    memory_list.append({
-                        'id': memory_id,
-                        'content': memory_data.get('content', str(content)),
-                        'tags': memory_data.get('tags', []),
-                        'type': memory_data.get('type', 'unknown')
-                    })
+                    memory_list.append(
+                        {
+                            "id": memory_id,
+                            "content": memory_data.get("content", str(content)),
+                            "tags": memory_data.get("tags", []),
+                            "type": memory_data.get("type", "unknown"),
+                        }
+                    )
 
                 memory_list = memory_list[:limit]
 
@@ -138,8 +149,12 @@ class MemoryList(BaseTool):
 
                 result = f"📚 记忆列表（记忆引擎）\n共 {len(memory_list)} 条\n\n"
                 for i, mem in enumerate(memory_list, 1):
-                    tags_str = ", ".join(mem['tags']) if mem['tags'] else "无"
-                    content_preview = mem['content'][:100] + "..." if len(mem['content']) > 100 else mem['content']
+                    tags_str = ", ".join(mem["tags"]) if mem["tags"] else "无"
+                    content_preview = (
+                        mem["content"][:100] + "..."
+                        if len(mem["content"]) > 100
+                        else mem["content"]
+                    )
                     result += f"{i}. **{mem['id']}**\n"
                     result += f"   内容: {content_preview}\n"
                     result += f"   标签: {tags_str}\n\n"

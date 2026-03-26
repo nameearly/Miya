@@ -3,6 +3,8 @@
 
 此工具由弥娅自动调用，用于从对话中提取重要信息并存储为长期记忆
 """
+
+import asyncio
 from typing import Dict, Any
 import logging
 from webnet.ToolNet.base import BaseTool, ToolContext
@@ -35,25 +37,23 @@ class AutoExtractMemory(BaseTool):
                 "properties": {
                     "fact": {
                         "type": "string",
-                        "description": "需要记住的事实或信息，准确描述用户分享的内容。例如：'用户喜欢青色'、'用户生日是2000年1月1日'、'用户计划下周去旅游'"
+                        "description": "需要记住的事实或信息，准确描述用户分享的内容。例如：'用户喜欢青色'、'用户生日是2000年1月1日'、'用户计划下周去旅游'",
                     },
                     "tags": {
                         "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "description": "标签列表，用于分类和检索。例如：['喜好', '颜色']、['个人信息', '生日']、['计划', '旅游']"
+                        "items": {"type": "string"},
+                        "description": "标签列表，用于分类和检索。例如：['喜好', '颜色']、['个人信息', '生日']、['计划', '旅游']",
                     },
                     "importance": {
                         "type": "number",
                         "description": "重要性评分（0-1），默认0.7。个人信息和明确要求的记忆应设为0.9，一般喜好设为0.7，次要信息设为0.5",
                         "default": 0.7,
                         "minimum": 0,
-                        "maximum": 1
-                    }
+                        "maximum": 1,
+                    },
                 },
-                "required": ["fact", "tags"]
-            }
+                "required": ["fact", "tags"],
+            },
         }
 
     async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
@@ -66,20 +66,68 @@ class AutoExtractMemory(BaseTool):
             return "❌ 缺少必须的参数：fact（事实内容）"
 
         if not tags:
-            return "⚠️ 建议提供标签以便后续检索，但已使用默认标签 ['通用']"
-            tags = ['通用']
+            tags = ["通用"]
 
         try:
-            # 优先使用 Undefined 轻量记忆系统
+            # 方法1: 写入统一记忆系统（会触发自动分类）
+            try:
+                from memory.unified_memory import (
+                    get_unified_memory,
+                    init_unified_memory,
+                    MemoryCategory,
+                )
+
+                unified = get_unified_memory("data/memory")
+                await init_unified_memory("data/memory")
+
+                priority = importance
+                # 使用 IMPORTANT 分类，不要传 None 否则会被覆盖
+                category = (
+                    MemoryCategory.IMPORTANT
+                    if importance >= 0.8
+                    else MemoryCategory.EMOTION
+                )
+
+                add_method = getattr(unified, "add_short_term", None)
+                if add_method and asyncio.iscoroutinefunction(add_method):
+                    memory_id = await add_method(
+                        content=fact,
+                        user_id=str(context.user_id) if context.user_id else "unknown",
+                        group_id=str(context.group_id) if context.group_id else "",
+                        priority=priority,
+                        tags=tags,
+                        metadata={
+                            "source": "auto_extract_tool",
+                            "importance": importance,
+                        },
+                        category=category,
+                    )
+                    logger.info(
+                        f"[AutoExtractMemory] 已存储到统一记忆系统: {memory_id}, category={category.value}"
+                    )
+
+                    cat_names = {
+                        MemoryCategory.EMOTION: "情感类",
+                        MemoryCategory.IMPORTANT: "重要记录",
+                        MemoryCategory.CHAT: "闲聊类",
+                        MemoryCategory.DAILY: "日常类",
+                        MemoryCategory.TASK: "任务类",
+                        MemoryCategory.KNOWLEDGE: "知识类",
+                    }
+                    return f"✅ 已记住：{fact}\n   标签: {', '.join(tags)}\n   分类: {cat_names.get(category, '未分类')}"
+
+            except ImportError:
+                logger.debug("统一记忆系统不可用")
+            except Exception as e:
+                logger.warning(f"统一记忆系统存储失败: {e}")
+
+            # 方法2: 写入 Undefined 轻量记忆系统
             try:
                 from memory.undefined_memory import get_undefined_memory_adapter
+
                 adapter = get_undefined_memory_adapter()
 
-                await adapter.create(
-                    fact=fact,
-                    tags=tags,
-                    importance=importance
-                )
+                memory_id = await adapter.add(fact=fact, tags=tags)
 
                 result = f"✅ 已记住：{fact}\n"
                 result += f"   标签: {', '.join(tags)}\n"
@@ -87,28 +135,27 @@ class AutoExtractMemory(BaseTool):
                 return result
 
             except ImportError:
-                logger.debug("Undefined 记忆系统不可用，尝试其他记忆系统")
+                logger.debug("Undefined 记忆系统不可用")
             except Exception as e:
                 logger.error(f"调用 Undefined 记忆系统失败: {e}", exc_info=True)
 
             # 回退到记忆引擎
             memory_engine = context.memory_engine
-            if memory_engine and hasattr(memory_engine, 'store_dream'):
+            if memory_engine and hasattr(memory_engine, "store_dream"):
                 memory_id = f"memory_{datetime.now().timestamp()}"
                 memory_engine.store_dream(
                     memory_id,
                     {
-                        'content': fact,
-                        'tags': tags,
-                        'importance': importance,
-                        'type': 'long_term',
-                        'timestamp': datetime.now().isoformat()
-                    }
+                        "content": fact,
+                        "tags": tags,
+                        "importance": importance,
+                        "type": "long_term",
+                        "timestamp": datetime.now().isoformat(),
+                    },
                 )
 
                 return f"✅ 已记住（记忆引擎）：{fact}\n标签: {', '.join(tags)}"
 
-            # 都不可用
             return "⚠️ 记忆系统未初始化，无法保存长期记忆"
 
         except Exception as e:
