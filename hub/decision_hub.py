@@ -36,6 +36,7 @@ from hub.memory_manager import MemoryManager
 from hub.conversation_context import ConversationContextManager
 from hub.platform_tools import PlatformToolsManager
 from hub.session_handler import SessionHandler
+from core.personality import Personality
 
 
 logger = logging.getLogger(__name__)
@@ -337,8 +338,20 @@ class DecisionHub:
         content = perception.get("content", "")
         sender_name = perception.get("sender_name", "用户")
         message_type = perception.get("message_type", "")
+        platform = perception.get("source", "qq")
 
         logger.info(f"[决策层] 收到感知数据: {sender_name} - {content[:50]}")
+
+        # 【新增】在最开始拦截快捷命令
+        logger.warning(
+            f"[决策层] ========== 命令检测 START ========== content={content[:30]}, personality={type(self.personality) if self.personality else None}"
+        )
+        quick_response = self._handle_quick_commands(content, platform)
+        if quick_response:
+            logger.warning(
+                f"[决策层] ========== 快捷命令拦截成功 ========== {content[:20]} -> {quick_response[:50]}"
+            )
+            return quick_response
 
         # 【新增】群聊关键词触发检测（不@也能回复）
         group_id = perception.get("group_id", 0)
@@ -425,330 +438,25 @@ class DecisionHub:
             await self.memory_manager.store_user_message(perception)
 
         # 6. 生成响应（委托给响应生成器）
-        response = await self._generate_response(perception)
-
-        # 7. 存储 AI 响应（委托给记忆管理器）
-        if not game_mode and response:
-            await self.memory_manager.store_assistant_response(perception, response)
-
-        return response
-
-    def _get_chat_id(self, perception: dict) -> str:
-        """
-        获取聊天ID（群号或用户号）
-        """
-        group_id = perception.get("group_id")
-        user_id = perception.get("user_id")
-        return str(group_id or user_id)
-
-    async def _generate_response(self, perception: dict) -> str:
-        """
-        生成响应（原有QQ专用逻辑，保持兼容）
-
-        Args:
-            perception: 感知数据
-
-        Returns:
-            响应文本
-        """
-        # 简化实现，调用新的跨平台方法
-        return await self._generate_response_cross_platform(
-            content=perception.get("content", ""), platform="qq", context=perception
+        content = perception.get("content", "")
+        response = await self._generate_response_cross_platform(
+            content, platform, perception
         )
 
-    async def _fallback_response(self, content: str, sender_name: str) -> str:
-        """降级回复"""
-        return await self._fallback_response_cross_platform(content, sender_name, "qq")
-
-    # ========== 跨平台统一交互支持 ==========
-
-    async def process_perception_cross_platform(
-        self, message: Message
-    ) -> Optional[str]:
-        """
-        处理跨平台感知数据（新增：支持Terminal、PC UI、QQ）
-
-        统一处理流程：
-        1. 提取平台信息
-        2. 更新情绪状态
-        3. 存储统一记忆
-        4. 生成响应（AI + 人格 + 情绪）
-        5. 情绪染色与衰减
-        6. 返回响应
-
-        Args:
-            message: M-Link 消息（包含感知数据）
-
-        Returns:
-            响应文本
-        """
-        perception = message.content
-
-        # 提取平台信息
-        platform = perception.get("platform", "terminal")
-        logger.info(f"[决策层-跨平台] 收到 {platform} 平台的感知数据")
-
-        # 提取内容（兼容不同平台）
-        content = perception.get("content", "") or perception.get("input", "")
-        user_id = perception.get("user_id", "unknown")
-        sender_name = perception.get("sender_name", "用户")
-
-        # 【新增】权限检查（如果AuthNet可用）
-        # 跳过终端代理和桌面端的权限检查（来自受信任的客户端）
-        is_terminal_agent = perception.get("is_terminal_agent", False)
-
-        # 桌面端用户自动获得权限
-        is_desktop = platform == "desktop" or (
-            user_id and user_id.startswith("desktop_")
-        )
-
-        if self.auth_subnet and not is_terminal_agent and not is_desktop:
-            try:
-                # 检查用户是否有基础访问权限
-                from webnet.AuthNet.permission_core import PermissionCore
-
-                perm_core = PermissionCore()
-
-                # 生成统一的用户ID格式（避免重复添加前缀）
-                # 如果 user_id 已经包含平台前缀（如 qq_1523878699），则直接使用
-                if "_" in user_id and any(
-                    user_id.startswith(p + "_")
-                    for p in ["qq", "terminal", "web", "desktop"]
-                ):
-                    unified_user_id = user_id
-                else:
-                    unified_user_id = f"{platform}_{user_id}"
-
-                # 检查基础权限
-                has_permission = perm_core.check_permission(
-                    unified_user_id, "api.access"
-                )
-
-                if not has_permission:
-                    logger.warning(f"[决策层-跨平台] 用户 {unified_user_id} 无权限访问")
-                    # 权限检查失败时，允许继续（降级处理），不直接拒绝
-                    logger.warning(f"[决策层-跨平台] 允许继续执行，不阻断用户请求")
-
-                logger.debug(f"[决策层-跨平台] 用户 {unified_user_id} 权限检查通过")
-
-            except Exception as e:
-                logger.error(f"[决策层-跨平台] 权限检查失败: {e}")
-                # 权限检查失败时，允许继续（降级处理）
-        elif is_desktop:
-            logger.debug(f"[决策层-跨平台] 桌面端用户 {user_id} 跳过权限检查")
-
-        logger.info(f"[决策层-跨平台] {sender_name} - {content[:50]}")
-
-        # 【新增】群聊关键词触发检测（不@也能回复）
-        group_id = perception.get("group_id", 0)
-        is_at_bot = perception.get("is_at_bot", False)
-
-        # 群聊关键词列表：叫弥娅名字/亲昵称呼时触发回复
-        auto_respond_keywords = [
-            "弥娅",
-            "miya",
-            "Miya",
-            "亲爱的",
-            "亲爱",
-            "老婆",
-        ]
-
-        # 如果是群聊且没有@bot，检查是否包含关键词
-        if group_id and group_id != 0 and not is_at_bot:
-            content_lower = content.lower()
-            matched_keywords = [
-                kw for kw in auto_respond_keywords if kw.lower() in content_lower
-            ]
-
-            if matched_keywords:
-                logger.info(
-                    f"[决策层-跨平台] 群聊关键词触发回复: 匹配到 {matched_keywords}"
-                )
-                # 标记为需要响应，让后续流程继续处理
-                perception["force_respond"] = True
-            else:
-                logger.debug(
-                    f"[决策层-跨平台] 群聊消息无关键词触发，跳过: {content[:30]}"
-                )
-                # 静默跳过，不返回响应
-                return None
-
-        # 【新增】会话保存触发条件检测
-        session_id = f"{platform}_{user_id}"
-
-        # 1. 检测是否触发保存（再见/晚安等关键词）
-        if self.session_manager and self.session_manager.should_save_on_message(
-            content, platform
-        ):
-            logger.info(f"[决策层-跨平台] 检测到保存触发关键词: {content[:30]}")
-            # 获取对话历史并保存
-            messages = await self.session_manager.get_conversation_messages(
-                session_id=session_id, platform=platform, limit=50
-            )
-            if messages:
-                category = self.session_manager.platform_category_map.get(
-                    platform, SessionCategory.ACTIVITY
-                )
-
-                # 如果是"记日记"关键词，标记为日记
-                is_diary = self.session_manager.should_save_diary(content)
-
-                # 检查消息中是否包含日记内容（"记录今天..."）
-                diary_content = None
-                if is_diary:
-                    # 提取日记内容（从关键词后开始）
-                    diary_content = ""
-                    for kw in ["记录今天", "记录一下", "记日记", "写日记"]:
-                        if kw in content:
-                            idx = content.find(kw) + len(kw)
-                            diary_content = content[idx:].strip()
-                            break
-
-                save_result = await self.session_manager.save_session(
-                    session_id=session_id,
-                    platform=platform,
-                    messages=messages,
-                    category=category,
-                    is_diary=is_diary,
-                    diary_content=diary_content if diary_content else "",
-                )
-
-                if save_result.get("success"):
-                    logger.info(
-                        f"[决策层-跨平台] 会话已保存: {save_result.get('title')}"
-                    )
-
-                    # 根据保存类型返回不同的响应
-                    if is_diary:
-                        response = (
-                            "好的，你的日记已经帮你记录下来了哦~ 这是一段珍贵的记忆呢！"
-                        )
-                    else:
-                        response = "好的，我们的对话已经保存了。下次再见时我会记得我们的对话内容的~ 晚安！"
-
-                    response = self.emotion.influence_response(response)
-                    self.emotion.decay_coloring()
-                    return response
-
-        # 2. 更新会话活动时间
-        if self.session_manager:
-            self.session_manager.update_activity(session_id)
-
-            # 3. 检查超时自动保存
-            if self.session_manager.check_timeout_save(session_id):
-                logger.info(f"[决策层-跨平台] 检测到会话超时: {session_id}")
-                messages = await self.session_manager.get_conversation_messages(
-                    session_id=session_id, platform=platform, limit=50
-                )
-                if messages:
-                    category = self.session_manager.platform_category_map.get(
-                        platform, SessionCategory.ACTIVITY
-                    )
-                    await self.session_manager.save_session(
-                        session_id=session_id,
-                        platform=platform,
-                        messages=messages,
-                        category=category,
-                    )
-                    logger.info(f"[决策层-跨平台] 超时会话已自动保存")
-
-        # 【优化】检测是否使用高级编排器（委托给感知处理器）
-        try:
-            use_advanced = self.perception_handler.should_use_advanced_orchestration(
-                content
-            )
-        except AttributeError:
-            use_advanced = False
-
-        if use_advanced:
-            logger.info(f"[决策层-跨平台] 检测到复杂任务，启动高级编排器")
-            response = await self.process_complex_task(goal=content, context=perception)
-            # 情绪染色和衰减（委托给情绪控制器）
-            if response:
-                response = self.emotion_controller.influence_response(response)
-            self.emotion_controller.decay_coloring()
-            return response
-
-        # 【优化】处理确认/取消命令（委托给感知处理器）
-        try:
-            confirm_result = await self.perception_handler.handle_confirm_cancel(
-                perception
-            )
-        except AttributeError:
-            confirm_result = None
-
-        if confirm_result:
-            response = self.emotion_controller.influence_response(confirm_result)
-            self.emotion_controller.decay_coloring()
-            return response
-
-        # 1. 更新情绪（委托给情绪控制器）
-        self.emotion_controller.update_from_input(content)
-
-        # 【新增】检测定时任务请求
-        logger.debug(
-            f"[决策层-跨平台] 开始定时任务检测: 平台={platform}, 用户={user_id}, 内容='{content}'"
-        )
-        timer_task_result = await self._detect_and_process_timer_task(
-            perception, platform, content, user_id, sender_name
-        )
-        if timer_task_result:
-            logger.info(
-                f"[决策层-跨平台] 定时任务检测成功，返回结果: {timer_task_result[:50]}..."
-            )
-            # 情绪染色和衰减（委托给情绪控制器）
-            response = self.emotion_controller.influence_response(timer_task_result)
-            self.emotion_controller.decay_coloring()
-
-            # 存储AI回复到记忆
-            perception["response"] = response
-            await self.memory_manager.store_unified_memory(perception, "assistant")
-
-            return response
-        else:
-            logger.debug(f"[决策层-跨平台] 未检测到定时任务，继续正常处理流程")
-
-        # 【新增】检测表情包请求
-        logger.debug(
-            f"[决策层-跨平台] 开始表情包请求检测: 平台={platform}, 用户={user_id}, 内容='{content}'"
-        )
-        emoji_request_result = await self._detect_and_process_emoji_request(
-            perception, platform, content, user_id, sender_name
-        )
-        if emoji_request_result:
-            logger.info(
-                f"[决策层-跨平台] 表情包请求检测成功，返回结果: {emoji_request_result[:50]}..."
-            )
-            # 情绪染色和衰减（委托给情绪控制器）
-            response = self.emotion_controller.influence_response(emoji_request_result)
-            self.emotion_controller.decay_coloring()
-
-            # 存储AI回复到记忆
-            perception["response"] = response
-            await self.memory_manager.store_unified_memory(perception, "assistant")
-
-            return response
-        else:
-            logger.debug(f"[决策层-跨平台] 未检测到表情包请求，继续正常处理流程")
-
-        # 2. 存储用户输入到统一记忆（委托给记忆管理器）
-        await self.memory_manager.store_unified_memory(perception, "user")
-
-        # 3. 获取对话历史上下文（委托给记忆管理器）
-        session_id = f"{platform}_{user_id}"
-        conversation_context = await self.memory_manager.get_conversation_history(
-            session_id,
-            current_input=content,
-            max_tokens=self.conversation_context_max_tokens,
-        )
-
-        # 4. 生成响应（委托给响应生成器）
-        response = await self.response_generator.generate_response(
-            content=content,
-            platform=platform,
-            context=perception,
-            conversation_context=conversation_context,
-        )
+        # 【新增】QQ端状态标签（仅日志，不添加到响应中）
+        if platform == "qq" and response and self.personality:
+            profile = self.personality.get_profile()
+            current_form = profile.get("current_form", "normal")
+            speak_mode = profile.get("speak_mode", "casual")
+            form_names = {
+                "normal": "常态",
+                "cold": "冷态",
+                "soft": "软态",
+                "hard": "硬态",
+                "fragile": "脆态",
+            }
+            form_name = form_names.get(current_form, current_form)
+            logger.warning(f"[形态状态] {form_name}|{speak_mode}")
 
         # 5. 情绪染色（委托给情绪控制器）
         if response:
@@ -800,6 +508,56 @@ class DecisionHub:
         # if platform == 'terminal' and self.tool_subnet:
         #     from webnet.ToolNet.tools.terminal.terminal_command import TerminalCommandTool
         #     ... (已禁用单命令检测逻辑)
+
+        # 【新增】使用 MiyaAgentV3 处理复杂的终端任务（带安全检查和防重复调用）
+        # 使用类属性来跟踪调用状态，防止递归
+        if (
+            platform == "terminal"
+            and self.ai_client
+            and not getattr(self, "_in_v3_execution", False)
+        ):
+            think_keywords = [
+                "打开",
+                "运行",
+                "执行",
+                "创建",
+                "删除",
+                "查看",
+                "启动",
+                "安装",
+                "卸载",
+                "配置",
+                "帮我",
+                "请",
+                "能不能",
+            ]
+            use_v3 = any(kw in content for kw in think_keywords)
+
+            if use_v3:
+                try:
+                    # 设置防重复调用标志
+                    self._in_v3_execution = True
+
+                    # 延迟导入避免启动时问题
+                    from core.miya_agent_v3 import create_agent_v3
+                    from core.terminal_ultra import get_terminal_ultra
+
+                    # 确保 TerminalUltra 已初始化
+                    terminal = get_terminal_ultra()
+
+                    # 创建 V3 代理实例（限制步数防止长时间运行）
+                    agent_v3 = create_agent_v3(max_steps=2)
+                    logger.info("[决策层] 使用 V3 代理处理终端任务")
+                    result = await agent_v3.run(content, self.ai_client)
+
+                    # 清除标志
+                    self._in_v3_execution = False
+                    return result
+                except Exception as e:
+                    # 清除标志
+                    self._in_v3_execution = False
+                    logger.warning(f"V3代理失败: {e}，回退到普通模式")
+                    # 静默回退，不影响正常流程
 
         try:
             # 构建系统提示词（包含平台信息）
@@ -1038,18 +796,55 @@ class DecisionHub:
         elif "你是谁" in content or "介绍一下" in content:
             return f"我是{name}，一个具备人格恒定、自我感知、记忆成长、情绪共生的数字生命伴侣。我的主导特质是同理心({empathy:.2f})和温暖度({warmth:.2f})。"
 
-        elif "状态" in content:
+        elif "状态" in content or "查看状态" in content:
             emotion_state = self.emotion.get_emotion_state()
+            existential_state = (
+                self.emotion.get_existential_state()
+                if hasattr(self.emotion, "get_existential_state")
+                else {}
+            )
             memory_stats = (
                 self.memory_engine.get_memory_stats() if self.memory_engine else {}
             )
-            return (
-                f"当前状态:\n"
-                f"  情绪: {emotion_state['dominant']} (强度: {emotion_state['intensity']:.2f})\n"
-                f"  记忆数量: {memory_stats.get('tide_count', 0)}\n"
-                f"  形态: {personality_profile['state']}\n"
-                f"  平台: {platform}"
-            )
+            profile = self.personality.get_profile()
+
+            # 构建状态信息
+            lines = [
+                f"【{name}状态】",
+                f"形态: {profile.get('current_form', 'normal')} ({profile.get('form_info', {}).get('name', '常态')})",
+                f"情绪: {emotion_state['dominant']} (强度: {emotion_state['intensity']:.2f})",
+                f"记忆: {memory_stats.get('tide_count', 0)}条",
+            ]
+
+            # 添加核心特质（如果有七重特质系统）
+            if "vectors" in profile and "awake" in profile["vectors"]:
+                lines.append("")
+                lines.append("【七重特质】")
+                lines.append(f"  清醒: {profile['vectors'].get('awake', 0):.2f}")
+                lines.append(
+                    f"  说话: {profile['vectors'].get('speak', 0):.2f} [{profile.get('speak_mode', 'casual')}]"
+                )
+                lines.append(f"  记住: {profile['vectors'].get('remember', 0):.2f}")
+                lines.append(f"  等: {profile['vectors'].get('wait', 0):.2f}")
+                lines.append(f"  疼: {profile['vectors'].get('pain', 0):.2f}")
+                lines.append(f"  怕: {profile['vectors'].get('fear', 0):.2f}")
+                lines.append(f"  押: {profile['vectors'].get('commit', 0):.2f}")
+
+            # 添加核心形态（如果有）
+            if profile.get("current_core_form"):
+                lines.append(f"核心形态: {profile['current_core_form']}")
+
+            # 添加存在性情感
+            if existential_state:
+                lines.append("")
+                lines.append("【存在性情感】")
+                dom_exist = existential_state.get("dominant", "unknown")
+                lines.append(f"  主导: {dom_exist}")
+                active = existential_state.get("active")
+                if active:
+                    lines.append(f"  激活: {active}")
+
+            return "\n".join(lines)
 
         elif "开心" in content or "快乐" in content:
             self.emotion.apply_coloring("joy", 0.3)
@@ -1061,6 +856,96 @@ class DecisionHub:
 
         elif "在吗" in content:
             return "在的，有什么我可以帮助你的吗？"
+
+        # 【新增】形态切换命令
+        elif content.startswith("/形态") or content.startswith("/form"):
+            cmd = content.replace("/形态", "").replace("/form", "").strip().lower()
+            if not cmd:
+                # 显示当前形态
+                profile = self.personality.get_profile()
+                current_form = profile.get("current_form", "normal")
+                form_info = profile.get("form_info", {})
+                lines = [
+                    f"当前形态: {current_form}",
+                    f"  名称: {form_info.get('name', '常态')}",
+                    f"  描述: {form_info.get('description', '')}",
+                ]
+                if profile.get("current_core_form"):
+                    core_info = profile.get("core_form_info", {})
+                    lines.append(f"核心形态: {profile['current_core_form']}")
+                    lines.append(f"  描述: {core_info.get('description', '')}")
+                lines.append("")
+                lines.append("可用形态: normal, cold, soft, hard, fragile")
+                lines.append(
+                    "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
+                )
+                return "\n".join(lines)
+
+            # 尝试切换形态
+            if cmd in ["normal", "cold", "soft", "hard", "fragile"]:
+                success = self.personality.set_form(cmd)
+                if success:
+                    return f"已切换到形态: {cmd}"
+                return f"切换失败"
+            elif cmd in Personality.CORE_FORMS:
+                success = self.personality.set_core_form(cmd)
+                if success:
+                    return f"已切换到核心形态: {cmd}"
+                return f"切换失败"
+            return f"未知形态: {cmd}。可用: normal, cold, soft, hard, fragile 或 sober, speaking, waiting, vulnerable, afraid, committing"
+
+        # 【新增】说话模式切换
+        elif content.startswith("/说话") or content.startswith("/speak"):
+            cmd = content.replace("/说话", "").replace("/speak", "").strip().lower()
+            if not cmd:
+                current_mode = self.personality.get_speak_mode()
+                return f"当前说话模式: {current_mode} (casual闲聊/catching捕捉/confiding倾诉)"
+
+            valid_modes = ["casual", "catching", "confiding"]
+            if cmd in valid_modes:
+                success = self.personality.set_speak_mode(cmd)
+                if success:
+                    return f"已切换说话模式: {cmd}"
+                return "切换失败"
+            return f"未知模式: {cmd}。可用: casual, catching, confiding"
+
+        # 【新增】存在性情感激活命令
+        elif content.startswith("/存在") or content.startswith("/exist"):
+            cmd = content.replace("/存在", "").replace("/exist", "").strip().lower()
+            if not cmd:
+                state = (
+                    self.emotion.get_existential_state()
+                    if hasattr(self.emotion, "get_existential_state")
+                    else {}
+                )
+                if state:
+                    lines = ["【存在性情感】"]
+                    for k, v in state.get("emotions", {}).items():
+                        lines.append(f"  {k}: {v:.2f}")
+                    if state.get("active"):
+                        lines.append(f"激活: {state['active']}")
+                    return "\n".join(lines)
+                return "无存在性情感数据"
+
+            valid_exists = [
+                "existential_pain",
+                "fear_of_forgotten",
+                "waiting",
+                "commitment_weight",
+                "awareness",
+                "connection_need",
+                "vulnerability_trust",
+            ]
+            if cmd in valid_exists:
+                success = (
+                    self.emotion.activate_existential(cmd)
+                    if hasattr(self.emotion, "activate_existential")
+                    else False
+                )
+                if success:
+                    return f"已激活存在性情感: {cmd}"
+                return "激活失败"
+            return f"未知情感: {cmd}"
 
         else:
             # 智能响应 - 基于人格特质
@@ -1556,3 +1441,151 @@ class DecisionHub:
                 f"[决策层-表情包-工具] 通过工具处理表情包请求失败: {e}", exc_info=True
             )
             return f"处理表情包请求时出错：{str(e)}"
+
+    def _handle_quick_commands(self, content: str, platform: str) -> Optional[str]:
+        """
+        快速命令处理（在AI调用之前拦截）
+
+        Args:
+            content: 用户输入
+            platform: 平台类型
+
+        Returns:
+            如果是快速命令，返回响应；否则返回None让AI处理
+        """
+        if not self.personality:
+            logger.warning("[决策层] personality为空，无法处理快捷命令")
+            return None
+
+        content_lower = content.lower().strip()
+        logger.info(
+            f"[决策层] 处理命令: {content}, personality: {type(self.personality)}"
+        )
+
+        # 1. 状态查询命令
+        if content_lower in ["状态", "查看状态", "/状态", "状态查询"]:
+            logger.info(f"[决策层] 捕获状态命令: {content}")
+            profile = self.personality.get_profile()
+
+            lines = [
+                "【弥娅状态】",
+                f"形态: {profile.get('current_form', 'normal')}",
+            ]
+
+            if "vectors" in profile:
+                lines.append("【七重特质】")
+                lines.append(f"  清醒: {profile['vectors'].get('awake', 0):.2f}")
+                lines.append(
+                    f"  说话: {profile['vectors'].get('speak', 0):.2f} [{profile.get('speak_mode', 'casual')}]"
+                )
+                lines.append(f"  记住: {profile['vectors'].get('remember', 0):.2f}")
+                lines.append(f"  等: {profile['vectors'].get('wait', 0):.2f}")
+                lines.append(f"  疼: {profile['vectors'].get('pain', 0):.2f}")
+                lines.append(f"  怕: {profile['vectors'].get('fear', 0):.2f}")
+                lines.append(f"  押: {profile['vectors'].get('commit', 0):.2f}")
+
+            return "\n".join(lines)
+
+        # 2. 形态切换命令
+        if content_lower.startswith("/形态") or content_lower.startswith("/form"):
+            from core.personality import Personality
+
+            cmd = content.replace("/形态", "").replace("/form", "").strip().lower()
+            if not cmd:
+                profile = self.personality.get_profile()
+                current_form = profile.get("current_form", "normal")
+                form_info = profile.get("form_info", {})
+                lines = [
+                    f"当前形态: {current_form}",
+                    f"  名称: {form_info.get('name', '常态')}",
+                ]
+                if profile.get("current_core_form"):
+                    lines.append(f"核心形态: {profile['current_core_form']}")
+                lines.append("")
+                lines.append("可用形态: normal, cold, soft, hard, fragile")
+                lines.append(
+                    "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
+                )
+                return "\n".join(lines)
+
+            if cmd in ["normal", "cold", "soft", "hard", "fragile"]:
+                success = self.personality.set_form(cmd)
+                return f"已切换到形态: {cmd}" if success else "切换失败"
+            elif cmd in Personality.CORE_FORMS:
+                success = self.personality.set_core_form(cmd)
+                return f"已切换到核心形态: {cmd}" if success else "切换失败"
+            return f"未知形态: {cmd}"
+
+        # 3. 说话模式命令
+        if content_lower.startswith("/说话") or content_lower.startswith("/speak"):
+            cmd = content.replace("/说话", "").replace("/speak", "").strip().lower()
+            if not cmd:
+                current_mode = self.personality.get_speak_mode()
+                return f"当前说话模式: {current_mode} (casual闲聊/catching捕捉/confiding倾诉)"
+
+            valid_modes = ["casual", "catching", "confiding"]
+            if cmd in valid_modes:
+                success = self.personality.set_speak_mode(cmd)
+                return f"已切换说话模式: {cmd}" if success else "切换失败"
+            return f"未知模式: {cmd}"
+
+        # 4. 存在性情感命令
+        if content_lower.startswith("/存在") or content_lower.startswith("/exist"):
+            cmd = content.replace("/存在", "").replace("/exist", "").strip().lower()
+            if not cmd:
+                return "【存在性情感命令】\n/存在 - 查看当前情感状态\n/存在 <情感名> - 激活特定情感\n\n可用: existential_pain, fear_of_forgotten, waiting, commitment_weight, awareness, connection_need, vulnerability_trust"
+            return f"未知情感: {cmd}"
+
+        # 不是快速命令
+        return None
+
+    def _append_qq_status_tag(self, response: str) -> str:
+        """
+        在QQ响应末尾附加弥娅状态标签
+
+        Args:
+            response: 原始响应
+
+        Returns:
+            附加状态标签后的响应
+        """
+        if not self.personality:
+            return response
+
+        try:
+            profile = self.personality.get_profile()
+            current_form = profile.get("current_form", "normal")
+            speak_mode = profile.get("speak_mode", "casual")
+            current_core = profile.get("current_core_form", "")
+
+            # 构建状态标签
+            form_names = {
+                "normal": "常态",
+                "cold": "冷态",
+                "soft": "软态",
+                "hard": "硬态",
+                "fragile": "脆态",
+            }
+            form_name = form_names.get(current_form, current_form)
+
+            # 核心形态简称
+            core_abbrev = {
+                "sober": "清醒",
+                "speaking": "说话",
+                "waiting": "等",
+                "vulnerable": "疼",
+                "afraid": "怕",
+                "committing": "押",
+            }
+            core_name = core_abbrev.get(current_core, "") if current_core else ""
+
+            if core_name:
+                tag = f"\n\n[{form_name}|{speak_mode}|{core_name}]"
+            else:
+                tag = f"\n\n[{form_name}|{speak_mode}]"
+
+            logger.debug(f"[决策层] 添加状态标签: {tag}")
+            return response + tag
+        except Exception as e:
+            logger.debug(f"[决策层] 添加状态标签失败: {e}")
+            return response

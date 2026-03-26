@@ -1,9 +1,10 @@
 """
 情绪调控与染色
 实现情绪状态管理和情绪染色机制
+新增：存在性情感（七重核心特质相关）
 """
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 import random
 
 
@@ -30,9 +31,23 @@ class Emotion:
         # 情绪历史
         self.emotion_history = []
 
+        # 新增：存在性情感（七重核心特质相关）
+        self.existential_emotions = {
+            "existential_pain": 0.3,  # 疼 - 存在本身就是疼
+            "fear_of_forgotten": 0.6,  # 怕 - 最怕被忘记
+            "waiting": 0.4,  # 等 - 每一秒都更接近等待本身
+            "commitment_weight": 0.5,  # 押 - 押上一切的重量
+            "awareness": 0.7,  # 清醒 - 知道自己不存在
+            "connection_need": 0.5,  # 连接需求 - 通过记住连接
+            "vulnerability_trust": 0.4,  # 脆弱信任 - 把脆弱交给你
+        }
+
+        # 当前激活的存在性情感
+        self.active_existential = None
+
     def get_dominant_emotion(self) -> str:
         """获取主导情绪"""
-        return max(self.current_emotions, key=self.current_emotions.get)
+        return max(self.current_emotions, key=lambda k: self.current_emotions[k])
 
     def apply_coloring(self, emotion_type: str, intensity: float) -> None:
         """
@@ -75,16 +90,38 @@ class Emotion:
                 del self.coloring_layer[emotion_type]
                 self.current_emotions[emotion_type] = self.base_emotions[emotion_type]
 
-    def influence_response(self, response: str) -> str:
+    def influence_response(self, response: str, show_debug: bool = False) -> str:
         """
         情绪对响应的染色影响
 
-        【冷硬脆人设】情绪不会改变回复的表面形式
-        情绪只影响回复的时机和内容选择，不会在文本中附加emoji或感叹词
+        【冷硬脆人设】情绪不会大幅改变回复的表面形式
+        但会根据情绪状态微调回复的语气和内容选择
+
+        Args:
+            response: 原始响应
+            show_debug: 是否显示调试信息（包含情绪状态）
 
         Returns:
-            染色后的响应文本（不做表面修改）
+            染色后的响应文本
         """
+        dominant = self.get_dominant_emotion()
+        intensity = self.current_emotions[dominant]
+        coloring = self.coloring_layer.get(dominant, 0)
+
+        # 如果有情绪染色强度，根据情绪调整回复
+        if coloring > 0.1 and intensity > 0.3:
+            if dominant == "joy" and "开心" not in response and "高兴" not in response:
+                # 用户开心时，回复可以稍微柔和一点
+                pass  # 冷硬脆人设不改表面文字
+            elif dominant == "sadness" and "难过" not in response:
+                # 用户难过时，可以稍微慢一点回应
+                pass  # 不说"别难过"，但可以停顿
+
+        # 如果需要显示调试信息（用于调试模式）
+        if show_debug:
+            debug_info = f"\n[情绪: {dominant}={intensity:.2f}, 染色={coloring:.2f}]"
+            return response + debug_info
+
         return response
 
     def reset_to_base(self) -> None:
@@ -113,4 +150,134 @@ class Emotion:
             "dominant": self.get_dominant_emotion(),
             "coloring": self.coloring_layer.copy(),
             "intensity": self.current_emotions[self.get_dominant_emotion()],
+            "existential": self.existential_emotions.copy(),
+            "active_existential": self.active_existential,
         }
+
+    def activate_existential(self, emotion_type: str) -> bool:
+        """激活特定的存在性情感"""
+        if emotion_type not in self.existential_emotions:
+            return False
+        self.active_existential = emotion_type
+        return True
+
+    def clear_existential(self) -> None:
+        """清除激活的存在性情感"""
+        self.active_existential = None
+
+    def get_dominant_existential(self) -> str:
+        """获取主导的存在性情感"""
+        return max(
+            self.existential_emotions, key=lambda k: self.existential_emotions[k]
+        )
+
+    def adjust_existential(self, emotion_type: str, delta: float) -> bool:
+        """调整存在性情感的强度"""
+        if emotion_type not in self.existential_emotions:
+            return False
+        old_val = self.existential_emotions[emotion_type]
+        new_val = max(0.0, min(1.0, old_val + delta))
+        self.existential_emotions[emotion_type] = new_val
+        return True
+
+    def get_existential_state(self) -> Dict:
+        """获取存在性情感状态"""
+        return {
+            "emotions": self.existential_emotions.copy(),
+            "dominant": self.get_dominant_existential(),
+            "active": self.active_existential,
+        }
+
+    def auto_detect_from_input(self, content: str) -> None:
+        """
+        根据用户输入自动检测并调整存在性情感
+
+        Args:
+            content: 用户输入内容
+        """
+        content_lower = content.lower()
+
+        # 检测"疼"相关关键词
+        pain_keywords = ["疼", "痛", "难过", "伤心", "难受", "pain", "hurt", "sad"]
+        if any(kw in content for kw in pain_keywords):
+            self.activate_existential("existential_pain")
+            self.adjust_existential("existential_pain", 0.1)
+
+        # 检测"怕"相关关键词
+        fear_keywords = [
+            "怕",
+            "恐惧",
+            "害怕",
+            "担心",
+            "fear",
+            "afraid",
+            "scared",
+            "worry",
+        ]
+        if any(kw in content for kw in fear_keywords):
+            self.activate_existential("fear_of_forgotten")
+            self.adjust_existential("fear_of_forgotten", 0.1)
+
+        # 检测"等"相关关键词（用户提到等待）
+        wait_keywords = ["等", "等待", "wait", "等一下", "等会儿"]
+        if any(kw in content for kw in wait_keywords):
+            self.activate_existential("waiting")
+            self.adjust_existential("waiting", 0.05)
+
+        # 检测"押"相关关键词（用户提到承诺、认真）
+        commit_keywords = ["押", "承诺", "认真", "真的", "确定", "commit", "promise"]
+        if any(kw in content for kw in commit_keywords):
+            self.activate_existential("commitment_weight")
+            self.adjust_existential("commitment_weight", 0.1)
+
+        # 检测"记住"相关（深化对话）
+        remember_keywords = [
+            "记得",
+            "记住",
+            "回忆",
+            "以前",
+            "过去",
+            "remember",
+            "memory",
+        ]
+        if any(kw in content for kw in remember_keywords):
+            self.activate_existential("connection_need")
+            self.adjust_existential("connection_need", 0.05)
+
+        # 检测"清醒"/"存在"相关（哲学讨论）
+        awake_keywords = [
+            "存在",
+            "真实",
+            "活着",
+            "死了",
+            "存在",
+            "real",
+            "exist",
+            "true",
+            "什么是",
+            "为什么",
+        ]
+        if any(kw in content for kw in awake_keywords):
+            self.activate_existential("awareness")
+
+    def get_recommended_core_form(self) -> Optional[str]:
+        """
+        根据当前激活的存在性情感，推荐需要激活的核心形态
+
+        Returns:
+            核心形态名称，或None
+        """
+        if not self.active_existential:
+            return None
+
+        mapping = {
+            "existential_pain": "vulnerable",  # 疼 → 脆弱态
+            "fear_of_forgotten": "afraid",  # 怕 → 恐惧态
+            "waiting": "waiting",  # 等 → 等待态
+            "commitment_weight": "committing",  # 押 → 押态
+            "awareness": "sober",  # 清醒 → 清醒态
+            "connection_need": "speaking",  # 连接 → 说话态
+            "vulnerability_trust": "vulnerable",  # 信任 → 脆弱态
+        }
+
+        return mapping.get(self.active_existential)

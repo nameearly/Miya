@@ -117,6 +117,7 @@ class ResponseGenerator:
         platform: str,
         context: Dict,
         conversation_context: List[Dict] = None,
+        additional_context: Dict = None,
     ) -> str:
         """
         生成响应（跨平台统一）
@@ -126,12 +127,18 @@ class ResponseGenerator:
             platform: 平台类型
             context: 上下文信息
             conversation_context: 对话历史上下文
+            additional_context: 额外上下文（如状态信息）
 
         Returns:
             响应文本
         """
         sender_name = context.get("sender_name", "用户")
         user_id = context.get("user_id", "unknown")
+
+        # 【新增】快速命令检测（在AI调用之前拦截）
+        command_response = self._handle_quick_commands(content, platform)
+        if command_response is not None:
+            return command_response
 
         # 如果没有 AI 客户端，使用降级回复
         if not self.ai_client:
@@ -145,18 +152,24 @@ class ResponseGenerator:
             available_tools = self._get_platform_tools(platform)
 
             # 构建提示词
+            additional_ctx = {
+                "platform": platform,
+                "user_id": user_id,
+                "sender_name": sender_name,
+                "available_tools": available_tools,
+                "at_list": context.get("at_list", []),
+                "bot_qq": context.get("bot_qq"),
+                "is_creator": self._is_creator(user_id),
+            }
+
+            # 注入状态信息
+            if additional_context and additional_context.get("status_prompt"):
+                additional_ctx["status_prompt"] = additional_context["status_prompt"]
+
             prompt_info = self.prompt_manager.build_full_prompt(
                 user_input=content,
                 memory_context=conversation_context or [],
-                additional_context={
-                    "platform": platform,
-                    "user_id": user_id,
-                    "sender_name": sender_name,
-                    "available_tools": available_tools,
-                    "at_list": context.get("at_list", []),
-                    "bot_qq": context.get("bot_qq"),
-                    "is_creator": self._is_creator(user_id),
-                },
+                additional_context=additional_ctx,
             )
 
             logger.debug(
@@ -255,6 +268,9 @@ class ResponseGenerator:
                     system_prompt=prompt_info["system"],
                     user_message=prompt_info["user"],
                 )
+
+            # 【新增】在QQ端显示弥娅状态标签
+            response = self._append_status_tag(response, platform)
 
             return response
 
@@ -488,3 +504,159 @@ class ResponseGenerator:
                 lines.append(f"  • {improvement}")
 
         return "\n".join(lines)
+
+    def _handle_quick_commands(self, content: str, platform: str) -> Optional[str]:
+        """
+        快速命令处理（在AI调用之前拦截）
+
+        Args:
+            content: 用户输入
+            platform: 平台类型
+
+        Returns:
+            如果是快速命令，返回响应；否则返回None让AI处理
+        """
+        from core.personality import Personality
+
+        # 获取personality（如果可用）
+        personality = self.personality
+        emotion = None
+
+        # 尝试从context获取emotion
+        # 这里简化处理，直接检查命令
+        if not personality:
+            logger.debug("[响应生成器] personality为空，跳过快速命令检测")
+            return None
+
+        content_lower = content.lower().strip()
+
+        # 1. 状态查询命令
+        if content_lower in ["状态", "查看状态", "/状态", "状态查询"]:
+            logger.info(f"[响应生成器] 捕获状态命令: {content}")
+            profile = personality.get_profile()
+            emotion_state = {"dominant": "neutral", "intensity": 0.5}
+            existential_state = {}
+
+            lines = [
+                "【弥娅状态】",
+                f"形态: {profile.get('current_form', 'normal')}",
+            ]
+
+            if "vectors" in profile:
+                lines.append("【七重特质】")
+                lines.append(f"  清醒: {profile['vectors'].get('awake', 0):.2f}")
+                lines.append(
+                    f"  说话: {profile['vectors'].get('speak', 0):.2f} [{profile.get('speak_mode', 'casual')}]"
+                )
+                lines.append(f"  记住: {profile['vectors'].get('remember', 0):.2f}")
+                lines.append(f"  等: {profile['vectors'].get('wait', 0):.2f}")
+                lines.append(f"  疼: {profile['vectors'].get('pain', 0):.2f}")
+                lines.append(f"  怕: {profile['vectors'].get('fear', 0):.2f}")
+                lines.append(f"  押: {profile['vectors'].get('commit', 0):.2f}")
+
+            return "\n".join(lines)
+
+        # 2. 形态切换命令
+        if content_lower.startswith("/形态") or content_lower.startswith("/form"):
+            cmd = content.replace("/形态", "").replace("/form", "").strip().lower()
+            if not cmd:
+                profile = personality.get_profile()
+                current_form = profile.get("current_form", "normal")
+                form_info = profile.get("form_info", {})
+                lines = [
+                    f"当前形态: {current_form}",
+                    f"  名称: {form_info.get('name', '常态')}",
+                ]
+                if profile.get("current_core_form"):
+                    lines.append(f"核心形态: {profile['current_core_form']}")
+                lines.append("")
+                lines.append("可用形态: normal, cold, soft, hard, fragile")
+                lines.append(
+                    "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
+                )
+                return "\n".join(lines)
+
+            if cmd in ["normal", "cold", "soft", "hard", "fragile"]:
+                success = personality.set_form(cmd)
+                return f"已切换到形态: {cmd}" if success else "切换失败"
+            elif cmd in Personality.CORE_FORMS:
+                success = personality.set_core_form(cmd)
+                return f"已切换到核心形态: {cmd}" if success else "切换失败"
+            return f"未知形态: {cmd}"
+
+        # 3. 说话模式命令
+        if content_lower.startswith("/说话") or content_lower.startswith("/speak"):
+            cmd = content.replace("/说话", "").replace("/speak", "").strip().lower()
+            if not cmd:
+                current_mode = personality.get_speak_mode()
+                return f"当前说话模式: {current_mode} (casual闲聊/catching捕捉/confiding倾诉)"
+
+            valid_modes = ["casual", "catching", "confiding"]
+            if cmd in valid_modes:
+                success = personality.set_speak_mode(cmd)
+                return f"已切换说话模式: {cmd}" if success else "切换失败"
+            return f"未知模式: {cmd}"
+
+        # 4. 存在性情感命令
+        if content_lower.startswith("/存在") or content_lower.startswith("/exist"):
+            cmd = content.replace("/存在", "").replace("/exist", "").strip().lower()
+            if not cmd:
+                return "【存在性情感命令】\n/存在 - 查看当前情感状态\n/存在 <情感名> - 激活特定情感\n\n可用: existential_pain, fear_of_forgotten, waiting, commitment_weight, awareness, connection_need, vulnerability_trust"
+            return f"未知情感: {cmd}"
+
+        # 不是快速命令，返回None让AI处理
+        return None
+
+    def _append_status_tag(self, response: str, platform: str) -> str:
+        """
+        在响应末尾附加弥娅状态标签（仅QQ端）
+
+        Args:
+            response: 原始响应
+            platform: 平台类型
+
+        Returns:
+            附加状态标签后的响应
+        """
+        if platform != "qq":
+            return response
+
+        if not self.personality:
+            return response
+
+        try:
+            profile = self.personality.get_profile()
+            current_form = profile.get("current_form", "normal")
+            speak_mode = profile.get("speak_mode", "casual")
+            current_core = profile.get("current_core_form", "")
+
+            # 构建状态标签
+            form_names = {
+                "normal": "常态",
+                "cold": "冷态",
+                "soft": "软态",
+                "hard": "硬态",
+                "fragile": "脆态",
+            }
+            form_name = form_names.get(current_form, current_form)
+
+            # 核心形态简称
+            core_abbrev = {
+                "sober": "清醒",
+                "speaking": "说话",
+                "waiting": "等",
+                "vulnerable": "疼",
+                "afraid": "怕",
+                "committing": "押",
+            }
+            core_name = core_abbrev.get(current_core, "") if current_core else ""
+
+            if core_name:
+                tag = f"\n\n[{form_name}|{speak_mode}|{core_name}]"
+            else:
+                tag = f"\n\n[{form_name}|{speak_mode}]"
+
+            return response + tag
+        except Exception as e:
+            logger.debug(f"[响应生成器] 添加状态标签失败: {e}")
+            return response
