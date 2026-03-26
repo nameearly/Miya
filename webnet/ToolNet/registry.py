@@ -139,10 +139,11 @@ class ToolRegistry:
                 except json.JSONDecodeError:
                     return f"❌ 参数格式错误: 无效的JSON"
 
-            # 验证参数
-            valid, error = tool.validate_args(args)
-            if not valid:
-                return f"❌ 参数错误: {error}"
+            # 验证参数（如果工具实现了validate_args方法）
+            if hasattr(tool, "validate_args") and callable(tool.validate_args):
+                valid, error = tool.validate_args(args)
+                if not valid:
+                    return f"❌ 参数错误: {error}"
 
             # 执行工具
             result = await tool.execute(args, context)
@@ -279,6 +280,37 @@ class ToolRegistry:
             self.logger.info("已加载终端工具: MiyaTerminalTool + SystemInfoTool")
         except Exception as e:
             self.logger.warning(f"加载终端工具失败: {e}")
+
+        # 加载超级终端工具 (Terminal Ultra)
+        self._load_ultra_terminal_tools()
+
+    def _load_ultra_terminal_tools(self):
+        """加载超级终端工具 (Terminal Ultra)"""
+        try:
+            from webnet.ToolNet.tools.terminal.ultra_terminal_tools import (
+                TerminalExecTool,
+                FileReadTool,
+                FileWriteTool,
+                FileEditTool,
+                FileDeleteTool,
+                DirectoryTreeTool,
+                CodeExecuteTool,
+                ProjectAnalyzeTool,
+            )
+
+            # 注册所有超级终端工具
+            self.register(TerminalExecTool())
+            self.register(FileReadTool())
+            self.register(FileWriteTool())
+            self.register(FileEditTool())
+            self.register(FileDeleteTool())
+            self.register(DirectoryTreeTool())
+            self.register(CodeExecuteTool())
+            self.register(ProjectAnalyzeTool())
+
+            self.logger.info("已加载超级终端工具: TerminalUltra (8 tools)")
+        except Exception as e:
+            self.logger.warning(f"加载超级终端工具失败: {e}")
 
     def _load_model_management_tools(self):
         """加载模型管理工具"""
