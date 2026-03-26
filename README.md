@@ -137,6 +137,870 @@ MIYA 具备：
 
 ---
 
+### 🗣️ 语音系统
+
+弥娅语音系统支持多种 TTS 引擎，采用统一管理架构。
+
+#### 架构图
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      语音系统架构 (Voice System)                    │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                 MiyaVoiceManager (统一入口)                  │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │   │
+│   │  │  speak()   │  │ set_engine()│  │  get_voices()│           │   │
+│   │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘           │   │
+│   └─────────┼───────────────┼───────────────┼────────────────────┘   │
+│             │               │               │                        │
+│   ┌─────────┴───────────────┴───────────────┴──────────────┐        │
+│   │                    TTS Engine Layer                    │        │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │        │
+│   │  │  Edge-TTS  │  │    VITS     │  │  GPT-SoVITS │     │        │
+│   │  │ (微软语音) │  │  (本地部署) │  │  (保留原有) │     │        │
+│   │  └─────────────┘  └─────────────┘  └─────────────┘     │        │
+│   └───────────────────────────────────────────────────────────┘        │
+│             │                                                        │
+│   ┌─────────┴──────────────────────────────────────────────┐        │
+│   │              TTSWrapper (异步线程安全)                   │        │
+│   │  ┌────────────────────────────────────────────────┐   │        │
+│   │  │      独立事件循环 (独立线程)                       │   │        │
+│   │  │   解决 asyncio 事件循环冲突问题                     │   │        │
+│   │  └────────────────────────────────────────────────┘   │        │
+│   └───────────────────────────────────────────────────────────┘        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 引擎类型
+
+| 引擎 | 特点 | 状态 |
+|------|------|------|
+| **Edge-TTS** | 微软Edge语音，中文支持好，免费 | ✅ 可用 |
+| **VITS** | 本地部署，需要配置模型 | ⏳ 需要配置 |
+| **GPT-SoVITS** | 保留原有功能，自定义音色 | ⏳ 需要配置 |
+
+#### 可用语音列表
+
+| 引擎 | 语音 | 说明 |
+|------|------|------|
+| Edge-TTS | zh-CN-XiaoxiaoNeural | 中文女声（默认） |
+| Edge-TTS | zh-CN-YunxiNeural | 中文男声 |
+| Edge-TTS | zh-CN-YunyangNeural | 中文男声（专业） |
+| Edge-TTS | zh-CN-XiaoyouNeural | 中文儿童 |
+
+#### MiyaVoiceManager 类详解
+
+```python
+from core.voice import MiyaVoiceManager, TTSEngineType, get_voice_manager
+
+# 获取单例实例
+manager = get_voice_manager()
+
+# 获取当前引擎
+current = manager.current_engine  # TTSEngineType.EDGE_TTS
+
+# 初始化语音系统
+await manager.initialize()
+
+# 语音合成
+result = await manager.speak("你好，我是弥娅")
+# 返回: TTSResult(success=True, audio_data=b'...', engine='edge_tts')
+
+# 切换引擎
+manager.set_engine(TTSEngineType.EDGE_TTS)
+
+# 设置语音
+manager.set_edge_voice("zh-CN-XiaoxiaoNeural")
+
+# 获取可用引擎
+engines = manager.get_available_engines()
+# 返回: ['edge_tts']
+
+# 获取可用语音列表
+voices = manager.get_available_voices()
+# 返回: {'edge_tts': [...], 'vits': [...], 'sovits': [...]}
+```
+
+##### 方法详细说明
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `get_instance()` | 无 | MiyaVoiceManager | 获取单例实例 |
+| `__init__()` | 无 | self | 初始化，默认 Edge-TTS 引擎 |
+| `initialize()` | 无 | bool | 初始化 TTSWrapper，返回成功状态 |
+| `speak(text, engine)` | text: str, engine: TTSEngineType (可选) | TTSResult | 语音合成，返回音频数据 |
+| `set_engine(engine)` | engine: TTSEngineType | bool | 切换 TTS 引擎 |
+| `set_edge_voice(voice)` | voice: str | None | 设置 Edge-TTS 语音 |
+| `get_available_engines()` | 无 | List[str] | 获取可用引擎列表 |
+| `get_available_voices()` | 无 | Dict[str, List[str]] | 获取各引擎可用语音 |
+
+#### TTSEngineType 枚举
+
+```python
+class TTSEngineType(Enum):
+    EDGE_TTS = "edge_tts"  # 微软Edge语音
+    VITS = "vits"          # 本地VITS模型
+    SOVITS = "sovits"      # GPT-SoVITS
+```
+
+#### TTSResult 数据类
+
+```python
+@dataclass
+class TTSResult:
+    success: bool           # 是否成功
+    audio_data: Optional[bytes] = None  # 音频数据
+    file_path: Optional[str] = None      # 音频文件路径
+    error: Optional[str] = None          # 错误信息
+    engine: str = ""                    # 使用的引擎
+```
+
+#### TTSWrapper 类详解
+
+TTSWrapper 解决 asyncio 事件循环冲突问题，在独立线程中运行事件循环。
+
+```python
+from core.voice.tts_wrapper import TTSWrapper
+
+# 创建实例（自动启动独立线程事件循环）
+wrapper = TTSWrapper()
+
+# 线程安全的语音生成
+audio_data = wrapper.generate_speech_safe(
+    text="你好",                           # 要转换的文本
+    voice="zh-CN-XiaoxiaoNeural",        # 语音选择
+    response_format="mp3",               # 输出格式
+    speed=1.0                            # 语速 (1.0 = 正常)
+)
+# 返回: bytes (音频数据)
+```
+
+##### 方法详细说明
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `__init__()` | 无 | self | 初始化，启动独立线程事件循环 |
+| `generate_speech_safe(text, voice, response_format, speed)` | text: str, voice: str, response_format: str, speed: float | bytes | 线程安全的TTS生成 |
+
+#### 使用示例
+
+```python
+import asyncio
+from core.voice import get_voice_manager, TTSEngineType, TTSResult
+
+async def main():
+    # 获取语音管理器
+    manager = get_voice_manager()
+    
+    # 初始化
+    await manager.initialize()
+    print("语音系统初始化完成")
+    
+    # 使用默认引擎(Edge-TTS)合成语音
+    result = await manager.speak("你好，我是弥娅，很高兴认识你")
+    
+    if result.success:
+        print(f"语音合成成功!")
+        print(f"使用引擎: {result.engine}")
+        print(f"音频大小: {len(result.audio_data)} bytes")
+        
+        # 保存到文件
+        with open("output.mp3", "wb") as f:
+            f.write(result.audio_data)
+    else:
+        print(f"语音合成失败: {result.error}")
+    
+    # 切换语音
+    manager.set_edge_voice("zh-CN-YunxiNeural")
+    result2 = await manager.speak("你好，我是弥娅")
+    
+    # 获取状态信息
+    print(f"当前引擎: {manager.current_engine}")
+    print(f"可用引擎: {manager.get_available_engines()}")
+
+asyncio.run(main())
+```
+
+---
+
+### ⚡ 任务管理器
+
+弥娅任务管理器提供异步任务队列处理能力，支持后台任务执行和自动重试。
+
+#### 架构图
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      任务管理器架构 (Task Manager)                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                      MiyaTaskManager                         │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │   │
+│   │  │  add_task() │  │ register_   │  │  get_stats()│          │   │
+│   │  │            │  │  handler()  │  │            │          │   │
+│   │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘          │   │
+│   │         │               │               │                     │   │
+│   │   ┌─────┴───────────────┴───────────────┴─────┐             │   │
+│   │   │              任务队列 (Queue)              │             │   │
+│   │   │   ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐   │             │   │
+│   │   │   │ T1 │  │ T2 │  │ T3 │  │ T4 │  │ T5 │   │             │   │
+│   │   │   └────┘  └────┘  └────┘  └────┘  └────┘   │             │   │
+│   │   └────────────────────────────────────────────┘             │   │
+│   │                         │                                     │   │
+│   │   ┌──────────┬──────────┴──────────┬──────────┐              │   │
+│   │   │ Worker1 │      Worker2        │ Worker3 │              │   │
+│   │   │  ┌────┐ │      ┌────┐         │  ┌────┐  │              │   │
+│   │   │  │执行 │ │      │执行│         │  │执行│  │              │   │
+│   │   │  └────┘ │      └────┘         │  └────┘  │              │   │
+│   │   └─────────┴──────────────────────┴──────────┘              │   │
+│   │                                                              │   │
+│   │   ┌─────────────────────────────────────────────────────┐   │   │
+│   │   │            任务存储 (tasks dict)                     │   │   │
+│   │   │   {task_id: MiyaTask, ...}                           │   │   │
+│   │   └─────────────────────────────────────────────────────┘   │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 功能特性
+
+| 特性 | 说明 |
+|------|------|
+| **异步任务队列** | 使用 asyncio.Queue，支持并发处理 |
+| **可配置 Worker 数量** | 默认 3 个，可调整 |
+| **自动重试机制** | 默认 3 次重试，失败自动回退 |
+| **任务状态追踪** | 完整的状态记录和统计 |
+| **单例模式** | 全局唯一实例 |
+| **自动清理** | 24小时自动清理过期任务 |
+
+#### MiyaTaskManager 类详解
+
+```python
+from core.task_manager import get_task_manager, MiyaTaskManager, TaskStatus
+
+# 获取单例实例
+manager = get_task_manager()
+
+# 注册任务处理器
+async def my_handler(payload: dict):
+    # 处理任务逻辑
+    return {"result": "success"}
+
+manager.register_handler("my_task", my_handler)
+
+# 启动任务管理器
+await manager.start()
+
+# 添加任务
+task_id = await manager.add_task(
+    task_type="my_task",
+    payload={"data": "value"},
+    max_retries=3
+)
+
+# 获取任务状态
+status = manager.get_task_status(task_id)
+# 返回: {
+#     'task_id': '...',
+#     'task_type': '...',
+#     'status': 'pending'|'running'|'completed'|'failed',
+#     'created_at': 1234567890.0,
+#     'started_at': None,
+#     'completed_at': None,
+#     'retry_count': 0,
+#     'error': None
+# }
+
+# 获取统计信息
+stats = manager.get_stats()
+# 返回: {
+#     'total_tasks': 100,
+#     'completed': 95,
+#     'failed': 3,
+#     'running': 2,
+#     'pending': 0,
+#     'queue_size': 0,
+#     'workers': 3
+# }
+
+# 取消任务
+await manager.cancel_task(task_id)
+
+# 停止任务管理器
+await manager.stop()
+```
+
+##### 方法详细说明
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `get_instance()` | max_workers: int, max_queue_size: int | MiyaTaskManager | 获取单例实例 |
+| `__init__()` | max_workers: int = 3, max_queue_size: int = 100 | self | 初始化任务管理器 |
+| `register_handler(task_type, handler)` | task_type: str, handler: Callable | None | 注册任务处理器 |
+| `start()` | 无 | None | 启动 Worker 协程 |
+| `stop()` | 无 | None | 停止所有 Worker |
+| `add_task(task_type, payload, task_id, max_retries)` | 详见下方 | str | 添加任务，返回 task_id |
+| `get_task_status(task_id)` | task_id: str | Dict | 获取任务状态 |
+| `get_stats()` | 无 | Dict | 获取统计信息 |
+| `cancel_task(task_id)` | task_id: str | bool | 取消任务 |
+
+##### add_task 参数说明
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| task_type | str | 是 | - | 任务类型，对应已注册的处理函数 |
+| payload | Dict | 是 | - | 任务数据 |
+| task_id | str | 否 | 自动生成 | 任务ID，默认使用 MD5 哈希 |
+| max_retries | int | 否 | 3 | 最大重试次数 |
+
+#### TaskStatus 枚举
+
+```python
+class TaskStatus(Enum):
+    PENDING = "pending"     # 等待中
+    RUNNING = "running"      # 执行中
+    COMPLETED = "completed"  # 已完成
+    FAILED = "failed"       # 失败
+    CANCELLED = "cancelled" # 已取消
+```
+
+#### 使用示例
+
+```python
+import asyncio
+from core.task_manager import get_task_manager
+
+async def main():
+    # 获取任务管理器
+    manager = get_task_manager()
+    
+    # 定义任务处理器
+    async def process_data(payload: dict):
+        """处理数据的任务"""
+        data = payload.get("data", "")
+        # 模拟处理
+        await asyncio.sleep(1)
+        return f"处理完成: {data}"
+    
+    async def extract_quintuple(payload: dict):
+        """五元组提取任务"""
+        text = payload.get("text", "")
+        # 模拟提取
+        await asyncio.sleep(2)
+        return [{"subject": "用户", "relation": "喜欢", "object": "电影"}]
+    
+    # 注册处理器
+    manager.register_handler("process_data", process_data)
+    manager.register_handler("quintuple_extract", extract_quintuple)
+    
+    # 启动
+    await manager.start()
+    print("任务管理器已启动")
+    
+    # 添加任务
+    task1 = await manager.add_task(
+        task_type="process_data",
+        payload={"data": "测试数据"},
+        max_retries=3
+    )
+    print(f"添加任务1: {task1}")
+    
+    task2 = await manager.add_task(
+        task_type="quintuple_extract",
+        payload={"text": "用户说喜欢科幻电影"},
+        max_retries=2
+    )
+    print(f"添加任务2: {task2}")
+    
+    # 等待任务完成
+    await asyncio.sleep(3)
+    
+    # 获取统计
+    stats = manager.get_stats()
+    print(f"任务统计: {stats}")
+    # 输出: {'total_tasks': 2, 'completed': 2, 'failed': 0, ...}
+    
+    # 获取任务状态
+    print(f"任务1状态: {manager.get_task_status(task1)}")
+    
+    # 停止
+    await manager.stop()
+    print("任务管理器已停止")
+
+asyncio.run(main())
+```
+
+---
+
+### 🧠 GRAG 知识图谱记忆系统
+
+弥娅 GRAG（Graph-RAG）记忆系统将对话内容提取为五元组，存储到 Neo4j 图数据库中，实现结构化知识管理。
+
+#### 架构图
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    GRAG 记忆系统架构                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   用户输入 ──────────────────────────────────────────────────────▶   │
+│        │                                                            │
+│        ▼                                                            │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                   GRAGMemoryManager                          │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │   │
+│   │  │ add_conver-│  │   query_by  │  │   query_by  │          │   │
+│   │  │  sation()  │  │  keywords() │  │   entity()  │          │   │
+│   │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘          │   │
+│   └─────────┼────────────────┼────────────────┼──────────────────┘   │
+│             │                │                │                      │
+│    ┌────────┴───────────────┴────────────────┴────────┐             │
+│    │              任务管理器 (TaskManager)               │             │
+│    │   ┌─────────────────────────────────────────┐    │             │
+│    │   │      五元组异步提取 (quintuple_extract) │    │             │
+│    │   │      避免阻塞主流程                       │    │             │
+│    │   └─────────────────────────────────────────┘    │             │
+│    └─────────────────────────────────────────────────────┘             │
+│             │                                                      │
+│    ┌────────┴───────────────────────────────────────┐                │
+│    │              LLM 提取器                          │                │
+│    │   (GPT-4o-mini 自动提取五元组)                  │                │
+│    └─────────────────────────────────────────────────┘                │
+│             │                                                      │
+│    ┌────────┴───────────────────────────────────────┐                │
+│    │              Neo4j 图数据库                      │                │
+│    │   ┌─────────────────────────────────────────┐  │                │
+│    │   │  (主体)-[关系]->(客体)                   │  │                │
+│    │   │  实体 + 关系 + 属性 + 上下文              │  │                │
+│    │   └─────────────────────────────────────────┘  │                │
+│    └─────────────────────────────────────────────────┘                │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 功能特性
+
+| 特性 | 说明 |
+|------|------|
+| **五元组知识图谱** | (主体, 关系, 客体, 属性, 上下文) 结构化存储 |
+| **Neo4j 图数据库** | 惰性连接，避免误触本地连接 |
+| **自动提取** | 从对话中自动提取知识，无需人工干预 |
+| **语义检索增强** | 结合向量检索和图谱查询 |
+| **任务队列集成** | 异步处理，不阻塞主流程 |
+
+#### 五元组数据模型
+
+```python
+@dataclass
+class Quintuple:
+    """五元组：主体、关系、客体、属性、上下文"""
+    subject: str           # 主体
+    relation: str           # 关系
+    object: str             # 客体
+    attributes: Dict[str, Any]  # 属性
+    context: str            # 上下文
+    timestamp: float        # 时间戳
+```
+
+#### GRAGMemoryManager 类详解
+
+```python
+from core.grag_memory import get_grag_memory, GRAGMemoryManager
+
+# 获取单例实例
+grag = get_grag_memory()
+
+# 初始化
+await grag.initialize()
+
+# 添加对话记忆
+await grag.add_conversation_memory(
+    user_input="我喜欢科幻电影",
+    ai_response="我也喜欢科幻电影，尤其是《星际穿越》"
+)
+# 自动触发五元组提取，存储到 Neo4j
+
+# 通过关键词查询
+results = await grag.query_by_keywords(["科幻", "电影"], limit=10)
+# 返回: [
+#     {'subject': '用户', 'relation': '喜欢', 'object': '科幻电影', ...},
+#     {'subject': '弥娅', 'relation': '喜欢', 'object': '科幻电影', ...}
+# ]
+
+# 通过实体查询
+results = await grag.query_by_entity("用户", "喜欢")
+# 返回: [
+#     {'subject': '用户', 'relation': '喜欢', 'object': '科幻电影'},
+#     {'subject': '用户', 'relation': '喜欢', 'object': '音乐'}
+# ]
+
+# 获取记忆上下文（用于增强 LLM）
+context = await grag.get_context("用户有什么爱好?", limit=5)
+# 返回: "知识图谱记忆:\n- 用户 喜欢 科幻电影\n- 用户 喜欢 音乐"
+
+# 获取统计信息
+stats = await grag.get_stats()
+# 返回: {'enabled': True, 'neo4j': 'connected', 'entities': 100, 'relations': 150}
+```
+
+##### 方法详细说明
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `get_instance(config)` | config: Dict (可选) | GRAGMemoryManager | 获取单例实例 |
+| `__init__(config)` | config: Dict | self | 初始化，可配置 Neo4j 连接等 |
+| `initialize()` | 无 | None | 初始化异步组件，注册任务处理器 |
+| `add_conversation_memory(user_input, ai_response)` | 详见下方 | bool | 添加对话，自动触发五元组提取 |
+| `store_quintuple(quintuple)` | quintuple: Quintuple | bool | 存储单个五元组到图数据库 |
+| `query_by_keywords(keywords, limit)` | keywords: List[str], limit: int | List[Dict] | 通过关键词查询 |
+| `query_by_entity(entity, relation)` | entity: str, relation: str (可选) | List[Dict] | 通过实体查询 |
+| `get_context(query, limit)` | query: str, limit: int | str | 获取记忆上下文用于 LLM 增强 |
+| `get_stats()` | 无 | Dict | 获取系统状态和统计 |
+| `close()` | 无 | None | 关闭 Neo4j 连接 |
+
+##### add_conversation_memory 参数说明
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| user_input | str | 是 | 用户输入内容 |
+| ai_response | str | 是 | AI 回复内容 |
+
+#### 配置说明
+
+```python
+# 默认配置
+DEFAULT_CONFIG = {
+    "enabled": True,                    # 启用 GRAG
+    "auto_extract": True,                # 自动从对话提取五元组
+    "context_length": 20,               # 最近对话上下文长度
+    "similarity_threshold": 0.7,       # 相似度阈值
+    "neo4j_uri": "bolt://localhost:7687",  # Neo4j 连接
+    "neo4j_user": "neo4j",
+    "neo4j_password": "",
+    "embedding_model": "text-embedding-3-small",  # embedding 模型
+    "max_workers": 3,                   # 任务管理器 worker 数
+    "max_queue_size": 100,             # 任务队列大小
+    "task_timeout": 30,                 # 任务超时时间
+    "auto_cleanup_hours": 24,          # 自动清理间隔
+}
+
+# 使用自定义配置
+grag = GRAGMemoryManager.get_instance({
+    "enabled": True,
+    "neo4j_uri": "bolt://192.168.1.100:7687",
+    "neo4j_user": "neo4j",
+    "neo4j_password": "password123"
+})
+```
+
+#### Neo4j 图谱结构
+
+```
+节点类型:
+  - Entity (实体)
+    - name: 实体名称
+    - type: 实体类型 (可选)
+
+关系类型:
+  - RELATION (关系)
+    - type: 关系类型 (如 "喜欢", "是", "属于")
+    - timestamp: 创建时间
+    - context: 上下文
+    - attributes: 属性 (JSON)
+```
+
+#### 使用示例
+
+```python
+import asyncio
+from core.grag_memory import get_grag_memory
+
+async def main():
+    # 获取 GRAG 记忆系统
+    grag = get_grag_memory()
+    
+    # 初始化
+    await grag.initialize()
+    print("GRAG 记忆系统初始化完成")
+    
+    # 添加对话（自动提取五元组）
+    conversations = [
+        ("我最喜欢科幻电影", "真的吗？我也喜欢！"),
+        ("我喜欢《星际穿越》这部电影", "那是诺兰导演的经典作品"),
+        ("我喜欢听古典音乐", "贝多芬和莫扎特是我的最爱")
+    ]
+    
+    for user_input, ai_response in conversations:
+        await grag.add_conversation_memory(user_input, ai_response)
+        print(f"已添加: {user_input[:20]}...")
+    
+    # 等待提取完成
+    await asyncio.sleep(3)
+    
+    # 通过关键词查询
+    print("\n--- 关键词查询 '喜欢' ---")
+    results = await grag.query_by_keywords(["喜欢"], limit=10)
+    for r in results:
+        print(f"  {r['subject']} --[{r['relation']}]--> {r['object']}")
+    
+    # 通过实体查询
+    print("\n--- 实体查询 '用户' ---")
+    results = await grag.query_by_entity("用户")
+    for r in results:
+        print(f"  {r['subject']} --[{r['relation']}]--> {r['object']}")
+    
+    # 获取记忆上下文用于 LLM
+    print("\n--- 记忆上下文 ---")
+    context = await grag.get_context("用户有什么爱好?", limit=5)
+    print(context)
+    
+    # 统计信息
+    print("\n--- 系统统计 ---")
+    stats = await grag.get_stats()
+    print(stats)
+    
+    # 关闭连接
+    await grag.close()
+
+asyncio.run(main())
+```
+
+---
+
+### 🔄 热补丁系统
+
+弥娅热补丁系统支持打包后运行时代码热更新，无需重新打包即可修复 bug 或更新功能。
+
+#### 架构图
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      热补丁系统架构 (Hot Patch)                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                   HotPatchManager                          │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │   │
+│   │  │  load_patch │  │ unload_patch│  │ reload_patch│          │   │
+│   │  │   ()       │  │    ()      │  │    ()      │          │   │
+│   │  └─────────────┴──┴─────────────┴──┴─────────────┘          │   │
+│   └────────────────────────────┬────────────────────────────────┘   │
+│                                │                                     │
+│   ┌────────────────────────────┴────────────────────────────────┐   │
+│   │                   补丁目录 (Patch Directory)                │   │
+│   │                                                              │   │
+│   │   Windows: %APPDATA%/Miya/patches/backend/                  │   │
+│   │   Linux:   ~/.miya/patches/backend/                         │   │
+│   │   macOS:   ~/Library/Application Support/Miya/patches/     │   │
+│   │                                                              │   │
+│   │   ┌─────────────────────────────────────────────────────┐     │   │
+│   │   │  my_fix_v1/                                         │     │   │
+│   │   │  ├── __init__.py          (模块入口)                 │     │   │
+│   │   │  ├── core_patch.py        (补丁代码)                 │     │   │
+│   │   │  └── requirements.txt      (依赖)                    │     │   │
+│   │   └─────────────────────────────────────────────────────┘     │   │
+│   │   ┌─────────────────────────────────────────────────────┐     │   │
+│   │   │  security_update/                                   │     │   │
+│   │   │  ├── __init__.py                                    │     │   │
+│   │   │  └── ...                                            │     │   │
+│   │   └─────────────────────────────────────────────────────┘     │   │
+│   └──────────────────────────────────────────────────────────────┘   │
+│                                │                                     │
+│   ┌────────────────────────────┴────────────────────────────────┐   │
+│   │                   sys.modules 替换                           │   │
+│   │                                                              │   │
+│   │   import miya_patch.my_fix_v1.core_patch as original_module │   │
+│   │   sys.modules['original_module'] = patched_module          │   │
+│   │                                                              │   │
+│   └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 功能特性
+
+| 特性 | 说明 |
+|------|------|
+| **打包后热更新** | 无需重新打包即可更新代码 |
+| **环境变量配置** | 支持 MIYA_PATCH_DIR 自定义目录 |
+| **跨平台支持** | Windows / Linux / macOS |
+| **模块替换** | 自动替换 sys.modules 中的模块 |
+| **热切换** | 支持加载、卸载、重载补丁 |
+
+#### 补丁目录结构
+
+```
+补丁目录/
+└── backend/                    # 补丁根目录
+    ├── my_fix_v1/             # 补丁包1
+    │   ├── __init__.py        # 必须：模块入口
+    │   ├── core_patch.py      # 补丁代码
+    │   └── requirements.txt   # 可选：依赖
+    │
+    ├── security_update/       # 补丁包2
+    │   ├── __init__.py
+    │   └── config.yaml
+    │
+    └── new_feature/           # 补丁包3
+        ├── __init__.py
+        └── feature_module.py
+```
+
+#### __init__.py 要求
+
+```python
+# my_fix_v1/__init__.py
+__version__ = "1.0.0"
+__author__ = "Your Name"
+__description__ = "修复 xxx 问题"
+
+# 可以在此处添加补丁初始化逻辑
+def init_patch():
+    """补丁初始化函数（可选）"""
+    print("补丁已加载")
+    # 初始化逻辑
+
+# 自动调用初始化
+init_patch()
+```
+
+#### HotPatchManager 类详解
+
+```python
+from core.hot_patch import get_hot_patch_manager, HotPatchManager
+
+# 获取单例实例
+hp = get_hot_patch_manager()
+
+# 检查是否启用
+is_enabled = hp.is_enabled()
+# 返回: bool (是否有可用的补丁目录)
+
+# 扫描可用补丁
+available = hp.scan_patches()
+# 返回: List[str] (补丁名称列表)
+# 示例: ['my_fix_v1', 'security_update']
+
+# 加载补丁
+success = hp.load_patch("my_fix_v1")
+# 返回: bool
+# 加载后，补丁模块会被导入并可用
+
+# 获取已加载的补丁信息
+loaded = hp.get_loaded_patches()
+# 返回: Dict[str, PatchInfo]
+# 示例: {
+#     'my_fix_v1': PatchInfo(
+#         name='my_fix_v1',
+#         version='1.0.0',
+#         modules=['core_patch'],
+#         loaded=True
+#     )
+# }
+
+# 卸载补丁
+hp.unload_patch("my_fix_v1")
+
+# 重载补丁
+hp.reload_patch("my_fix_v1")
+
+# 获取系统状态
+status = hp.get_status()
+# 返回: {
+#     'enabled': True,
+#     'patch_dir': 'C:\\Users\\...\\Miya\\patches\\backend',
+#     'available_patches': ['my_fix_v1'],
+#     'loaded_patches': []
+# }
+```
+
+##### 方法详细说明
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `get_instance()` | 无 | HotPatchManager | 获取单例实例 |
+| `__init__()` | 无 | self | 初始化，自动检测补丁目录 |
+| `is_enabled()` | 无 | bool | 检查热补丁是否启用 |
+| `get_patch_dir()` | 无 | str | 获取补丁目录路径 |
+| `scan_patches()` | 无 | List[str] | 扫描可用补丁 |
+| `load_patch(patch_name)` | patch_name: str | bool | 加载指定补丁 |
+| `unload_patch(patch_name)` | patch_name: str | bool | 卸载补丁 |
+| `reload_patch(patch_name)` | patch_name: str | bool | 重载补丁 |
+| `get_loaded_patches()` | 无 | Dict[str, PatchInfo] | 获取已加载补丁信息 |
+| `get_status()` | 无 | Dict | 获取系统状态 |
+
+#### PatchInfo 数据类
+
+```python
+@dataclass
+class PatchInfo:
+    name: str              # 补丁名称
+    version: str          # 补丁版本
+    modules: List[str]    # 包含的模块
+    loaded: bool = False  # 是否已加载
+```
+
+#### 环境变量配置
+
+| 环境变量 | 说明 | 示例 |
+|----------|------|------|
+| MIYA_PATCH_DIR | 自定义补丁目录 | `D:\my_patches\backend` |
+
+#### 使用示例
+
+```python
+from core.hot_patch import get_hot_patch_manager
+
+def main():
+    # 获取热补丁管理器
+    hp = get_hot_patch_manager()
+    
+    # 检查是否启用
+    if not hp.is_enabled():
+        print("热补丁未启用")
+        print(f"请创建补丁目录: {hp.patch_dir}")
+        return
+    
+    # 扫描可用补丁
+    available = hp.scan_patches()
+    print(f"可用补丁: {available}")
+    
+    # 加载补丁
+    if available:
+        patch_name = available[0]
+        success = hp.load_patch(patch_name)
+        
+        if success:
+            print(f"补丁 {patch_name} 加载成功")
+            
+            # 查看已加载的补丁
+            loaded = hp.get_loaded_patches()
+            for name, info in loaded.items():
+                print(f"  - {name} v{info.version}")
+                
+            # 示例：使用补丁中的功能
+            try:
+                from miya_patch import my_fix_v1
+                my_fix_v1.apply_fix()
+            except ImportError as e:
+                print(f"使用补丁功能失败: {e}")
+        else:
+            print(f"补丁 {patch_name} 加载失败")
+    
+    # 获取状态
+    status = hp.get_status()
+    print(f"系统状态: {status}")
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
 ## 系统架构
 
 ```
