@@ -40,6 +40,10 @@
   - [MCP 支持](#4-mcp-支持-model-context-protocol)
   - [安全防护](#5-安全防护-security-service)
   - [并发工具执行](#6-并发工具执行)
+  - [Terminal Ultra](#7-超级终端控制系统-terminal-ultra)
+  - [MiyaAgentV3](#8-miya_agent_v3---ai驱动的推理引擎)
+  - [Runtime API 缓存优化](#9-runtime-api-全局缓存优化)
+  - [终端模式启动](#10-终端模式启动)
 
 ---
 
@@ -100,10 +104,28 @@ MIYA 具备：
 ### 🛠 工具生态
 
 - **TerminalNet** - 终端命令执行
+- **TerminalUltra** - 超级终端控制系统（完全终端掌控）
 - **WebSearchNet** - 网络搜索集成
 - **ToolNet** - 通用工具执行框架
 - **CognitiveNet** - 认知处理子网
 - **EntertainmentNet** - TRPG、Tavern AI 娱乐功能
+
+### 💻 超级终端 (Terminal Ultra)
+
+弥娅终端模式全新升级，拥有完全终端掌控能力：
+
+| 功能 | 说明 |
+|------|------|
+| **terminal_exec** | 执行任意终端命令 |
+| **file_read** | 读取文件内容 |
+| **file_write** | 创建/写入文件 |
+| **file_edit** | 编辑/修改文件 |
+| **file_delete** | 删除文件 |
+| **directory_tree** | 查看目录树结构 |
+| **code_execute** | 直接运行 Python/JS 代码 |
+| **project_analyze** | 分析项目结构和语言分布 |
+
+参考 opencode/Claude Code 设计理念，让弥娅具备真正的编程和系统操作能力。
 
 ### 🔧 自我改进
 
@@ -251,6 +273,7 @@ Miya/
 │   ├── entropy.py         # 熵监测
 │   ├── ai_client.py        # AI 客户端工厂
 │   ├── terminal_manager.py # 终端管理
+│   ├── terminal_ultra.py  # 超级终端控制系统 (完全终端掌控)
 │   ├── skills_hot_reload.py # Skills 热重载
 │   ├── mcp_client.py       # MCP 协议支持
 │   ├── security_service.py # 安全防护模块
@@ -286,6 +309,10 @@ Miya/
 │   ├── EntertainmentNet/  # 娱乐功能
 │   ├── WebSearchNet/      # 网页搜索
 │   └── ToolNet/           # 工具执行
+│       └── tools/
+│           └── terminal/
+│               ├── terminal_tool.py  # 基础终端工具
+│               └── ultra_terminal_tools.py  # 超级终端工具
 │
 ├── memory/                 # 记忆系统
 │   ├── unified_memory.py  # 统一内存接口
@@ -1411,9 +1438,214 @@ result = sensitive_filter.check("内容包含自定义敏感词")
 
 > 已在 `core/ai_client.py` 中实现，使用 `asyncio.gather` 并发执行多个工具。
 
+### 7. 超级终端控制系统 (Terminal Ultra)
+
+弥娅终端模式获得完全终端掌控能力，类似于 opencode 或 Claude Code。
+
+#### 功能特性
+
+| 工具 | 功能 | 示例 |
+|------|------|------|
+| `terminal_exec` | 执行任意终端命令 | `python script.py`, `npm install` |
+| `file_read` | 读取文件内容 | 查看代码、配置 |
+| `file_write` | 创建/写入文件 | 创建新文件 |
+| `file_edit` | 编辑/修改文件 | 修改代码 |
+| `file_delete` | 删除文件 | 清理文件 |
+| `directory_tree` | 目录树结构 | 查看项目结构 |
+| `code_execute` | 代码执行 | 运行 Python/JS 代码 |
+| `project_analyze` | 项目分析 | 统计语言分布 |
+
+#### 文件位置
+
+- 核心模块: `core/terminal_ultra.py`
+- 工具集成: `webnet/ToolNet/tools/terminal/ultra_terminal_tools.py`
+- 使用指南: `prompts/ultra_terminal_guide.md`
+
+#### 使用方法
+
+```python
+from core.terminal_ultra import get_terminal_ultra
+import asyncio
+
+async def main():
+    terminal = get_terminal_ultra()
+    
+    # 执行终端命令
+    result = await terminal.terminal_exec("python script.py")
+    
+    # 读取文件
+    result = await terminal.file_read("config.py")
+    
+    # 写入文件
+    result = await terminal.file_write("test.py", "print('hello')")
+    
+    # 编辑文件
+    result = await terminal.file_edit("test.py", "hello", "world")
+    
+    # 删除文件
+    result = await terminal.file_delete("temp.txt")
+    
+    # 目录树
+    result = await terminal.directory_tree(".", max_depth=3)
+    
+    # 代码执行
+    result = await terminal.code_execute("print(1+1)", "python")
+    
+    # 项目分析
+    result = await terminal.project_analyze(".")
+
+asyncio.run(main())
+```
+
+#### 安全机制
+
+- **危险命令拦截**: 自动阻止 `rm -rf /`、`mkfs` 等危险操作
+- **工作目录隔离**: 默认在项目目录内操作
+- **超时保护**: 命令执行有超时限制
+- **错误处理**: 完善的异常处理和错误信息
+
+---
+
+### 8. MiyaAgentV3 - AI驱动的推理引擎
+
+全新 V3 代理系统，赋予弥娅真正的 AI 推理能力，类似于 Claude Code 的 autonomous execution。
+
+#### 核心能力
+
+| 能力 | 说明 |
+|------|------|
+| **AI意图理解** | 理解用户真正想要什么，而不是简单的命令匹配 |
+| **跨平台命令推理** | 根据操作系统（Windows/Linux/Mac）自动选择正确命令 |
+| **多步骤自主执行** | 连续执行多个步骤直到任务完成，类似 Claude Code |
+| **任务完成检测** | 判断任务是否真正完成，避免过度执行 |
+| **智能重试** | 失败时尝试替代方案 |
+
+#### 文件位置
+
+- 核心模块: `core/miya_agent_v3.py`
+- 决策集成: `hub/decision_hub.py` (第804行)
+
+#### 使用方法
+
+```python
+from core.miya_agent_v3 import create_agent_v3, MiyaAgentV3
+import asyncio
+
+async def main():
+    # 创建 V3 代理（可配置最大步数和重试次数）
+    agent = create_agent_v3(max_steps=10, max_retries=2)
+    
+    # 使用 AI 推理处理请求
+    result = await agent.run(
+        user_request="帮我创建一个 Python 文件并运行",
+        model_client=ai_client  # AI 模型客户端
+    )
+    
+    print(result)
+
+asyncio.run(main())
+```
+
+#### 执行流程
+
+```
+用户请求 → AI意图分析 → 任务规划 → 步骤执行 → 完成检测 → 返回结果
+                              ↓
+                        失败? → 智能重试 → 替代方案
+```
+
+#### 决策Hub集成
+
+V3 代理已集成到决策中心，自动处理复杂终端任务：
+
+```python
+# hub/decision_hub.py 中的调用
+if should_use_agent_v3:
+    from core.miya_agent_v3 import create_agent_v3
+    agent_v3 = create_agent_v3(max_steps=max_steps)
+    result = await agent_v3.run(user_request, model_client)
+```
+
+---
+
+### 9. Runtime API 全局缓存优化
+
+终端模式的 API 服务经过优化，使用全局缓存避免重复初始化，大幅降低延迟。
+
+#### 性能优化
+
+| 指标 | 优化前 | 优化后 |
+|------|--------|--------|
+| 首次请求 | ~5-10秒 | ~5-10秒 (初始化) |
+| 后续请求 | ~5-10秒 | <1秒 (缓存命中) |
+| 内存占用 | 每次创建新实例 | 共享全局实例 |
+
+#### 技术实现
+
+- **全局组件缓存**: AI客户端、提示词管理器、工具系统、记忆引擎
+- **类级别初始化**: `RuntimeAPIServer.ensure_global_initialized()`
+- **懒加载**: 首次请求时初始化，后续请求直接使用缓存
+
+#### 文件位置
+
+- 核心模块: `core/runtime_api_server.py`
+- API端点: `/api/terminal/chat`
+
+---
+
+### 10. 终端模式启动
+
+弥娅终端模式支持多种启动方式，覆盖全平台。
+
+#### 启动命令
+
+```bash
+# 方式一：交互式启动（推荐）
+python run/main.py
+
+# 方式二：快速启动（终端 + API）
+# 在 start.bat/start.sh 中选择 Q
+
+# 方式三：仅终端模式
+python run/main.py --mode terminal
+```
+
+#### 跨平台支持
+
+| 平台 | 支持 | 特性 |
+|------|------|------|
+| **Windows** | ✅ | 中文输入增强、PowerShell支持 |
+| **Linux** | ✅ | 标准终端、Bash支持 |
+| **Mac** | ✅ | Zsh支持、终端适配 |
+
+#### 交互命令
+
+| 命令 | 功能 |
+|------|------|
+| `直接输入` | 与弥娅对话 |
+| `/terminal` | 进入终端控制模式 |
+| `/quit` 或 `exit` | 退出程序 |
+| `list terminals` | 查看所有终端状态 |
+| `switch <名称>` | 切换到指定终端 |
+
 ---
 
 ## 更新日志
+
+### v4.2 (Terminal Ultra Edition)
+
+- 超级终端控制系统 (Terminal Ultra)
+- 8大终端工具: terminal_exec, file_read, file_write, file_edit, file_delete, directory_tree, code_execute, project_analyze
+- MiyaAgentV3 - AI驱动的推理引擎
+  - AI意图理解、多步骤自主执行、任务完成检测
+  - 跨平台命令推理 (Windows/Linux/Mac)
+- Runtime API 全局缓存优化 - 后续请求<1秒响应
+- 终端模式跨平台支持增强
+- 完整文件系统操作能力
+- 代码执行支持 (Python/JavaScript)
+- 项目结构分析
+
+### v4.1 (Upgrade Edition)
 
 ### v4.1 (Upgrade Edition)
 

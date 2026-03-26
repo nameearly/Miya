@@ -93,6 +93,105 @@ class RuntimeAPIServer:
     架构定位：属于M-Link传输层的API扩展，不改变核心架构
     """
 
+    # 全局缓存 - 避免每次请求重新初始化
+    _global_model_client = None
+    _global_prompt_manager = None
+    _global_tool_subnet = None
+    _global_memory_engine = None
+    _global_initialized = False
+
+    @classmethod
+    async def ensure_global_initialized(cls) -> bool:
+        """初始化全局组件 - 只执行一次"""
+        if cls._global_initialized:
+            return True
+
+        logger.info("[Runtime API] 初始化全局组件...")
+        try:
+            # 初始化AI客户端
+            from core.ai_client import AIClientFactory
+
+            try:
+                from pathlib import Path
+                import json
+
+                config_path = (
+                    Path(__file__).parent.parent / "config" / "multi_model_config.json"
+                )
+                if config_path.exists():
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        config = json.load(f)
+
+                    models = config.get("models", {})
+                    routing = config.get("routing_strategy", {})
+                    simple_chat_routing = routing.get("simple_chat", {})
+
+                    for priority_key in ["primary", "secondary", "fallback"]:
+                        model_id = simple_chat_routing.get(priority_key)
+                        if model_id and model_id in models:
+                            model_config = models[model_id]
+                            try:
+                                cls._global_model_client = (
+                                    AIClientFactory.create_client(
+                                        provider=model_config.get("provider", "openai"),
+                                        api_key=model_config.get("api_key", ""),
+                                        model=model_config.get("name", ""),
+                                        base_url=model_config.get("base_url", None),
+                                    )
+                                )
+                                logger.info(
+                                    f"[Runtime API] AI客户端初始化成功: {model_id}"
+                                )
+                                break
+                            except Exception as e:
+                                logger.debug(f"尝试模型 {model_id} 失败: {e}")
+                                continue
+            except Exception as e:
+                logger.warning(f"AI客户端初始化失败: {e}")
+
+            # 初始化提示词管理器
+            try:
+                from core.prompt_manager import PromptManager
+
+                cls._global_prompt_manager = PromptManager()
+                logger.info("[Runtime API] 提示词管理器初始化成功")
+            except Exception as e:
+                logger.warning(f"提示词管理器初始化失败: {e}")
+
+            # 初始化记忆系统
+            try:
+                from core.memory_system_initializer import get_memory_system_initializer
+
+                memory_initializer = await get_memory_system_initializer()
+                cls._global_memory_engine = await memory_initializer.get_memory_engine()
+                logger.info("[Runtime API] 记忆系统初始化成功")
+            except Exception as e:
+                logger.warning(f"记忆系统初始化失败: {e}")
+
+            # 初始化工具系统
+            try:
+                from webnet.ToolNet.subnet import ToolSubnet
+
+                cls._global_tool_subnet = ToolSubnet(
+                    memory_engine=cls._global_memory_engine,
+                    cognitive_memory=None,
+                    onebot_client=None,
+                    scheduler=None,
+                )
+                logger.info(
+                    f"[Runtime API] 工具系统初始化成功，已加载 {len(cls._global_tool_subnet.registry.tools)} 个工具"
+                )
+            except Exception as e:
+                logger.warning(f"工具系统初始化失败: {e}")
+
+            cls._global_initialized = True
+            logger.info("[Runtime API] 全局初始化完成")
+            return True
+
+        except Exception as e:
+            logger.error(f"全局初始化失败: {e}")
+            return False
+
     def __init__(
         self,
         host: str = "0.0.0.0",
@@ -625,9 +724,8 @@ class RuntimeAPIServer:
         # 终端代理聊天接口 - 集成弥娅核心AI系统
         @app.post("/api/terminal/chat")
         async def terminal_chat(request: dict[str, str]):
-            """处理终端代理的聊天请求 - 完整AI处理版本"""
+            """处理终端代理的聊天请求 - 使用全局缓存优化"""
             from datetime import datetime
-            import sys
 
             try:
                 message = request.get("message", "")
@@ -636,238 +734,141 @@ class RuntimeAPIServer:
 
                 logger.info(f"[终端聊天] 收到消息: {message} (会话: {session_id})")
 
-                # 尝试调用弥娅核心AI系统
-                try:
-                    # 导入必要的核心组件
-                    from core.ai_client import AIMessage, AIClientFactory
-                    from core.prompt_manager import PromptManager
-                    from core.memory_system_initializer import (
-                        get_memory_system_initializer,
-                    )
-                    from webnet.ToolNet.subnet import ToolSubnet
-                    from webnet.ToolNet.base import ToolContext
+                # 确保全局组件已初始化
+                await RuntimeAPIServer.ensure_global_initialized()
 
-                    # 获取AI客户端（优先使用配置文件中的模型）
-                    model_client = None
+                # 使用全局缓存的组件
+                model_client = RuntimeAPIServer._global_model_client
+                prompt_manager = RuntimeAPIServer._global_prompt_manager
+                tool_subnet = RuntimeAPIServer._global_tool_subnet
+                memory_engine = RuntimeAPIServer._global_memory_engine
+
+                # 获取人设提示词
+                system_prompt = "你是弥娅，一个智能AI助手。你友善、专业、乐于助人。"
+                if prompt_manager:
                     try:
-                        from pathlib import Path
-                        import json
-
-                        config_path = (
-                            Path(__file__).parent.parent
-                            / "config"
-                            / "multi_model_config.json"
-                        )
-                        if config_path.exists():
-                            with open(config_path, "r", encoding="utf-8") as f:
-                                config = json.load(f)
-
-                            # 获取默认的简单聊天模型
-                            models = config.get("models", {})
-                            routing = config.get("routing_strategy", {})
-                            simple_chat_routing = routing.get("simple_chat", {})
-
-                            # 按优先级选择模型
-                            model_ids_to_try = []
-                            for priority_key in ["primary", "secondary", "fallback"]:
-                                model_id = simple_chat_routing.get(priority_key)
-                                if model_id and model_id in models:
-                                    model_ids_to_try.append(model_id)
-
-                            for model_id in model_ids_to_try:
-                                model_config = models[model_id]
-                                try:
-                                    model_client = AIClientFactory.create_client(
-                                        provider=model_config.get("provider", "openai"),
-                                        api_key=model_config.get("api_key", ""),
-                                        model=model_config.get("name", ""),
-                                        base_url=model_config.get("base_url", None),
-                                    )
-                                    logger.info(
-                                        f"[终端聊天] AI客户端初始化成功: {model_id}"
-                                    )
-                                    break
-                                except Exception as client_error:
-                                    logger.debug(
-                                        f"[终端聊天] 尝试模型 {model_id} 失败: {client_error}"
-                                    )
-                                    continue
-
-                            if not model_client:
-                                logger.warning("[终端聊天] 所有模型初始化失败")
-                        else:
-                            logger.warning("[终端聊天] 多模型配置文件不存在")
-                    except Exception as e:
-                        logger.warning(f"无法创建AI客户端: {e}")
-
-                    # 初始化记忆系统
-                    memory_engine = None
-                    try:
-                        memory_initializer = await get_memory_system_initializer()
-                        memory_engine = await memory_initializer.get_memory_engine()
-                        logger.info("[终端聊天] 记忆系统初始化成功")
-                    except Exception as e:
-                        logger.warning(f"记忆系统初始化失败: {e}")
-
-                    # 初始化工具系统
-                    tool_subnet = None
-                    try:
-                        tool_subnet = ToolSubnet(
-                            memory_engine=memory_engine,
-                            cognitive_memory=None,
-                            onebot_client=None,
-                            scheduler=None,
-                        )
-                        logger.info(
-                            f"[终端聊天] 工具系统初始化成功，已加载 {len(tool_subnet.registry.tools)} 个工具"
-                        )
-                    except Exception as e:
-                        logger.warning(f"工具系统初始化失败: {e}")
-
-                    # 获取人设提示词
-                    try:
-                        prompt_manager = PromptManager()
                         system_prompt = prompt_manager.get_system_prompt()
-                        logger.info("[终端聊天] 人设提示词加载成功")
                     except Exception as e:
-                        logger.warning(f"提示词管理器初始化失败: {e}")
-                        system_prompt = (
-                            "你是弥娅，一个智能AI助手。你友善、专业、乐于助人。"
-                        )
+                        logger.debug(f"获取提示词失败: {e}")
 
-                    # 添加工具使用说明到系统提示词
-                    if tool_subnet:
-                        tools_info = []
-                        for tool_name, tool in list(tool_subnet.registry.tools.items())[
-                            :10
-                        ]:  # 只显示前10个工具
+                # 添加工具使用说明
+                if tool_subnet:
+                    tools_info = []
+                    for tool_name, tool in list(tool_subnet.registry.tools.items())[
+                        :10
+                    ]:
+                        try:
+                            tool_config = tool.config if hasattr(tool, "config") else {}
+                            description = tool_config.get("description", "无描述")
+                            tools_info.append(f"- {tool_name}: {description}")
+                        except:
+                            pass
+
+                    if tools_info:
+                        system_prompt += "\n\n可用工具:\n" + "\n".join(tools_info)
+                        system_prompt += "\n\n工具使用说明: 当用户明确请求某个功能时，你应该使用相应的工具。"
+
+                # 构建对话消息
+                from core.ai_client import AIMessage
+
+                messages = [AIMessage(role="system", content=system_prompt)]
+
+                # 添加记忆上下文
+                if memory_engine:
+                    try:
+                        memory_context = await memory_engine.get_context(
+                            session_id, limit=5
+                        )
+                        if memory_context:
+                            messages.append(
+                                AIMessage(
+                                    role="system",
+                                    content=f"记忆上下文:\n{memory_context}",
+                                )
+                            )
+                    except Exception as e:
+                        logger.debug(f"获取记忆上下文失败: {e}")
+
+                messages.append(AIMessage(role="user", content=message))
+
+                # 检测工具调用
+                tool_call_result = None
+                if tool_subnet:
+                    try:
+                        from webnet.ToolNet.base import ToolContext
+
+                        for tool_name, tool in tool_subnet.registry.tools.items():
                             try:
                                 tool_config = (
                                     tool.config if hasattr(tool, "config") else {}
                                 )
-                                description = tool_config.get("description", "无描述")
-                                tools_info.append(f"- {tool_name}: {description}")
-                            except:
-                                pass
+                                tool_display_name = tool_config.get(
+                                    "name", tool_name
+                                ).lower()
 
-                        if tools_info:
-                            system_prompt += "\n\n可用工具:\n" + "\n".join(tools_info)
-                            system_prompt += "\n\n工具使用说明: 当用户明确请求某个功能时，你应该使用相应的工具。"
+                                if (
+                                    tool_display_name in message.lower()
+                                    or tool_name.lower() in message.lower()
+                                ):
+                                    logger.info(
+                                        f"[终端聊天] 检测到工具调用: {tool_name}"
+                                    )
 
-                    # 构建对话消息
-                    messages = [AIMessage(role="system", content=system_prompt)]
+                                    context = ToolContext(
+                                        memory_engine=memory_engine,
+                                        unified_memory=memory_engine,
+                                        user_id=int(session_id)
+                                        if session_id.isdigit()
+                                        else None,
+                                        message_type="web",
+                                    )
 
-                    # 如果有记忆系统，添加记忆上下文
-                    if memory_engine:
-                        try:
-                            memory_context = await memory_engine.get_context(
-                                session_id, limit=5
+                                    result = await tool_subnet.execute_tool(
+                                        tool_name=tool_name,
+                                        args={},
+                                        user_id=context.user_id,
+                                        message_type="web",
+                                    )
+                                    tool_call_result = result
+                                    break
+                            except Exception as tool_error:
+                                logger.debug(f"工具 {tool_name} 执行失败: {tool_error}")
+                    except Exception as e:
+                        logger.debug(f"工具检测失败: {e}")
+
+                # 调用AI生成响应
+                response_text = "抱歉，AI服务暂时不可用。"
+                if model_client:
+                    if tool_call_result:
+                        messages.append(
+                            AIMessage(
+                                role="system",
+                                content=f"工具执行结果:\n{tool_call_result}",
                             )
-                            if memory_context:
-                                messages.append(
-                                    AIMessage(
-                                        role="system",
-                                        content=f"记忆上下文:\n{memory_context}",
-                                    )
-                                )
-                        except Exception as e:
-                            logger.debug(f"获取记忆上下文失败: {e}")
+                        )
 
-                    # 添加用户消息
-                    messages.append(AIMessage(role="user", content=message))
-
-                    # 检测是否需要调用工具
-                    tool_call_result = None
-                    if tool_subnet:
-                        try:
-                            # 简单的关键词匹配来决定是否调用工具
-                            for tool_name, tool in tool_subnet.registry.tools.items():
-                                try:
-                                    tool_config = (
-                                        tool.config if hasattr(tool, "config") else {}
-                                    )
-                                    tool_display_name = tool_config.get(
-                                        "name", tool_name
-                                    ).lower()
-
-                                    # 如果工具名称在用户消息中，尝试调用
-                                    if (
-                                        tool_display_name in message.lower()
-                                        or tool_name.lower() in message.lower()
-                                    ):
-                                        logger.info(
-                                            f"[终端聊天] 检测到工具调用: {tool_name}"
-                                        )
-
-                                        # 创建工具上下文
-                                        context = ToolContext(
-                                            memory_engine=memory_engine,
-                                            unified_memory=memory_engine,
-                                            user_id=int(session_id)
-                                            if session_id.isdigit()
-                                            else None,
-                                            message_type="web",
-                                        )
-
-                                        # 执行工具
-                                        result = await tool_subnet.execute_tool(
-                                            tool_name=tool_name,
-                                            args={},
-                                            user_id=context.user_id,
-                                            message_type="web",
-                                        )
-                                        tool_call_result = result
-                                        logger.info(
-                                            f"[终端聊天] 工具执行结果: {result[:100]}..."
-                                        )
-                                        break
-                                except Exception as tool_error:
-                                    logger.error(
-                                        f"[终端聊天] 工具执行失败: {tool_error}"
-                                    )
-                        except Exception as e:
-                            logger.debug(f"工具检测失败: {e}")
-
-                    # 调用AI生成响应
-                    if model_client:
-                        # 如果有工具调用结果，将其作为上下文
-                        if tool_call_result:
-                            messages.append(
-                                AIMessage(
-                                    role="system",
-                                    content=f"工具执行结果:\n{tool_call_result}",
-                                )
-                            )
-
+                    try:
                         response = await model_client.chat(messages)
-                        # 处理返回值，可能是字符串或AIMessage对象
                         if isinstance(response, str):
                             response_text = response
                         elif hasattr(response, "content"):
                             response_text = response.content
                         else:
                             response_text = str(response)
-                        logger.info(f"[终端聊天] AI响应生成成功")
-                    else:
-                        # 如果没有AI客户端，返回工具执行结果或默认消息
+                    except Exception as e:
+                        logger.error(f"AI调用失败: {e}")
                         response_text = tool_call_result or "抱歉，AI服务暂时不可用。"
+                else:
+                    response_text = tool_call_result or "抱歉，AI服务暂时不可用。"
 
-                    # 保存对话到记忆系统
-                    if memory_engine:
-                        try:
-                            await memory_engine.add_conversation(
-                                session_id, message, response_text
-                            )
-                        except Exception as e:
-                            logger.debug(f"保存对话记忆失败: {e}")
-
-                except ImportError as ie:
-                    logger.error(f"[终端聊天] 缺少必要模块: {ie}")
-                    response_text = "弥娅核心系统初始化中，请稍后再试。"
-                except Exception as ai_error:
-                    logger.error(f"[终端聊天] AI处理失败: {ai_error}", exc_info=True)
-                    # 降级到简单回复
-                    response_text = f"弥娅已收到您的消息，但处理时遇到一些问题。"
+                # 保存对话到记忆系统
+                if memory_engine:
+                    try:
+                        await memory_engine.add_conversation(
+                            session_id, message, response_text
+                        )
+                    except Exception as e:
+                        logger.debug(f"保存对话记忆失败: {e}")
 
                 response_data = {
                     "response": response_text,
