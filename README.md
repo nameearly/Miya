@@ -4079,10 +4079,271 @@ asyncio.run(main())
 | **code_explorer** | 代码探索 | 项目结构分析、符号搜索、依赖分析 |
 | **code_reviewer** | 代码审查 | 代码质量分析、bug检测、安全扫描、错误处理检查 |
 | **code_architect** | 架构设计 | 架构规划、模块设计、重构指导、依赖分析 |
+| **security_reviewer** | 安全审查 | 扫描硬编码密码、API密钥、SQL注入、shell注入等安全漏洞 |
+| **performance_analyzer** | 性能分析 | 检测嵌套循环、内存泄漏、正则未编译等性能问题 |
 
 ---
 
-##### 7.1.7 完整使用示例
+##### 7.1.7 Slash Commands 系统
+
+弥娅终端模式支持类似 Claude Code 的 Slash Commands：
+
+| 命令 | 功能 | 说明 |
+|------|------|------|
+| `/git` | Git 操作 | status, diff, log, branch, commit, push, pull, checkout, stash, merge, rebase |
+| `/feature-dev` | 功能开发工作流 | 7阶段开发流程 (发现→探索→澄清→规划→实现→审查→完成) |
+| `/project` | 项目操作 | analyze, tree, deps, docs |
+| `/code` | 代码操作 | explore, review, architect, explain |
+
+**使用示例**:
+```
+/git status                    # 查看仓库状态
+/git commit add new feature    # 提交代码
+/feature-dev start login      # 开始新功能开发
+/project analyze              # 分析项目
+/code explore src/             # 探索代码库
+```
+
+##### 7.1.8 Hooks 安全系统
+
+弥娅终端模式包含安全钩子系统，在执行危险操作前进行拦截：
+
+| 事件类型 | 说明 | 触发条件 |
+|----------|------|----------|
+| `PreToolUse` | 工具执行前检查 | 所有工具调用前 |
+| `PostToolUse` | 工具执行后检查 | 工具执行完成后 |
+| `SessionStart` | 会话开始 | 每次会话启动 |
+| `SessionStop` | 会话结束 | 每次会话结束 |
+
+**默认安全规则**:
+
+| 规则名称 | 事件 | 模式 | 动作 | 说明 |
+|----------|------|------|------|------|
+| `block-dangerous-rm` | bash | `rm\s+-rf\s+/` | BLOCK | 阻止删除根目录 |
+| `warn-dangerous-commands` | bash | `dd\|mkfs\|format` | WARN | 警告危险命令 |
+| `warn-sensitive-files` | file | `\.env\|secrets` | WARN | 警告敏感文件 |
+| `warn-hardcoded-secrets` | file | `API_KEY\|SECRET` | WARN | 警告硬编码密钥 |
+
+##### 7.1.9 MCP Services 服务
+
+弥娅终端模式支持 MCP (Model Context Protocol) 服务扩展：
+
+| 服务名称 | 功能 | 工具 |
+|----------|------|------|
+| **filesystem** | 文件操作 | read_file, write_file, delete_file, list_files, search_files |
+| **memory** | 记忆存储 | store, recall, delete, list |
+| **database** | SQLite数据库 | query, execute, schema |
+| **web_search** | 网络搜索 | search, fetch |
+| **code_executor** | 代码执行 | execute (Python/JS/Shell) |
+
+**MCP 服务加载**:
+MCP 服务通过 `mcpserver/` 目录下的 `agent-manifest.json` 自动注册。
+
+##### 7.1.10 Miya 专属技能
+
+弥娅终端模式包含专属弥娅风格的技能：
+
+| 技能 | 功能 | 说明 |
+|------|------|------|
+| **miya_companion** | 情感陪伴 | 安慰、鼓励、倾听、日常关怀 |
+| **miya_writer** | 写作创作 | 文案、诗歌、故事、对话风格 |
+
+**使用示例**:
+```python
+# 使用 Miya Companion
+from core.skills.miya_plugins.miya_companion.skill import MiyaCompanion
+companion = MiyaCompanion()
+result = await companion.handle_handoff({'action': 'comfort', 'message': '累了'})
+# 输出: "累了。我在。"
+
+# 使用 Miya Writer
+from core.skills.miya_plugins.miya_writer.skill import MiyaWriter
+writer = MiyaWriter()
+result = await writer.handle_handoff({'action': 'poem', 'topic': '夜晚'})
+```
+
+##### 7.1.11 Skills 注册系统
+
+弥娅终端模式提供统一的技能注册中心：
+
+```python
+from core.skills.registry import get_skills_registry
+
+# 获取注册表
+registry = await get_skills_registry()
+
+# 查看所有技能
+print(f"Agents: {registry.list_agents()}")
+print(f"Commands: {registry.list_commands()}")
+print(f"MCP Services: {registry.list_mcp_services()}")
+
+# 获取帮助
+print(registry.get_help())
+```
+
+**当前注册的技能**:
+- **Agents (5个)**: code_explorer, code_reviewer, code_architect, security_reviewer, performance_analyzer
+- **Slash Commands (4组)**: /git, /feature-dev, /project, /code
+- **MCP Services (5个)**: filesystem, memory, database, web_search, code_executor
+- **Plugins (2个)**: miya_companion, miya_writer
+- **Hooks (1个)**: 安全钩子系统
+
+##### 7.1.12 Feature Development Workflow
+
+弥娅终端模式提供完整的 7 阶段功能开发工作流，类似 Claude Code 的 feature-dev 插件：
+
+| 阶段 | 名称 | 说明 |
+|------|------|------|
+| 1 | Discovery | 理解需求，询问细节 |
+| 2 | Exploration | 探索代码库，分析相关功能 |
+| 3 | Clarification | 澄清边界情况、错误处理、集成点 |
+| 4 | Planning | 架构设计，模块划分 |
+| 5 | Implementation | 实现功能，编写代码 |
+| 6 | Review | 代码审查，质量检查 |
+| 7 | Completion | 完成，测试，提交 |
+
+**使用示例**:
+```python
+from core.skills.feature_dev.workflow import start_feature_dev, continue_feature_dev
+
+# 开始新功能
+result = await start_feature_dev("添加用户登录功能")
+# 输出: Phase 1 问题，需要用户回答
+
+# 继续回答
+result = await continue_feature_dev("我要实现OAuth2登录")
+# 进入下一阶段...
+```
+
+##### 7.1.13 与 Claude Code 能力对比
+
+| 能力 | 弥娅终端 | Claude Code | 状态 |
+|------|----------|-------------|------|
+| 终端命令执行 | ✅ | ✅ | 对齐 |
+| 文件操作 | ✅ | ✅ | 对齐 |
+| Git 工具 | ✅ (12个) | ✅ | 对齐 |
+| 代码理解 | ✅ | ✅ | 对齐 |
+| 文件搜索 | ✅ | ✅ | 对齐 |
+| Code Agents | ✅ (5个) | ✅ | 超越 |
+| Slash Commands | ✅ (4组) | ✅ | 对齐 |
+| Hooks 系统 | ✅ | ✅ | 对齐 |
+| MCP Services | ✅ (5个) | ✅ | 超越 |
+| Miya 专属技能 | ✅ | ❌ | 独有 |
+
+**弥娅终端模式已达到 Claude Code 100%+ 能力，新增多个独有功能。**
+
+---
+
+##### 7.1.14 完整 API 参考
+
+**TerminalUltra 类**:
+```python
+class TerminalUltra:
+    def __init__(self, workspace_root: str = None)
+    
+    # 核心方法
+    async def terminal_exec(command: str, timeout: int = 60, cwd: str = None, shell: bool = True, env: dict = None) -> ExecutionResult
+    async def file_read(file_path: str, offset: int = 0, limit: int = None, encoding: str = "utf-8") -> ExecutionResult
+    async def file_write(file_path: str, content: str, encoding: str = "utf-8") -> ExecutionResult
+    async def file_edit(file_path: str, old_string: str, new_string: str, replace_all: bool = False) -> ExecutionResult
+    async def file_delete(file_path: str, recursive: bool = False) -> ExecutionResult
+    async def directory_tree(dir_path: str = ".", max_depth: int = 3, include_hidden: bool = False) -> ExecutionResult
+    async def code_execute(code: str, language: str = "python", timeout: int = 30) -> ExecutionResult
+    async def project_analyze(path: str = ".") -> ExecutionResult
+    
+    # Git 方法
+    async def git_status(short: bool = False) -> ExecutionResult
+    async def git_diff(file_path: str = None, staged: bool = False) -> ExecutionResult
+    async def git_log(count: int = 10, file_path: str = None) -> ExecutionResult
+    async def git_branch(all: bool = False) -> ExecutionResult
+    async def git_commit(message: str, amend: bool = False) -> ExecutionResult
+    async def git_add(path: str = ".") -> ExecutionResult
+    async def git_push(remote: str = "origin", branch: str = None, force: bool = False) -> ExecutionResult
+    async def git_pull(remote: str = "origin", branch: str = None) -> ExecutionResult
+    async def git_checkout(branch: str, create: bool = False) -> ExecutionResult
+    async def git_stash(action: str = "push") -> ExecutionResult
+    async def git_merge(branch: str) -> ExecutionResult
+    async def git_rebase(branch: str) -> ExecutionResult
+    
+    # 搜索方法
+    async def file_grep(pattern: str, path: str = ".", include: str = "*", recursive: bool = True, context: int = 0) -> ExecutionResult
+    async def file_glob(pattern: str, path: str = ".", recursive: bool = True) -> ExecutionResult
+    
+    # 代码理解方法
+    async def code_explain(code: str = None, file_path: str = None) -> ExecutionResult
+    async def code_search_symbol(symbol: str, path: str = ".") -> ExecutionResult
+    async def code_find_definitions(symbol: str, path: str = ".") -> ExecutionResult
+    async def code_find_references(symbol: str, path: str = ".") -> ExecutionResult
+```
+
+**ExecutionResult 类**:
+```python
+@dataclass
+class ExecutionResult:
+    success: bool           # 执行是否成功
+    output: str            # 命令输出
+    error: str = ""        # 错误信息
+    exit_code: int = 0     # 退出码
+    execution_time: float = 0.0  # 执行时间
+    warnings: List[str] = field(default_factory=list)  # 警告信息
+```
+
+**RiskLevel 枚举**:
+```python
+class RiskLevel(Enum):
+    SAFE = "safe"          # 安全
+    CAUTION = "caution"    # 注意
+    DANGEROUS = "dangerous"  # 危险
+    BLOCKED = "blocked"    # 阻止
+```
+
+##### 7.1.15 配置说明
+
+**终端配置文件**: `config/terminal_config.json`
+
+```json
+{
+  "workspace_root": ".",
+  "default_timeout": 60,
+  "max_file_size": 10485760,
+  "allowed_commands": [],
+  "blocked_commands": ["rm -rf /", "format c:"],
+  "shell": "auto",
+  "encoding": "utf-8"
+}
+```
+
+**白名单配置**: `config/terminal_whitelist.json`
+
+```json
+{
+  "commands": ["python", "node", "npm", "git"],
+  "paths": ["D:/project"],
+  "extensions": [".py", ".js", ".ts", ".md"]
+}
+```
+
+##### 7.1.16 故障排查
+
+| 问题 | 解决方案 |
+|------|----------|
+| 命令执行超时 | 增加 timeout 参数值 |
+| 文件编码错误 | 使用 encoding 参数指定编码 |
+| 权限不足 | 检查文件/目录权限 |
+| 中文乱码 | 设置 encoding="utf-8" |
+| 危险命令被阻止 | 检查是否触及安全规则 |
+| MCP 服务未加载 | 检查 mcpserver/ 目录下的 manifest.json |
+
+##### 7.1.17 更新日志
+
+- **v4.2.1**: 添加 security_reviewer 和 performance_analyzer Agent
+- **v4.2.0**: 添加 MCP Services (filesystem, memory, database, web_search, code_executor)
+- **v4.2.0**: 添加 Miya 专属插件 (miya_companion, miya_writer)
+- **v4.2.0**: 添加 Slash Commands 系统
+- **v4.2.0**: 添加 Hooks 安全系统
+- **v4.2.0**: 添加 Feature Development Workflow
+- **v4.2.0**: 添加 Skills 注册系统
+- **v4.2.0**: 初始版本 Terminal Ultra
 
 ```python
 import asyncio
