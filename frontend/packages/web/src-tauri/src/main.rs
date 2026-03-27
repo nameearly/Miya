@@ -99,12 +99,12 @@ async fn open_file(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn show_notification(title: String, body: String) -> Result<(), String> {
-    tauri::api::notification::Notification::new("com.miya.ai.assistant")
-        .title(&title)
-        .body(&body)
-        .show()
-        .map_err(|e| e.to_string())?;
+fn show_notification(title: String, body: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Emitter;
+    app_handle.emit("show_notification", serde_json::json!({
+        "title": title,
+        "body": body
+    })).map_err(|e| e.to_string())?;
     Ok(())
 }
 

@@ -564,14 +564,20 @@ class ToolRegistry:
         from webnet.ToolNet.tools.memory.memory_update import MemoryUpdate
         from webnet.ToolNet.tools.memory.memory_list import MemoryList
         from webnet.ToolNet.tools.memory.auto_extract_memory import AutoExtractMemory
+        from webnet.ToolNet.tools.memory.memory_stats import (
+            MemoryStats,
+            MemorySearchByCategory,
+        )
 
         self.register(MemoryAdd())
         self.register(MemoryDelete())
         self.register(MemoryUpdate())
         self.register(MemoryList())
         self.register(AutoExtractMemory())
+        self.register(MemoryStats())
+        self.register(MemorySearchByCategory())
         self.logger.info(
-            "已加载记忆工具: MemoryAdd, MemoryDelete, MemoryUpdate, MemoryList, AutoExtractMemory"
+            "已加载记忆工具: MemoryAdd, MemoryDelete, MemoryUpdate, MemoryList, AutoExtractMemory, MemoryStats, MemorySearchByCategory"
         )
 
     def _load_knowledge_tools(self):

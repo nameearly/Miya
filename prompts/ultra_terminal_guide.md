@@ -101,12 +101,81 @@
 
 ---
 
+### 9. Git 工具
+
+**git_status**: 查看仓库状态
+- 调用: `git_status({"short": true})`
+
+**git_diff**: 查看文件差异
+- 调用: `git_diff({"file_path": "main.py"})` 或 `git_diff({"staged": true})`
+
+**git_log**: 查看提交历史
+- 调用: `git_log({"count": 10})`
+
+**git_branch**: 查看分支
+- 调用: `git_branch({"all": true})`
+
+**git_commit**: 提交更改
+- 调用: `git_commit({"message": "修复bug"})`
+
+**git_add**: 添加文件到暂存区
+- 调用: `git_add({"path": "."})`
+
+**git_push**: 推送到远程
+- 调用: `git_push({"remote": "origin", "branch": "main"})`
+
+**git_pull**: 从远程拉取
+- 调用: `git_pull({"remote": "origin"})`
+
+**git_checkout**: 切换分支
+- 调用: `git_checkout({"branch": "main"})` 或 `git_checkout({"branch": "new-branch", "create": true})`
+
+**git_stash**: 暂存工作区
+- 调用: `git_stash({"action": "push"})` / `git_stash({"action": "pop"})` / `git_stash({"action": "list"})`
+
+---
+
+### 10. 文件搜索
+
+**file_grep**: 搜索文件内容
+- 调用: `file_grep({"pattern": "TODO", "path": ".", "include": "*.py"})`
+
+**file_glob**: 查找文件
+- 调用: `file_glob({"pattern": "*.py", "path": "."})`
+
+---
+
+### 11. 代码理解
+
+**code_explain**: 分析解释代码
+- 调用: `code_explain({"file_path": "main.py"})`
+
+**code_search_symbol**: 搜索符号定义和引用
+- 调用: `code_search_symbol({"symbol": "my_function", "path": "."})`
+
+---
+
+### 12. 智能工具
+
+**project_context**: 加载项目上下文 (CLAUDE.md 类似)
+- 调用: `project_context({})`
+
+**task_plan**: 分析复杂任务并生成执行计划
+- 调用: `task_plan({"task": "实现用户登录功能"})`
+
+**suggestions**: 根据当前上下文提供智能建议
+- 调用: `suggestions({})`
+
+---
+
 ## 使用原则
 
 1. **必须使用工具**: 当用户请求执行操作时，必须调用对应工具，不能只回复
 2. **精确匹配**: old_string 必须与文件中实际内容完全一致
 3. **安全第一**: 危险命令（如 rm -rf）会被阻止
 4. **先读后改**: 编辑文件前先读取内容，确保修改正确
+5. **Git 工作流**: 修改代码后优先使用 git 工具提交
+6. **智能建议**: 主动使用 suggestions 工具提供建议
 
 ---
 

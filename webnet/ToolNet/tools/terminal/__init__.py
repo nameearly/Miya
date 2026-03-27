@@ -28,6 +28,16 @@ from .platform_adapter import (
     get_platform_adapter,
 )
 from .platform_detector import Platform, detect_platform
+from .ultra_terminal_tools import (
+    TerminalExecTool,
+    FileReadTool,
+    FileWriteTool,
+    FileEditTool,
+    FileDeleteTool,
+    DirectoryTreeTool,
+    CodeExecuteTool,
+    ProjectAnalyzeTool,
+)
 
 TerminalTool = MiyaTerminalTool
 
@@ -51,4 +61,13 @@ __all__ = [
     "get_platform_adapter",
     "Platform",
     "detect_platform",
+    # 超级终端工具
+    "TerminalExecTool",
+    "FileReadTool",
+    "FileWriteTool",
+    "FileEditTool",
+    "FileDeleteTool",
+    "DirectoryTreeTool",
+    "CodeExecuteTool",
+    "ProjectAnalyzeTool",
 ]

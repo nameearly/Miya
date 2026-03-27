@@ -13,7 +13,7 @@
 import asyncio
 import logging
 from collections.abc import Callable
-from typing import Optional, Any
+from typing import Optional, Any, List
 from datetime import datetime
 from pathlib import Path
 
@@ -187,9 +187,37 @@ class DecisionHub:
         # 7. 会话处理器
         self.session_handler = SessionHandler(session_manager=self.session_manager)
 
+        # 8. 知识图谱管理器（新增）
+        self.knowledge_graph = None
+        self._init_knowledge_graph()
+
         logger.info(
             "决策层 Hub 初始化完成（门面模式：感知/情绪/记忆/响应处理器 + 辅助模块）"
         )
+
+    def _init_knowledge_graph(self):
+        """初始化知识图谱管理器"""
+        try:
+            from core.knowledge_graph import KnowledgeGraphManager
+            from core.grag_memory import GRAGMemoryManager
+
+            # 从 GRAG 获取 Neo4j driver
+            if hasattr(self.memory_net, "grag_memory") and self.memory_net.grag_memory:
+                driver = self.memory_net.grag_memory.neo4j_driver
+                if driver:
+                    self.knowledge_graph = KnowledgeGraphManager(neo4j_driver=driver)
+                    logger.info("[决策层] 知识图谱管理器已初始化")
+        except Exception as e:
+            logger.warning(f"[决策层] 知识图谱初始化失败: {e}")
+
+    def _extract_keywords_from_input(self, text: str) -> List[str]:
+        """从用户输入中提取关键词用于知识图谱检索"""
+        import re
+
+        # 简单的关键词提取：长度>=2的中文词
+        keywords = re.findall(r"[\u4e00-\u9fa5]{2,}", text)
+        # 去重并返回前5个
+        return list(set(keywords))[:5]
 
     def set_response_callback(self, callback: Callable) -> None:
         """
@@ -578,10 +606,23 @@ class DecisionHub:
                 )
             )
 
+            # 【新增】知识图谱检索
+            knowledge_context = ""
+            if self.knowledge_graph:
+                keywords = self._extract_keywords_from_input(content)
+                if keywords:
+                    knowledge = await self.knowledge_graph.query_by_keywords(keywords)
+                    if knowledge:
+                        from core.knowledge_graph import format_knowledge_for_prompt
+
+                        knowledge_context = format_knowledge_for_prompt(knowledge)
+                        logger.info(f"[决策层] 检索到 {len(knowledge)} 条知识图谱记忆")
+
             # 构建提示词（统一使用默认提示词，通过上下文传递平台信息）
             prompt_info = self.prompt_manager.build_full_prompt(
                 user_input=content,
-                memory_context=conversation_context,  # 使用对话历史上下文
+                memory_context=conversation_context,
+                knowledge_context=knowledge_context,
                 additional_context={
                     "platform": platform,
                     "user_id": user_id,

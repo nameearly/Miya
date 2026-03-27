@@ -722,16 +722,39 @@ echo   - Node.js 18+ installed
 echo   - Rust toolchain installed
 echo   - Tauri CLI installed
 echo.
-echo Steps:
-echo   1. Start API Server
-echo   2. Build Tauri App (first run will take longer)
-echo   3. Start Vite Dev Server
-echo   4. Launch Tauri Desktop Window
+echo Checking prerequisites...
+where npm >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] npm not found! Please install Node.js from: https://nodejs.org/
+    pause
+    goto :main_menu
+)
+where cargo >nul 2>&1
+if errorlevel 1 (
+    echo [WARNING] Rust not found. Desktop client may not work properly.
+    echo Install from: https://rustup.rs/
+)
 echo.
-echo Press Ctrl+C to stop service
-echo ================================================================================
+echo Checking Tauri config...
+if not exist "frontend\packages\web\src-tauri\tauri.conf.json" (
+    echo [ERROR] Tauri config not found: frontend\packages\web\src-tauri\tauri.conf.json
+    pause
+    goto :main_menu
+)
 echo.
-call start_tauri_desktop.bat
+echo Starting API Server first...
+call :check_file "run\runtime_api_start.py"
+if not errorlevel 1 (
+    start "MIYA API Server" /B python run\runtime_api_start.py
+    timeout /t 3 >nul
+    echo [OK] API Server started
+)
+echo.
+echo Starting Desktop Client...
+echo [NOTE] This may take a few minutes on first run (compiling Rust)...
+cd frontend\packages\web
+call npx tauri dev
+cd ..\..\..
 goto :restart_prompt
 
 :terminal_client
@@ -822,22 +845,36 @@ if not errorlevel 1 (
     echo [OK] Web Service started
 )
 
-echo [3/5] Preparing QQ Client...
-echo [NOTE] QQ Client requires separate configuration
-call :check_file "core\qq_bot.py"
+echo [3/5] Starting QQ Client...
+call :check_file "run\qq_main.py"
 if not errorlevel 1 (
     echo [OK] QQ Client script found
-    echo [NOTE] To start QQ Client, run: python core\qq_bot.py
+    start "MIYA QQ" /B python run\qq_main.py
+    set /a services_started+=1
+    timeout /t 1 >nul
+) else (
+    echo [WARNING] QQ Client script not found: run\qq_main.py
 )
 
 echo [4/5] Preparing Desktop Client...
-echo [NOTE] Desktop Client will start below
-call :check_file "frontend\packages\desktop\package.json"
+call :check_file "frontend\packages\web\package.json"
 if not errorlevel 1 (
-    start "MIYA Desktop" /B cmd /c "cd frontend\packages\desktop && npm run dev"
-    set /a services_started+=1
-    timeout /t 1 >nul
-    echo [OK] Desktop Client started
+    if exist "frontend\packages\web\src-tauri\tauri.conf.json" (
+        echo [OK] Tauri desktop config found, checking npm...
+        where npm >nul 2>&1
+        if not errorlevel 1 (
+            start "MIYA Desktop" /B cmd /c "cd /d D:\AI_MIYA_Facyory\MIYA\Miya\frontend\packages\web && npx tauri dev"
+            set /a services_started+=1
+            timeout /t 5 >nul
+            echo [OK] Desktop Client started
+        ) else (
+            echo [WARNING] npm not found, skipping Desktop Client
+        )
+    ) else (
+        echo [WARNING] Tauri config not found, skipping Desktop Client
+    )
+) else (
+    echo [WARNING] Web package.json not found, skipping Desktop Client
 )
 
 echo [5/5] Starting Terminal System (in current window)...
@@ -907,11 +944,22 @@ if not errorlevel 1 (
 )
 
 echo [3/3] Starting Desktop Client...
-call :check_file "frontend\packages\desktop\package.json"
+call :check_file "frontend\packages\web\package.json"
 if not errorlevel 1 (
-    start "MIYA Desktop" /B cmd /c "cd frontend\packages\desktop && npm run dev"
-    timeout /t 1 >nul
-    echo [OK] Desktop Client started
+    if exist "frontend\packages\web\src-tauri\tauri.conf.json" (
+        where npm >nul 2>&1
+        if not errorlevel 1 (
+            start "MIYA Desktop" /B cmd /c "cd /d D:\AI_MIYA_Facyory\MIYA\Miya\frontend\packages\web && npx tauri dev"
+            timeout /t 5 >nul
+            echo [OK] Desktop Client started
+        ) else (
+            echo [WARNING] npm not found, skipping Desktop Client
+        )
+    ) else (
+        echo [WARNING] Tauri config not found, skipping Desktop Client
+    )
+) else (
+    echo [WARNING] Web package.json not found, skipping Desktop Client
 )
 
 echo.
@@ -975,23 +1023,37 @@ if "!service_choice:2=!" neq "%service_choice%" (
 )
 
 if "!service_choice:3=!" neq "%service_choice%" (
-    echo [3/!] Preparing QQ Client...
-    call :check_file "core\qq_bot.py"
+    echo [3/!] Starting QQ Client...
+    call :check_file "run\qq_main.py"
     if not errorlevel 1 (
-        echo [NOTE] QQ Client script found
-        echo [NOTE] Run: python core\qq_bot.py
+        start "MIYA QQ" /B python run\qq_main.py
         set /a count+=1
+        timeout /t 1 >nul
+        echo [OK] QQ Client started
+    ) else (
+        echo [WARNING] QQ Client script not found
     )
 )
 
 if "!service_choice:4=!" neq "%service_choice%" (
     echo [4/!] Starting Desktop Client...
-    call :check_file "frontend\packages\desktop\package.json"
+    call :check_file "frontend\packages\web\package.json"
     if not errorlevel 1 (
-        start "MIYA Desktop" /B cmd /c "cd frontend\packages\desktop && npm run dev"
-        set /a count+=1
-        timeout /t 1 >nul
-        echo [OK] Desktop Client started
+        if exist "frontend\packages\web\src-tauri\tauri.conf.json" (
+            where npm >nul 2>&1
+            if not errorlevel 1 (
+                start "MIYA Desktop" /B cmd /c "cd /d D:\AI_MIYA_Facyory\MIYA\Miya\frontend\packages\web && npx tauri dev"
+                set /a count+=1
+                timeout /t 5 >nul
+                echo [OK] Desktop Client started
+            ) else (
+                echo [WARNING] npm not found, skipping Desktop Client
+            )
+        ) else (
+            echo [WARNING] Tauri config not found
+        )
+    ) else (
+        echo [WARNING] Web package.json not found
     )
 )
 

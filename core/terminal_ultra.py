@@ -783,6 +783,392 @@ class TerminalUltra:
             "hostname": platform.node(),
         }
 
+    # ==================== Git 工具 ====================
+
+    async def git_status(self, short: bool = False) -> ExecutionResult:
+        """查看 Git 状态"""
+        cmd = "git status" + (" -s" if short else "")
+        return await self.terminal_exec(cmd)
+
+    async def git_diff(
+        self, file_path: str = None, staged: bool = False
+    ) -> ExecutionResult:
+        """查看 Git 差异"""
+        if staged:
+            cmd = "git diff --cached" + (f" {file_path}" if file_path else "")
+        else:
+            cmd = "git diff" + (f" -- {file_path}" if file_path else "")
+        return await self.terminal_exec(cmd)
+
+    async def git_log(self, count: int = 10, file_path: str = None) -> ExecutionResult:
+        """查看 Git 提交历史"""
+        cmd = f"git log -{count}" + (f" -- {file_path}" if file_path else " --oneline")
+        return await self.terminal_exec(cmd)
+
+    async def git_branch(self, all: bool = False) -> ExecutionResult:
+        """查看 Git 分支"""
+        cmd = "git branch" + (" -a" if all else "")
+        return await self.terminal_exec(cmd)
+
+    async def git_commit(self, message: str, amend: bool = False) -> ExecutionResult:
+        """提交更改"""
+        if not message:
+            return ExecutionResult(success=False, output="", error="提交信息不能为空")
+
+        # 先检查是否有暂存的更改
+        status_result = await self.git_status(short=True)
+        if not status_result.output.strip():
+            return ExecutionResult(success=False, output="", error="没有需要提交的内容")
+
+        cmd = f'git commit -m "{message}"' + (" --amend" if amend else "")
+        return await self.terminal_exec(cmd)
+
+    async def git_add(self, path: str = ".") -> ExecutionResult:
+        """添加文件到暂存区"""
+        cmd = f"git add {path}"
+        return await self.terminal_exec(cmd)
+
+    async def git_push(
+        self, remote: str = "origin", branch: str = None, force: bool = False
+    ) -> ExecutionResult:
+        """推送到远程"""
+        branch_part = f" {branch}" if branch else ""
+        force_part = " -f" if force else ""
+        cmd = f"git push{force_part} {remote}{branch_part}"
+        return await self.terminal_exec(cmd)
+
+    async def git_pull(
+        self, remote: str = "origin", branch: str = None
+    ) -> ExecutionResult:
+        """从远程拉取"""
+        branch_part = f" {branch}" if branch else ""
+        cmd = f"git pull {remote}{branch_part}"
+        return await self.terminal_exec(cmd)
+
+    async def git_checkout(self, branch: str, create: bool = False) -> ExecutionResult:
+        """切换分支"""
+        cmd = f"git checkout{' -b' if create else ''} {branch}"
+        return await self.terminal_exec(cmd)
+
+    async def git_stash(
+        self, pop: bool = False, list: bool = False, clear: bool = False
+    ) -> ExecutionResult:
+        """Git 暂存操作"""
+        if list:
+            return await self.terminal_exec("git stash list")
+        elif pop:
+            return await self.terminal_exec("git stash pop")
+        elif clear:
+            return await self.terminal_exec("git stash clear")
+        else:
+            return await self.terminal_exec("git stash")
+
+    async def git_merge(self, branch: str) -> ExecutionResult:
+        """合并分支"""
+        cmd = f"git merge {branch}"
+        return await self.terminal_exec(cmd)
+
+    async def git_rebase(self, branch: str = None) -> ExecutionResult:
+        """变基操作"""
+        cmd = f"git rebase {branch}" if branch else "git rebase -i HEAD~3"
+        return await self.terminal_exec(cmd)
+
+    # ==================== 文件搜索 ====================
+
+    async def file_grep(
+        self,
+        pattern: str,
+        path: str = ".",
+        recursive: bool = True,
+        include: str = None,
+        exclude: str = None,
+        context: int = 2,
+    ) -> ExecutionResult:
+        """搜索文件内容 (grep)"""
+        if not pattern:
+            return ExecutionResult(success=False, output="", error="搜索模式不能为空")
+
+        cmd = f"grep -r -n" + (" -H" if recursive else "") + f" -C {context}"
+
+        if include:
+            cmd += f' --include="{include}"'
+        if exclude:
+            cmd += f' --exclude="{exclude}"'
+
+        cmd += f' "{pattern}" {path}'
+
+        result = await self.terminal_exec(cmd)
+
+        if result.output and "matches" in result.output.lower():
+            result.output += f"\n\n[搜索完成: {result.output.count(chr(10))} 行匹配]"
+
+        return result
+
+    async def file_glob(
+        self,
+        pattern: str,
+        path: str = ".",
+        recursive: bool = True,
+    ) -> ExecutionResult:
+        """查找文件 (glob/find)"""
+        if os.name == "nt":
+            cmd = f'Get-ChildItem -Path "{path}" -Recurse -Filter "{pattern}" -ErrorAction SilentlyContinue | Select-Object FullName'
+            result = await self.terminal_exec(f'powershell -Command "{cmd}"')
+        else:
+            recurse = "-r" if recursive else ""
+            cmd = f'find {path} {recurse} -name "{pattern}" 2>/dev/null'
+            result = await self.terminal_exec(cmd)
+
+        if result.success and result.output:
+            files = [f for f in result.output.strip().split("\n") if f]
+            result.output = f"找到 {len(files)} 个文件:\n" + "\n".join(files[:100])
+            if len(files) > 100:
+                result.output += f"\n... 还有 {len(files) - 100} 个文件"
+
+        return result
+
+    # ==================== 代码理解 ====================
+
+    async def code_search_symbol(
+        self,
+        symbol: str,
+        path: str = ".",
+    ) -> ExecutionResult:
+        """查找符号定义和引用"""
+        # 尝试使用 ctags 或 ripgrep
+        result = await self.file_grep(pattern=symbol, path=path, context=1)
+        if result.success:
+            result.output = f"符号 '{symbol}' 搜索结果:\n" + result.output
+        return result
+
+    async def code_find_definitions(
+        self,
+        symbol: str,
+        path: str = ".",
+    ) -> ExecutionResult:
+        """查找定义"""
+        return await self.code_search_symbol(symbol, path)
+
+    async def code_find_references(
+        self,
+        symbol: str,
+        path: str = ".",
+    ) -> ExecutionResult:
+        """查找引用"""
+        return await self.code_search_symbol(symbol, path)
+
+    async def code_explain(
+        self,
+        code: str = None,
+        file_path: str = None,
+    ) -> ExecutionResult:
+        """解释代码"""
+        if file_path:
+            result = await self.file_read(file_path, limit=50)
+            if not result.success:
+                return result
+            code = result.output
+
+        if not code:
+            return ExecutionResult(success=False, output="", error="没有提供代码")
+
+        # 简单分析代码结构
+        lines = code.split("\n")
+        analysis = []
+
+        # 统计信息
+        total_lines = len([l for l in lines if l.strip()])
+        blank_lines = len([l for l in lines if not l.strip()])
+        comment_lines = len(
+            [
+                l
+                for l in lines
+                if l.strip().startswith("#") or l.strip().startswith("//")
+            ]
+        )
+
+        analysis.append(
+            f"总行数: {total_lines} | 空行: {blank_lines} | 注释: {comment_lines}"
+        )
+
+        # 检测函数/类
+        import re
+
+        functions = re.findall(r"def\s+(\w+)|class\s+(\w+)", code)
+        if functions:
+            analysis.append(f"\n函数/类定义: {len(functions)} 个")
+            for f in functions[:10]:
+                name = f[0] or f[1]
+                analysis.append(f"  - {name}")
+
+        # 检测 import
+        imports = re.findall(r"^import\s+(\w+)|^from\s+(\w+)", code, re.MULTILINE)
+        if imports:
+            analysis.append(f"\n导入模块: {len(imports)} 个")
+            for imp in imports[:10]:
+                name = imp[0] or imp[1]
+                analysis.append(f"  - {name}")
+
+        return ExecutionResult(success=True, output="代码分析:\n" + "\n".join(analysis))
+
+    # ==================== 项目上下文 ====================
+
+    async def load_project_context(self) -> Dict[str, Any]:
+        """加载项目上下文 (类似 CLAUDE.md)"""
+        context = {
+            "files": [],
+            "instructions": "",
+            "commands": {},
+        }
+
+        # 查找 CLAUDE.md 或 CLAUDE.md 类似文件
+        context_files = [
+            "CLAUDE.md",
+            "claude.md",
+            ".claude.md",
+            "PROJECT.md",
+            "project.md",
+        ]
+
+        for cf in context_files:
+            path = self.workspace_root / cf
+            if path.exists():
+                result = await self.file_read(str(path))
+                if result.success:
+                    context["instructions"] = result.output
+                    context["context_file"] = cf
+                    break
+
+        # 查找 .gitignore
+        gitignore_path = self.workspace_root / ".gitignore"
+        if gitignore_path.exists():
+            result = await self.file_read(str(gitignore_path))
+            if result.success:
+                context["gitignore"] = [
+                    l for l in result.output.split("\n") if l and not l.startswith("#")
+                ]
+
+        # 检查是否是 Git 仓库
+        git_dir = self.workspace_root / ".git"
+        context["is_git_repo"] = git_dir.exists()
+
+        # 读取 package.json 或其他项目配置
+        for config_file in [
+            "package.json",
+            "pyproject.toml",
+            "requirements.txt",
+            "Cargo.toml",
+        ]:
+            config_path = self.workspace_root / config_file
+            if config_path.exists():
+                result = await self.file_read(str(config_path), limit=30)
+                if result.success:
+                    context["config_file"] = config_file
+                    context["config_summary"] = result.output[:500]
+                    break
+
+        return context
+
+    # ==================== 智能任务拆解 ====================
+
+    async def plan_complex_task(self, task: str) -> Dict[str, Any]:
+        """分析复杂任务并生成执行计划"""
+        task_lower = task.lower()
+
+        plan = {
+            "task": task,
+            "steps": [],
+            "estimated_steps": 0,
+        }
+
+        # 检测任务类型并生成步骤
+        if any(
+            k in task_lower
+            for k in ["开发", "实现", "创建", "写", "build", "create", "implement"]
+        ):
+            plan["steps"] = [
+                {"action": "分析需求", "tool": "project_analyze"},
+                {"action": "创建文件结构", "tool": "terminal_exec", "cmd": "mkdir -p"},
+                {"action": "编写代码", "tool": "file_write"},
+                {"action": "测试运行", "tool": "terminal_exec"},
+            ]
+
+        elif any(k in task_lower for k in ["修复", "debug", "bug", "错误"]):
+            plan["steps"] = [
+                {"action": "定位问题", "tool": "file_grep"},
+                {"action": "分析代码", "tool": "code_explain"},
+                {"action": "修复代码", "tool": "file_edit"},
+                {"action": "验证修复", "tool": "terminal_exec"},
+            ]
+
+        elif any(k in task_lower for k in ["重构", "优化", "refactor"]):
+            plan["steps"] = [
+                {"action": "分析现有代码", "tool": "project_analyze"},
+                {"action": "制定重构计划", "tool": "code_explain"},
+                {"action": "执行重构", "tool": "file_edit"},
+                {"action": "运行测试", "tool": "terminal_exec"},
+            ]
+
+        elif any(k in task_lower for k in ["提交", "commit", "推送", "push", "git"]):
+            plan["steps"] = [
+                {"action": "查看状态", "tool": "git_status"},
+                {"action": "查看差异", "tool": "git_diff"},
+                {"action": "添加文件", "tool": "git_add"},
+                {"action": "提交", "tool": "git_commit"},
+                {"action": "推送", "tool": "git_push"},
+            ]
+
+        elif any(k in task_lower for k in ["搜索", "查找", "search", "find"]):
+            plan["steps"] = [
+                {"action": "文件搜索", "tool": "file_glob"},
+                {"action": "内容搜索", "tool": "file_grep"},
+                {"action": "分析结果", "tool": "code_explain"},
+            ]
+
+        else:
+            # 默认通用任务
+            plan["steps"] = [
+                {"action": "分析任务", "tool": "project_analyze"},
+                {"action": "执行操作", "tool": "terminal_exec"},
+            ]
+
+        plan["estimated_steps"] = len(plan["steps"])
+
+        return plan
+
+    # ==================== 智能建议 ====================
+
+    async def get_suggestions(self, context: str = None) -> List[str]:
+        """根据上下文提供智能建议"""
+        suggestions = []
+
+        # 检查 Git 状态
+        status_result = await self.git_status(short=True)
+        if status_result.success and status_result.output.strip():
+            suggestions.append("检测到未提交的更改 - 使用 git_commit 提交")
+
+        # 检查是否有未安装的依赖
+        if (self.workspace_root / "package.json").exists():
+            if not (self.workspace_root / "node_modules").exists():
+                suggestions.append(
+                    "检测到 package.json 但 node_modules 不存在 - 运行 npm install"
+                )
+
+        if (self.workspace_root / "requirements.txt").exists():
+            suggestions.append(
+                "检测到 Python 项目 - 使用 pip install -r requirements.txt"
+            )
+
+        # 检查测试文件
+        if (self.workspace_root / "tests").exists():
+            suggestions.append("检测到 tests 目录 - 可以运行 pytest")
+
+        # 检查 README
+        if not (self.workspace_root / "README.md").exists():
+            suggestions.append("项目缺少 README.md - 建议创建")
+
+        return suggestions[:5]
+
     def get_command_history(self) -> List[Dict]:
         """获取命令历史"""
         return self.command_history
@@ -798,3 +1184,140 @@ def get_terminal_ultra(workspace_root: str = None) -> TerminalUltra:
     if _terminal_ultra_instance is None:
         _terminal_ultra_instance = TerminalUltra(workspace_root)
     return _terminal_ultra_instance
+
+
+def reset_terminal_ultra():
+    """重置全局 TerminalUltra 实例"""
+    global _terminal_ultra_instance
+    _terminal_ultra_instance = None
+
+
+# ==================== Agent 调用 ====================
+
+
+# Agent handlers - 直接从文件导入
+_agent_handlers = {}
+
+
+async def _load_agent_handlers():
+    """加载所有 agent handlers"""
+    global _agent_handlers
+    if _agent_handlers:
+        return
+
+    import importlib.util
+
+    agents_dir = Path(__file__).parent / "skills" / "agents"
+
+    for agent_dir in agents_dir.iterdir():
+        if agent_dir.is_dir() and not agent_dir.name.startswith("_"):
+            handler_path = agent_dir / "handler.py"
+            if handler_path.exists():
+                try:
+                    spec = importlib.util.spec_from_file_location(
+                        f"agent_{agent_dir.name}", handler_path
+                    )
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    _agent_handlers[agent_dir.name] = module.handler
+                except Exception as e:
+                    logger.warning(f"[Agent] 加载 {agent_dir.name} 失败: {e}")
+
+
+async def call_agent(
+    agent_name: str, args: Dict[str, Any], context: Dict[str, Any] = None
+) -> ExecutionResult:
+    """调用 Agent 执行任务
+
+    Args:
+        agent_name: Agent名称 (code_explorer, code_reviewer, code_architect)
+        args: Agent参数
+        context: 上下文信息
+
+    Returns:
+        ExecutionResult: 执行结果
+    """
+    try:
+        await _load_agent_handlers()
+
+        handler = _agent_handlers.get(agent_name)
+        if not handler:
+            return ExecutionResult(
+                success=False,
+                output="",
+                error=f"Agent不存在: {agent_name}",
+            )
+
+        result = await handler(args, context or {})
+
+        return ExecutionResult(
+            success=True,
+            output=result,
+        )
+    except Exception as e:
+        return ExecutionResult(
+            success=False,
+            output="",
+            error=f"Agent执行失败: {str(e)}",
+        )
+
+
+async def execute_terminal_agent(
+    task: str, context: Dict[str, Any] = None
+) -> ExecutionResult:
+    """根据任务自动选择合适的 Agent 执行
+
+    Args:
+        task: 任务描述
+        context: 上下文
+
+    Returns:
+        ExecutionResult: 执行结果
+    """
+    task_lower = task.lower()
+
+    # 根据关键词选择 Agent
+    if any(
+        k in task_lower
+        for k in ["探索", "分析结构", "查找", "搜索", "explore", "find", "search"]
+    ):
+        target = _extract_target(task)
+        return await call_agent(
+            "code_explorer", {"action": "explore", "target": target}, context
+        )
+
+    elif any(
+        k in task_lower
+        for k in ["审查", "审查代码", "检查bug", "review", "bug", "检查"]
+    ):
+        target = _extract_target(task)
+        return await call_agent(
+            "code_reviewer", {"action": "review", "target": target}, context
+        )
+
+    elif any(
+        k in task_lower
+        for k in ["架构", "设计", "重构", "模块", "architecture", "design", "refactor"]
+    ):
+        target = _extract_target(task)
+        return await call_agent(
+            "code_architect", {"action": "design", "target": target}, context
+        )
+
+    else:
+        return ExecutionResult(
+            success=False,
+            output="",
+            error="未识别任务类型，请明确指定: 探索/审查/架构",
+        )
+
+
+def _extract_target(task: str) -> str:
+    """从任务描述中提取目标路径"""
+    import re
+
+    # 提取文件或目录路径
+    match = re.search(r"[.\/\\][\w\.\/\\]+", task)
+    if match:
+        return match.group()
+    return "."

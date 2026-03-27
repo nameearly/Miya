@@ -390,6 +390,7 @@ class PromptManager:
         user_input: str,
         memory_context: Optional[List[Dict]] = None,
         additional_context: Optional[Dict] = None,
+        knowledge_context: Optional[str] = None,
     ) -> Dict[str, str]:
         """
         构建完整的提示词（系统提示词 + 用户提示词 + 上下文）
@@ -400,6 +401,7 @@ class PromptManager:
             user_input: 用户输入
             memory_context: 记忆上下文（可选）
             additional_context: 额外上下文（可选，包含 platform, user_id, sender_name 等）
+            knowledge_context: 知识图谱上下文（可选）
 
         Returns:
             包含系统提示词和用户提示词的字典
@@ -459,6 +461,11 @@ class PromptManager:
             logger.info(
                 f"[PromptManager] 记忆上下文未添加 - enabled={self.memory_context_enabled}, has_memory={bool(memory_context)}, memory_count={len(memory_context) if memory_context else 0}"
             )
+
+        # 添加知识图谱上下文（在记忆之后）
+        if knowledge_context:
+            user_prompt = knowledge_context + "\n\n" + user_prompt
+            logger.info("[PromptManager] 已添加知识图谱上下文")
 
         return {"system": system_prompt, "user": user_prompt}
 
@@ -573,27 +580,32 @@ class PromptManager:
         if not memories:
             return ""
 
-        lines = ["【对话历史上下文】"]
+        lines = ["【最近对话记录】"]
 
-        for i, memory in enumerate(memories, 1):
-            # 支持两种格式：1) input/response 格式 2) role/content 格式
+        # 添加引导词，让AI知道这是对话历史
+        lines.append("以下是你和用户之前的对话，请据此理解当前对话的上下文：")
+        lines.append("")
+
+        for memory in memories:
             role = memory.get("role", "")
             content = memory.get("content", "")
+            timestamp = memory.get("timestamp", "")
 
-            # 如果是 role/content 格式
             if role and content:
                 if role == "user":
-                    lines.append(f"用户说：{content}")
+                    lines.append(f"用户：{content}")
                 elif role == "assistant":
-                    lines.append(f"弥娅回复：{content}")
+                    lines.append(f"弥娅：{content}")
                 else:
                     lines.append(f"{role}：{content}")
-            # 如果是 input/response 格式
             else:
                 input_text = memory.get("input", "")
                 response_text = memory.get("response", "")
-                lines.append(f"{i}. 用户：{input_text}")
-                lines.append(f"   弥娅：{response_text}")
+                if input_text:
+                    lines.append(f"用户：{input_text}")
+                if response_text:
+                    lines.append(f"弥娅：{response_text}")
+            lines.append("---")
 
         return "\n".join(lines)
 

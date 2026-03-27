@@ -1,29 +1,87 @@
 """对话历史上下文管理器
 
 负责对话历史的智能加载和上下文管理
+新增：话题连续性检测、主动回忆机制、上下文压缩
 """
 
 import logging
-from typing import Dict, List, Optional
+import re
+from typing import Dict, List, Optional, Set
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 
 class ConversationContextManager:
     """对话历史上下文管理器
-    
+
     职责：
     - 智能判断是否需要加载历史对话
     - 根据Token限制动态调整上下文大小
     - 检测用户的"回忆"意图
+    - 话题连续性检测
+    - 主动回忆机制
     """
+
+    # 话题关键词映射
+    TOPIC_KEYWORDS = {
+        "学习": [
+            "上课",
+            "学习",
+            "考试",
+            "作业",
+            "学校",
+            "老师",
+            "同学",
+            "补课",
+            "自习",
+            "复习",
+            "预习",
+        ],
+        "吃饭": [
+            "吃饭",
+            "饿",
+            "饱",
+            "零食",
+            "外卖",
+            "餐厅",
+            "食堂",
+            "菜",
+            "口味",
+            "厨师",
+        ],
+        "休息": [
+            "睡觉",
+            "困",
+            "累",
+            "休息",
+            "放假",
+            "周末",
+            "假期",
+            "娱乐",
+            "游戏",
+            "动漫",
+        ],
+        "情绪": [
+            "难过",
+            "开心",
+            "生气",
+            "害怕",
+            "担心",
+            "焦虑",
+            "压力",
+            "烦恼",
+            "郁闷",
+        ],
+        "社交": ["朋友", "同学", "家人", "聊天", "聚会", "社交", "联系人"],
+    }
 
     def __init__(
         self,
         memory_net,
         enable_conversation_context: bool = True,
         conversation_context_max_count: int = 10,
-        conversation_context_max_tokens: int = 2000
+        conversation_context_max_tokens: int = 2000,
     ):
         """
         初始化对话上下文管理器
@@ -39,6 +97,15 @@ class ConversationContextManager:
         self.conversation_context_max_count = conversation_context_max_count
         self.conversation_context_max_tokens = conversation_context_max_tokens
 
+        # 新增：话题跟踪
+        self._topic_history: Dict[str, List[str]] = defaultdict(
+            list
+        )  # session_id -> 话题列表
+        self._last_topics: Dict[str, str] = {}  # session_id -> 最近话题
+        self._conversation_turns: Dict[str, int] = defaultdict(
+            int
+        )  # session_id -> 对话轮次
+
     def check_needs_recall(self, user_input: str) -> bool:
         """
         检测用户是否在问关于过去的问题
@@ -52,7 +119,7 @@ class ConversationContextManager:
         # 安全处理用户输入 - 处理图片消息等非字符串情况
         if not user_input:
             return False
-            
+
         if not isinstance(user_input, str):
             if isinstance(user_input, list):
                 # 尝试从列表中提取文本（QQ图片消息格式）
@@ -71,20 +138,31 @@ class ConversationContextManager:
             else:
                 # 其他类型转换为字符串
                 user_input = str(user_input)
-        
+
         if not user_input:
             return False
 
         recall_patterns = [
-            r'你记得', r'你还记得', r'记得.*吗',
-            r'上次', r'上次我们', r'之前.*聊',
-            r'昨天', r'前天', r'以前.*怎么样',
-            r'我们.*聊过', r'过去.*事', r'曾经',
-            r'记得.*什么', r'记得.*吗',
-            r'回忆.*一下', r'想起.*什么',
+            r"你记得",
+            r"你还记得",
+            r"记得.*吗",
+            r"上次",
+            r"上次我们",
+            r"之前.*聊",
+            r"昨天",
+            r"前天",
+            r"以前.*怎么样",
+            r"我们.*聊过",
+            r"过去.*事",
+            r"曾经",
+            r"记得.*什么",
+            r"记得.*吗",
+            r"回忆.*一下",
+            r"想起.*什么",
         ]
 
         import re
+
         for pattern in recall_patterns:
             if re.search(pattern, user_input):
                 logger.info(f"[对话上下文] 检测到回忆请求: {user_input[:30]}")
@@ -93,9 +171,7 @@ class ConversationContextManager:
         return False
 
     async def get_conversation_context(
-        self,
-        session_id: str,
-        current_input: str = ""
+        self, session_id: str, current_input: str = ""
     ) -> List[Dict]:
         """
         获取对话历史上下文（限制token消耗）
@@ -122,16 +198,15 @@ class ConversationContextManager:
 
         # 根据是否需要回忆决定加载数量
         if needs_recall:
-            max_messages = 20
+            max_messages = 30
             logger.info(f"[对话上下文] 用户正在回忆过去，加载历史对话: {session_id}")
         else:
-            max_messages = 3
-            logger.debug(f"[对话上下文] 正常对话，只加载最近3条: {session_id}")
+            max_messages = 8
+            logger.debug(f"[对话上下文] 正常对话，加载最近8条: {session_id}")
 
         try:
             messages = await self.memory_net.conversation_history.get_history(
-                session_id,
-                limit=max_messages
+                session_id, limit=max_messages
             )
 
             context = []
@@ -142,7 +217,11 @@ class ConversationContextManager:
 
             # 根据是否需要回忆选择加载数量
             if needs_recall:
-                recent_messages = messages[-max_messages:] if len(messages) > max_messages else messages
+                recent_messages = (
+                    messages[-max_messages:]
+                    if len(messages) > max_messages
+                    else messages
+                )
             else:
                 recent_messages = messages[-3:] if len(messages) > 3 else messages
 
@@ -153,11 +232,13 @@ class ConversationContextManager:
                 if total_tokens + token_estimate > self.conversation_context_max_tokens:
                     break
 
-                context.append({
-                    'role': msg.role,
-                    'content': msg.content,
-                    'timestamp': msg.timestamp
-                })
+                context.append(
+                    {
+                        "role": msg.role,
+                        "content": msg.content,
+                        "timestamp": msg.timestamp,
+                    }
+                )
                 total_tokens += token_estimate
 
             return context
@@ -180,10 +261,12 @@ class ConversationContextManager:
                 return ""
 
             # 搜索最近保存的终端会话记录
-            if hasattr(self.memory_net, 'memory_engine') and self.memory_net.memory_engine:
+            if (
+                hasattr(self.memory_net, "memory_engine")
+                and self.memory_net.memory_engine
+            ):
                 results = self.memory_net.memory_engine.search_tides(
-                    query="终端会话",
-                    limit=3
+                    query="终端会话", limit=3
                 )
             else:
                 return ""
@@ -191,10 +274,10 @@ class ConversationContextManager:
             if results:
                 summaries = []
                 for result in results:
-                    data = result.get('data', {})
-                    if data.get('type') == 'terminal_session':
-                        content = data.get('content', '')
-                        title = data.get('title', '')
+                    data = result.get("data", {})
+                    if data.get("type") == "terminal_session":
+                        content = data.get("content", "")
+                        title = data.get("title", "")
                         summaries.append(f"## {title}\n{content[:500]}")
 
                 if summaries:
