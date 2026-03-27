@@ -288,6 +288,7 @@ class ToolRegistry:
         """加载超级终端工具 (Terminal Ultra)"""
         try:
             from webnet.ToolNet.tools.terminal.ultra_terminal_tools import (
+                # 基础工具 (8个)
                 TerminalExecTool,
                 FileReadTool,
                 FileWriteTool,
@@ -296,9 +297,35 @@ class ToolRegistry:
                 DirectoryTreeTool,
                 CodeExecuteTool,
                 ProjectAnalyzeTool,
+                # Git 工具 (12个)
+                GitStatusTool,
+                GitDiffTool,
+                GitLogTool,
+                GitBranchTool,
+                GitCommitTool,
+                GitAddTool,
+                GitPushTool,
+                GitPullTool,
+                GitCheckoutTool,
+                GitStashTool,
+                # 搜索工具 (2个)
+                FileGrepTool,
+                FileGlobTool,
+                # 代码理解工具 (2个)
+                CodeExplainTool,
+                CodeSearchSymbolTool,
+                # 智能工具 (3个)
+                ProjectContextTool,
+                TaskPlanTool,
+                SuggestionsTool,
+                # Agent 工具 (5个)
+                CodeExplorerAgentTool,
+                CodeReviewerAgentTool,
+                CodeArchitectAgentTool,
+                TerminalAgentTool,
             )
 
-            # 注册所有超级终端工具
+            # 注册所有超级终端基础工具 (8个)
             self.register(TerminalExecTool())
             self.register(FileReadTool())
             self.register(FileWriteTool())
@@ -308,7 +335,38 @@ class ToolRegistry:
             self.register(CodeExecuteTool())
             self.register(ProjectAnalyzeTool())
 
-            self.logger.info("已加载超级终端工具: TerminalUltra (8 tools)")
+            # 注册 Git 工具 (12个)
+            self.register(GitStatusTool())
+            self.register(GitDiffTool())
+            self.register(GitLogTool())
+            self.register(GitBranchTool())
+            self.register(GitCommitTool())
+            self.register(GitAddTool())
+            self.register(GitPushTool())
+            self.register(GitPullTool())
+            self.register(GitCheckoutTool())
+            self.register(GitStashTool())
+
+            # 注册搜索工具 (2个)
+            self.register(FileGrepTool())
+            self.register(FileGlobTool())
+
+            # 注册代码理解工具 (2个)
+            self.register(CodeExplainTool())
+            self.register(CodeSearchSymbolTool())
+
+            # 注册智能工具 (3个)
+            self.register(ProjectContextTool())
+            self.register(TaskPlanTool())
+            self.register(SuggestionsTool())
+
+            # 注册 Agent 工具 (4个)
+            self.register(CodeExplorerAgentTool())
+            self.register(CodeReviewerAgentTool())
+            self.register(CodeArchitectAgentTool())
+            self.register(TerminalAgentTool())
+
+            self.logger.info("已加载超级终端工具: TerminalUltra (37 tools)")
         except Exception as e:
             self.logger.warning(f"加载超级终端工具失败: {e}")
 
