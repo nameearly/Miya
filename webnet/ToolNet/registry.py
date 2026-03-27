@@ -281,8 +281,56 @@ class ToolRegistry:
         except Exception as e:
             self.logger.warning(f"加载终端工具失败: {e}")
 
+        # 【修复】加载 terminal_net 目录的工具（multi_terminal, terminal_command, wsl_manager等）
+        self._load_terminal_net_tools()
+
         # 加载超级终端工具 (Terminal Ultra)
         self._load_ultra_terminal_tools()
+
+    def _load_terminal_net_tools(self):
+        """加载 terminal_net 目录的工具（多终端管理、终端命令等）"""
+        try:
+            # 加载 multi_terminal 多终端管理工具
+            from webnet.ToolNet.tools.terminal_net.multi_terminal import (
+                MultiTerminalTool,
+            )
+
+            self.register(MultiTerminalTool())
+            self.logger.info("已加载 terminal_net 工具: MultiTerminalTool")
+
+            # 加载 terminal_command 终端命令执行工具
+            from webnet.ToolNet.tools.terminal_net.terminal_command import (
+                TerminalCommandTool,
+            )
+
+            self.register(TerminalCommandTool())
+            self.logger.info("已加载 terminal_net 工具: TerminalCommandTool")
+
+            # 加载 wsl_manager WSL管理工具
+            from webnet.ToolNet.tools.terminal_net.wsl_manager import WSLManagerTool
+
+            self.register(WSLManagerTool())
+            self.logger.info("已加载 terminal_net 工具: WSLManagerTool")
+
+            # 加载 environment_detector 环境检测工具
+            from webnet.ToolNet.tools.terminal_net.environment_detector import (
+                EnvironmentDetectorTool,
+            )
+
+            self.register(EnvironmentDetectorTool())
+            self.logger.info("已加载 terminal_net 工具: EnvironmentDetectorTool")
+
+            # 加载 system_info 系统信息工具
+            from webnet.ToolNet.tools.terminal_net.system_info import (
+                SystemInfoTool,
+            )
+
+            self.register(SystemInfoTool())
+            self.logger.info("已加载 terminal_net 工具: SystemInfoTool")
+
+            self.logger.info("已加载 terminal_net 工具集 (5 tools)")
+        except Exception as e:
+            self.logger.warning(f"加载 terminal_net 工具失败: {e}")
 
     def _load_ultra_terminal_tools(self):
         """加载超级终端工具 (Terminal Ultra)"""

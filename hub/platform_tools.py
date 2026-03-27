@@ -37,13 +37,15 @@ class PlatformToolsManager:
             "find_member",
             "memory_add",
             "memory_list",
-            # 跨端工具
+            # 跨端工具（从QQ控制终端）
             "execute_on_desktop",
             "send_to_desktop",
             "send_to_terminal",
             "terminal_command",
-            # Terminal Ultra 工具
             "terminal_exec",
+            "multi_terminal",
+            "wsl_manager",
+            # Terminal Ultra 工具
             "file_read",
             "file_write",
             "file_edit",
@@ -77,15 +79,21 @@ class PlatformToolsManager:
             "list_skills",
         ],
         "terminal": [
+            # 核心终端工具
             "terminal_command",
             "terminal_exec",
             "multi_terminal",
             "wsl_manager",
             "system_info",
             "environment_detector",
+            # 跨端工具
             "send_to_qq",
             "send_to_desktop",
+            "send_to_terminal",
+            "execute_on_desktop",
+            "sync_state",
             "qq_like",
+            # 文件操作
             "file_read",
             "file_write",
             "file_edit",
@@ -121,14 +129,23 @@ class PlatformToolsManager:
             # Skills 工具
             "list_skills",
         ],
+        # Desktop 平台（Terminal Ultra模式）使用与terminal相同的工具集
         "desktop": [
-            "execute_on_desktop",
-            "send_to_desktop",
-            "send_to_qq",
-            "send_to_terminal",
-            "sync_state",
+            # 核心终端工具
             "terminal_command",
             "terminal_exec",
+            "multi_terminal",
+            "wsl_manager",
+            "system_info",
+            "environment_detector",
+            # 跨端工具
+            "send_to_qq",
+            "send_to_desktop",
+            "send_to_terminal",
+            "execute_on_desktop",
+            "sync_state",
+            "qq_like",
+            # 文件操作
             "file_read",
             "file_write",
             "file_edit",
@@ -149,6 +166,9 @@ class PlatformToolsManager:
             # 搜索工具
             "file_grep",
             "file_glob",
+            # 代码理解
+            "code_explain",
+            "code_search_symbol",
             # 智能工具
             "project_context",
             "task_plan",

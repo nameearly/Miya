@@ -15,6 +15,7 @@ WSL管理工具 - 弥娅完全掌控WSL环境
 - 可维修：代码清晰，易于扩展
 - 故障隔离：执行失败不影响系统
 """
+
 import logging
 import subprocess
 import asyncio
@@ -79,6 +80,7 @@ class WSLManagerTool(BaseTool):
 - list_distributions: 列出所有WSL发行版
 - check_environment: 检查指定发行版的Python环境
 - install_environment: 为指定发行版安装Python环境
+- install_agent: 在WSL中安装弥娅代理（独立运行）
 - open_wsl: 打开指定发行版的WSL终端
 - get_default_distribution: 获取默认WSL发行版
 
@@ -101,26 +103,27 @@ class WSLManagerTool(BaseTool):
                             "list_distributions",
                             "check_environment",
                             "install_environment",
+                            "install_agent",
                             "open_wsl",
-                            "get_default_distribution"
+                            "get_default_distribution",
                         ],
-                        "description": "要执行的操作类型"
+                        "description": "要执行的操作类型",
                     },
                     "distribution": {
                         "type": "string",
-                        "description": "WSL发行版名称（如：Ubuntu、Debian、ArchLinux等）。check_environment、install_environment、open_wsl时建议提供"
+                        "description": "WSL发行版名称（如：Ubuntu、Debian、ArchLinux等）。check_environment、install_environment、install_agent、open_wsl时建议提供",
                     },
                     "skip_python_check": {
                         "type": "boolean",
-                        "description": "是否跳过Python环境检查（仅open_wsl使用）"
+                        "description": "是否跳过Python环境检查（仅open_wsl使用）",
                     },
                     "auto_install": {
                         "type": "boolean",
-                        "description": "是否自动安装缺失的环境（仅check_environment使用）"
-                    }
+                        "description": "是否自动安装缺失的环境（仅check_environment使用）",
+                    },
                 },
-                "required": ["action"]
-            }
+                "required": ["action"],
+            },
         }
 
     async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
@@ -148,6 +151,8 @@ class WSLManagerTool(BaseTool):
                 return await self._check_environment(args, context)
             elif action == "install_environment":
                 return await self._install_environment(args, context)
+            elif action == "install_agent":
+                return await self._install_miya_agent(args, context)
             elif action == "open_wsl":
                 return await self._open_wsl(args, context)
             elif action == "get_default_distribution":
@@ -163,10 +168,7 @@ class WSLManagerTool(BaseTool):
         """检查WSL是否安装"""
         try:
             result = subprocess.run(
-                ["wsl", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["wsl", "--version"], capture_output=True, text=True, timeout=5
             )
 
             if result.returncode == 0:
@@ -188,14 +190,14 @@ class WSLManagerTool(BaseTool):
                 ["wsl", "--list", "--verbose"],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode != 0:
                 return f"❌ 获取WSL发行版列表失败: {result.stderr}"
 
             output = result.stdout.strip()
-            lines = output.split('\n')
+            lines = output.split("\n")
 
             # 解析发行版列表
             distributions = []
@@ -207,17 +209,19 @@ class WSLManagerTool(BaseTool):
                         name = parts[0]
                         state = parts[1]
                         version = parts[2]
-                        is_default = name.startswith('*')
+                        is_default = name.startswith("*")
 
                         # 清理默认标记
-                        clean_name = name.replace('*', '').strip()
+                        clean_name = name.replace("*", "").strip()
 
-                        distributions.append({
-                            'name': clean_name,
-                            'state': state,
-                            'version': version,
-                            'is_default': is_default
-                        })
+                        distributions.append(
+                            {
+                                "name": clean_name,
+                                "state": state,
+                                "version": version,
+                                "is_default": is_default,
+                            }
+                        )
 
             if not distributions:
                 return "📭 没有找到WSL发行版"
@@ -226,9 +230,9 @@ class WSLManagerTool(BaseTool):
             result_str = f"📋 WSL发行版列表（共 {len(distributions)} 个）\n\n"
 
             for dist in distributions:
-                default_marker = "★ 默认" if dist['is_default'] else "  "
-                state_emoji = "🟢 运行中" if dist['state'] == 'Running' else "⚪ 已停止"
-                version_name = "WSL 2" if dist['version'] == '2' else "WSL 1"
+                default_marker = "★ 默认" if dist["is_default"] else "  "
+                state_emoji = "🟢 运行中" if dist["state"] == "Running" else "⚪ 已停止"
+                version_name = "WSL 2" if dist["version"] == "2" else "WSL 1"
 
                 result_str += f"{default_marker} [{dist['name']}]\n"
                 result_str += f"   状态: {state_emoji}\n"
@@ -239,7 +243,9 @@ class WSLManagerTool(BaseTool):
         except Exception as e:
             return f"❌ 获取发行版列表时出错: {str(e)}"
 
-    async def _check_environment(self, args: Dict[str, Any], context: ToolContext) -> str:
+    async def _check_environment(
+        self, args: Dict[str, Any], context: ToolContext
+    ) -> str:
         """检查指定发行版的Python环境"""
         distribution = args.get("distribution")
         auto_install = args.get("auto_install", False)
@@ -256,31 +262,28 @@ class WSLManagerTool(BaseTool):
         try:
             # 检查Python3
             python_check = await self._run_wsl_command(
-                distribution,
-                "python3 --version"
+                distribution, "python3 --version"
             )
 
             python_version = None
-            if python_check['success']:
-                python_version = python_check['stdout'].strip()
+            if python_check["success"]:
+                python_version = python_check["stdout"].strip()
 
             # 检查pip
             pip_check = await self._run_wsl_command(
-                distribution,
-                "python3 -m pip --version"
+                distribution, "python3 -m pip --version"
             )
 
             pip_version = None
-            if pip_check['success']:
-                pip_version = pip_check['stdout'].strip()
+            if pip_check["success"]:
+                pip_version = pip_check["stdout"].strip()
 
             # 检查aiohttp
             aiohttp_check = await self._run_wsl_command(
-                distribution,
-                "python3 -c \"import aiohttp; print('aiohttp OK')\""
+                distribution, "python3 -c \"import aiohttp; print('aiohttp OK')\""
             )
 
-            aiohttp_available = aiohttp_check['success']
+            aiohttp_available = aiohttp_check["success"]
 
             # 构建结果
             result = f"🔍 [{distribution}] 环境检查结果\n\n"
@@ -321,7 +324,9 @@ class WSLManagerTool(BaseTool):
         except Exception as e:
             return f"❌ 检查环境时出错: {str(e)}"
 
-    async def _install_environment(self, args: Dict[str, Any], context: ToolContext) -> str:
+    async def _install_environment(
+        self, args: Dict[str, Any], context: ToolContext
+    ) -> str:
         """为指定发行版安装Python环境"""
         distribution = args.get("distribution")
 
@@ -339,10 +344,9 @@ class WSLManagerTool(BaseTool):
             # 更新软件包列表
             result += "📦 更新软件包列表...\n"
             update_result = await self._run_wsl_command(
-                distribution,
-                "sudo apt-get update -qq"
+                distribution, "sudo apt-get update -qq"
             )
-            if not update_result['success']:
+            if not update_result["success"]:
                 result += f"⚠️ 更新失败: {update_result['stderr']}\n"
             else:
                 result += "✅ 更新完成\n"
@@ -350,10 +354,9 @@ class WSLManagerTool(BaseTool):
             # 安装Python3和pip
             result += "📦 安装Python3和pip...\n"
             install_python = await self._run_wsl_command(
-                distribution,
-                "sudo apt-get install -y python3 python3-pip python3-dev"
+                distribution, "sudo apt-get install -y python3 python3-pip python3-dev"
             )
-            if not install_python['success']:
+            if not install_python["success"]:
                 result += f"⚠️ 安装失败: {install_python['stderr']}\n"
             else:
                 result += "✅ Python3和pip安装完成\n"
@@ -361,12 +364,13 @@ class WSLManagerTool(BaseTool):
             # 安装aiohttp（使用apt安装系统包）
             result += "📦 安装aiohttp...\n"
             install_aiohttp = await self._run_wsl_command(
-                distribution,
-                "sudo apt-get install -y python3-aiohttp"
+                distribution, "sudo apt-get install -y python3-aiohttp"
             )
-            if not install_aiohttp['success']:
+            if not install_aiohttp["success"]:
                 result += f"⚠️ aiohttp安装失败: {install_aiohttp['stderr']}\n"
-                result += "📝 提示: 可能需要手动安装: sudo apt-get install python3-aiohttp\n"
+                result += (
+                    "📝 提示: 可能需要手动安装: sudo apt-get install python3-aiohttp\n"
+                )
             else:
                 result += "✅ aiohttp安装完成\n"
 
@@ -377,6 +381,141 @@ class WSLManagerTool(BaseTool):
         except Exception as e:
             return f"❌ 安装环境时出错: {str(e)}"
 
+    async def _install_miya_agent(
+        self, args: Dict[str, Any], context: ToolContext
+    ) -> str:
+        """在WSL中安装弥娅代理"""
+        distribution = args.get("distribution")
+
+        if not distribution:
+            default_dist = await self._get_default_distribution_name()
+            if default_dist:
+                distribution = default_dist
+            else:
+                return "❌ 请指定WSL发行版名称 (distribution 参数)"
+
+        result = f"🚀 [{distribution}] 安装弥娅代理\n\n"
+
+        try:
+            # 获取安装脚本路径
+            import os
+
+            script_path = (
+                Path(__file__).parent.parent.parent.parent.parent
+                / "wsl"
+                / "install_agent.sh"
+            )
+
+            if not script_path.exists():
+                # 如果安装脚本不存在，先复制到WSL
+                result += "📋 复制安装脚本到WSL...\n"
+
+                # 创建临时安装脚本内容
+                install_commands = '''
+# 创建弥娅目录
+mkdir -p ~/.miya
+
+# 创建代理脚本
+cat > ~/.miya/miya_agent.py << 'AGENTEOF'
+#!/usr/bin/env python3
+"""弥娅 WSL 代理"""
+import asyncio, aiohttp, os, sys, argparse
+
+class WSLMiyaAgent:
+    def __init__(self, session_id, host="localhost", port=8000):
+        self.session_id = session_id
+        self.host = host
+        self.port = port
+        self.base_url = f"http://{host}:{port}"
+        
+    async def connect(self):
+        print(f"🔗 连接到 {self.base_url}...")
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.post(f"{self.base_url}/api/terminal/register",
+                    json={"session_id": self.session_id, "platform": "wsl"}) as r:
+                    return r.status == 200
+        except Exception as e:
+            print(f"❌ 连接失败: {e}")
+            return False
+    
+    async def chat(self, msg):
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.post(f"{self.base_url}/api/terminal/chat",
+                    json={"message": msg, "session_id": self.session_id}) as r:
+                    if r.status == 200:
+                        return (await r.json()).get("response", "")
+        except Exception as e:
+            return f"错误: {e}"
+    
+    async def run(self):
+        if not await self.connect():
+            return
+        print("✅ 已连接！输入 exit 退出")
+        while True:
+            try:
+                msg = input("你> ").strip()
+                if msg.lower() in ["exit", "quit"]: break
+                resp = await self.chat(msg)
+                if resp: print(f"\n弥娅> {resp}\n")
+            except: break
+
+if __name__ == "__main__":
+    p = argparse.ArgumentParser()
+    p.add_argument("--session-id", required=True)
+    p.add_argument("--host", default="localhost")
+    p.add_argument("--port", type=int, default=8000)
+    asyncio.run(WSLMiyaAgent(**p.parse_args().__dict__).run())
+AGENTEOF
+chmod +x ~/.miya/miya_agent.py
+pip3 install --user -q aiohttp requests 2>/dev/null || pip3 install --break-system-packages -q aiohttp requests 2>/dev/null || true
+echo "✅ 弥娅代理安装完成"
+'''
+
+                # 在WSL中执行
+                cmd = f'wsl.exe -d {distribution} bash -c "{install_commands}"'
+                install_result = subprocess.run(
+                    cmd, shell=True, capture_output=True, text=True, timeout=120
+                )
+
+                if install_result.returncode == 0:
+                    result += "✅ 代理安装完成\n"
+                else:
+                    result += f"⚠️ 安装有警告: {install_result.stderr}\n"
+            else:
+                # 复制脚本到WSL
+                result += "📋 复制安装脚本...\n"
+                wsl_path = f"/tmp/miya_install.sh"
+                cmd = f'wsl.exe -d {distribution} bash -c "mkdir -p ~/.miya"'
+                subprocess.run(cmd, shell=True)
+
+                # 上传脚本
+                with open(script_path, "r") as f:
+                    script_content = f.read()
+
+                # 在WSL中创建脚本
+                cmd = f"wsl.exe -d {distribution} bash -c \"cat > {wsl_path} << 'SCRIPTEOF'\n{script_content}\nSCRIPTEOF\""
+                subprocess.run(cmd, shell=True, capture_output=True)
+
+                # 执行安装
+                cmd = f"wsl.exe -d {distribution} bash {wsl_path}"
+                install_result = subprocess.run(
+                    cmd, shell=True, capture_output=True, text=True, timeout=120
+                )
+
+                result += install_result.stdout + "\n"
+                if install_result.returncode != 0:
+                    result += f"⚠️ {install_result.stderr}\n"
+
+            result += "\n✅ 弥娅代理安装完成！\n"
+            result += "启动命令: wsl -d {distribution} python3 ~/.miya/miya_agent.py --session-id <ID> --host <Windows IP>\n"
+
+            return result
+
+        except Exception as e:
+            return f"❌ 安装代理失败: {str(e)}"
+
     async def _find_distribution_by_name(self, name_hint: str) -> Optional[str]:
         """根据名称提示智能匹配WSL发行版"""
         try:
@@ -384,29 +523,34 @@ class WSLManagerTool(BaseTool):
                 ["wsl", "--list", "--verbose"],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
-            
+
             if result.returncode != 0:
                 return None
-            
-            lines = result.stdout.strip().split('\n')
+
+            lines = result.stdout.strip().split("\n")
             name_hint_lower = name_hint.lower().replace("-", "").replace("_", "")
-            
+
             for line in lines[1:]:  # 跳过标题行
                 if line.strip():
                     parts = line.split()
                     if len(parts) >= 1:
-                        dist_name = parts[0].replace('*', '').strip()
-                        dist_name_lower = dist_name.lower().replace("-", "").replace("_", "")
-                        
+                        dist_name = parts[0].replace("*", "").strip()
+                        dist_name_lower = (
+                            dist_name.lower().replace("-", "").replace("_", "")
+                        )
+
                         # 完全匹配
                         if dist_name_lower == name_hint_lower:
                             return dist_name
                         # 部分匹配（如 "kali" 匹配 "kali-linux"）
-                        if name_hint_lower in dist_name_lower or dist_name_lower in name_hint_lower:
+                        if (
+                            name_hint_lower in dist_name_lower
+                            or dist_name_lower in name_hint_lower
+                        ):
                             return dist_name
-            
+
             return None
         except:
             return None
@@ -428,32 +572,40 @@ class WSLManagerTool(BaseTool):
             matched = await self._find_distribution_by_name(distribution)
             if matched:
                 distribution = matched
-                self.logger.info(f"智能匹配发行版: {args.get('distribution')} -> {distribution}")
+                self.logger.info(
+                    f"智能匹配发行版: {args.get('distribution')} -> {distribution}"
+                )
 
         # 如果需要检查环境 - 跳过预检查，直接在打开终端时安装依赖
         # 避免在打开前预检查导致超时
 
         try:
-            # 获取项目根目录
-            work_dir = str(Path(__file__).parent.parent.parent.parent)
+            # 获取项目根目录（需要5层parent）
+            # wsl_manager.py 位于 webnet/ToolNet/tools/terminal_net/wsl_manager.py
+            work_dir = str(Path(__file__).parent.parent.parent.parent.parent)
+            self.logger.info(f"[WSL] 项目根目录: {work_dir}")
 
             # Windows路径转换为WSL路径
             wsl_work_dir = work_dir.replace("\\", "/")
             if len(wsl_work_dir) >= 2 and wsl_work_dir[1] == ":":
                 drive_letter = wsl_work_dir[0].lower()
                 wsl_work_dir = f"/mnt/{drive_letter}{wsl_work_dir[2:]}"
+            self.logger.info(f"[WSL] WSL工作目录: {wsl_work_dir}")
 
             # WSL中的脚本路径
             wsl_agent_script = wsl_work_dir + "/core/terminal_agent.py"
+            self.logger.info(f"[WSL] 代理脚本路径: {wsl_agent_script}")
 
             # 生成会话ID
             import uuid
+
             session_id = str(uuid.uuid4())[:8]
 
             # 方案1: 使用 Windows Terminal 的 wt.exe
             try:
                 # 获取Windows主机IP（供WSL中的代理连接）
                 import socket
+
                 try:
                     # 尝试连接DNS获取主机IP
                     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -462,19 +614,31 @@ class WSLManagerTool(BaseTool):
                     s.close()
                 except:
                     host_ip = "localhost"
-                
-                # 构建WSL中运行的命令
-                # 先检查并安装依赖，然后启动terminal_agent
-                # 注意：某些发行版（如Kali）使用外部管理的Python，需要 --break-system-packages
-                wsl_cmd = f'''wt.exe -w 0 new-tab --profile "{distribution}" -- wsl.exe -d {distribution} bash -c "cd {wsl_work_dir} && echo '正在检查Python环境...' && python3 --version && pip3 install --break-system-packages -q aiohttp requests && echo '正在启动弥娅终端代理...' && python3 {wsl_agent_script} --session-id {session_id} --host {host_ip} --port 8000 && exec bash"'''
+
+                # 先检查WSL中是否存在terminal_agent.py
+                # 如果不存在，就只打开终端，不运行代理
+                check_cmd = f'''wsl.exe -d {distribution} test -f {wsl_agent_script} && echo "EXISTS" || echo "NOT_EXISTS"'''
+                check_result = subprocess.run(
+                    check_cmd, shell=True, capture_output=True, text=True
+                )
+
+                if "EXISTS" in check_result.stdout:
+                    # 构建WSL中运行的命令（带代理）
+                    wsl_cmd = f'''wt.exe -w 0 new-tab --profile "{distribution}" -- wsl.exe -d {distribution} bash -c "cd {wsl_work_dir} && echo '正在检查Python环境...' && python3 --version && pip3 install --break-system-packages -q aiohttp requests && echo '正在启动弥娅终端代理...' && python3 {wsl_agent_script} --session-id {session_id} --host {host_ip} --port 8000 && exec bash"'''
+                else:
+                    # 只打开WSL终端，不运行代理
+                    self.logger.info(f"WSL中未找到 terminal_agent.py，只打开终端")
+                    wsl_cmd = f'wt.exe -w 0 new-tab --profile "{distribution}" -- wsl.exe -d {distribution}'
 
                 subprocess.Popen(
                     wsl_cmd,
                     shell=True,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    stderr=subprocess.DEVNULL,
                 )
-                self.logger.info(f"已使用 Windows Terminal 打开 WSL [{distribution}] 窗口并启动弥娅代理")
+                self.logger.info(
+                    f"已使用 Windows Terminal 打开 WSL [{distribution}] 窗口并启动弥娅代理"
+                )
 
                 result = f"✅ 已打开WSL终端\n"
                 result += f"发行版: {distribution}\n"
@@ -487,9 +651,10 @@ class WSLManagerTool(BaseTool):
             except FileNotFoundError:
                 # 方案2: 使用 start wsl
                 self.logger.warning("Windows Terminal 未找到，使用 start wsl 命令")
-                
+
                 # 获取Windows主机IP
                 import socket
+
                 try:
                     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                     s.connect(("8.8.8.8", 80))
@@ -497,7 +662,7 @@ class WSLManagerTool(BaseTool):
                     s.close()
                 except:
                     host_ip = "localhost"
-                
+
                 # 启动terminal_agent
                 wsl_cmd = f'start wsl -d {distribution} bash -c "cd {wsl_work_dir} && pip3 install --break-system-packages -q aiohttp requests && python3 {wsl_agent_script} --session-id {session_id} --host {host_ip} --port 8000"'
 
@@ -505,9 +670,11 @@ class WSLManagerTool(BaseTool):
                     wsl_cmd,
                     shell=True,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    stderr=subprocess.DEVNULL,
                 )
-                self.logger.info(f"已使用 start wsl 打开 WSL [{distribution}] 窗口并启动弥娅代理")
+                self.logger.info(
+                    f"已使用 start wsl 打开 WSL [{distribution}] 窗口并启动弥娅代理"
+                )
 
                 result = f"✅ 已打开WSL终端\n"
                 result += f"发行版: {distribution}\n"
@@ -536,19 +703,19 @@ class WSLManagerTool(BaseTool):
                 ["wsl", "--list", "--verbose"],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode != 0:
                 return None
 
-            lines = result.stdout.strip().split('\n')
+            lines = result.stdout.strip().split("\n")
             for line in lines[1:]:  # 跳过标题行
-                if line.strip() and line.startswith('*'):
+                if line.strip() and line.startswith("*"):
                     # 提取默认发行版名称
                     parts = line.split()
                     if len(parts) >= 3:
-                        return parts[0].replace('*', '').strip()
+                        return parts[0].replace("*", "").strip()
 
             return None
 
@@ -572,23 +739,18 @@ class WSLManagerTool(BaseTool):
                 ["wsl", "-d", distribution, "bash", "-c", command],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             return {
-                'success': result.returncode == 0,
-                'stdout': result.stdout,
-                'stderr': result.stderr,
-                'returncode': result.returncode
+                "success": result.returncode == 0,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode,
             }
 
         except Exception as e:
-            return {
-                'success': False,
-                'stdout': '',
-                'stderr': str(e),
-                'returncode': -1
-            }
+            return {"success": False, "stdout": "", "stderr": str(e), "returncode": -1}
 
     def validate_args(self, args: Dict[str, Any]) -> tuple[bool, Optional[str]]:
         """验证参数"""

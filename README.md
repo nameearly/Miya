@@ -4549,12 +4549,41 @@ from webnet.ToolNet.tools.terminal.ultra_terminal_tools import (
     CodeReviewerAgentTool,
     CodeArchitectAgentTool,
     TerminalAgentTool,
+    # Skills 工具
+    ListSkillsTool,
+)
+
+# 额外注册的终端网络工具
+from webnet.ToolNet.tools.terminal_net import (
+    MultiTerminalTool,      # 多终端管理工具
+    TerminalCommandTool,   # 终端命令执行工具
+    WSLManagerTool,        # WSL管理工具
+    EnvironmentDetectorTool, # 环境检测工具
 )
 ```
 
+##### 7.1.10 平台工具映射
+
+弥娅终端模式支持多平台工具分发，不同平台自动加载对应工具：
+
+| 平台 | 工具数量 | 核心工具 |
+|------|---------|---------|
+| **QQ** | 43 | 消息工具 + 终端控制 + Git + 搜索 |
+| **Terminal** | 40 | 完整终端工具 + 多终端管理 + WSL |
+| **Desktop** | 40 | 完整终端工具 + 多终端管理 + WSL |
+| **Web** | 31 | 基础工具 + 跨端控制 |
+
+**桌面/终端平台完整工具列表**：
+- `multi_terminal` - 多终端管理（创建、切换、关闭终端）
+- `wsl_manager` - WSL管理（打开WSL、检查环境、安装代理）
+- `terminal_command` - 终端命令执行
+- `terminal_exec` - 命令执行（TerminalUltra）
+- `system_info` - 系统信息
+- `environment_detector` - 环境检测
+
 ---
 
-##### 7.1.10 API 接口
+##### 7.1.12 API 接口
 
 终端模式提供 REST API 接口：
 

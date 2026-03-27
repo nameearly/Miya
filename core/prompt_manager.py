@@ -174,8 +174,27 @@ class PromptManager:
 |- 不要用自然语言说"我来帮你..."、"我来给你点个赞"等，直接调用工具即可
 |- 只在工具执行完成后才给出总结性回复
 |- 如果用户说"给我..."、"帮我..."等没有明确指定对象的操作，通常是指对当前用户自己执行操作
+|- 终端模式相关（当 platform=terminal 时必须遵守）：
+  * "打开一个终端"、"打开PowerShell"、"打开CMD"、"打开Bash"、"新建终端" → 必须调用 multi_terminal 工具的 create_terminal action
+  * "打开WSL"、"管理WSL"、"安装WSL" → 必须调用 wsl_manager 工具
+  * "运行命令"、"执行命令"、"运行python"、"执行npm" → 必须调用 terminal_exec 工具
+  * "查看文件"、"读取文件"、"打开文件" → 必须调用 file_read 工具
+  * "创建文件"、"写入文件"、"新建文件" → 必须调用 file_write 工具
+  * "编辑文件"、"修改文件" → 必须调用 file_edit 工具
+  * "删除文件" → 必须调用 file_delete 工具
+  * "查看目录结构"、"查看项目结构" → 必须调用 directory_tree 工具
+  * "搜索内容"、"查找代码" → 必须调用 file_grep 工具
+  * "查找文件"、"找文件" → 必须调用 file_glob 工具
+  * "分析项目"、"项目分析" → 必须调用 project_analyze 工具
+  * "解释代码"、"分析代码" → 必须调用 code_explain 工具
+  * "Git状态"、"查看Git" → 必须调用 git_status 工具
+  * "Git提交"、"提交代码" → 必须先调用 git_add 再调用 git_commit 工具
+  * "Git推送"、"推送到远程" → 必须调用 git_push 工具
+  * "Git拉取"、"从远程拉取" → 必须调用 git_pull 工具
+  * "切换分支"、"检出分支" → 必须调用 git_checkout 工具
+|- 【重要】终端模式下，当用户请求任何操作时，必须调用对应工具而不是仅用文字描述
 
-可用工具：qq_like（点赞）、send_poke（拍一拍）、horoscope（运势）、wenchang_dijun（抽签）、search_bilibili（B站搜索）、react_emoji（表情回应）、get_user_info（获取用户信息）、create_schedule_task（定时任务）、find_member（查找成员）、start_trpg（启动跑团）、show_pc（查看角色卡）、create_pc（创建角色卡）、roll_dice（投骰子）、roll_secret（暗骰）、skill_check（技能检定）、start_combat（开始战斗）、search_trpg_characters（搜索跑团角色）、search_trpg_by_attribute（按属性搜索角色）、search_trpg_by_skill（按技能搜索角色）、search_tavern_stories（搜索酒馆故事）、search_tavern_characters（搜索酒馆角色）、search_tavern_preferences（搜索玩家偏好）等"""
+可用工具：qq_like（点赞）、send_poke（拍一拍）、horoscope（运势）、wenchang_dijun（抽签）、search_bilibili（B站搜索）、react_emoji（表情回应）、get_user_info（获取用户信息）、create_schedule_task（定时任务）、find_member（查找成员）、start_trpg（启动跑团）、show_pc（查看角色卡）、create_pc（创建角色卡）、roll_dice（投骰子）、roll_secret（暗骰）、skill_check（技能检定）、start_combat（开始战斗）、search_trpg_characters（搜索跑团角色）、search_trpg_by_attribute（按属性搜索角色）、search_trpg_by_skill（按技能搜索角色）、search_tavern_stories（搜索酒馆故事）、search_tavern_characters（搜索酒馆角色）、search_tavern_preferences（搜索玩家偏好）、multi_terminal（多终端管理）、terminal_exec（执行终端命令）、terminal_command（终端命令）、wsl_manager（WSL管理）、file_read（读取文件）、file_write（写入文件）、file_edit（编辑文件）、file_delete（删除文件）、directory_tree（目录树）、file_grep（搜索内容）、file_glob（查找文件）、project_analyze（项目分析）、code_explain（解释代码）、code_search_symbol（搜索符号）、git_status（Git状态）、git_diff（差异）、git_log（日志）、git_branch（分支）、git_commit（提交）、git_add（暂存）、git_push（推送）、git_pull（拉取）、git_checkout（检出）、git_stash（暂存）"""
 
     def get_system_prompt(self) -> str:
         """

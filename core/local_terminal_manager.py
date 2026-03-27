@@ -652,20 +652,30 @@ class LocalTerminalManager:
 
                 # 方案1: 使用 Windows Terminal 的 wt.exe 打开新的WSL标签页
                 try:
-                    wsl_cmd = f'wt.exe -w 0 new-tab --profile "Ubuntu" -- wsl.exe -- bash -c "cd {wsl_work_dir} && echo 正在启动弥娅终端代理... && python3 {wsl_agent_script} --session-id {session_id} && exec bash"'
+                    # 先检查WSL中是否存在terminal_agent.py
+                    check_cmd = f'wsl.exe test -f {wsl_agent_script} && echo "EXISTS" || echo "NOT_EXISTS"'
+                    check_result = subprocess.run(
+                        check_cmd, shell=True, capture_output=True, text=True
+                    )
+
+                    if "EXISTS" in check_result.stdout:
+                        wsl_cmd = f'wt.exe -w 0 new-tab --profile "Ubuntu" -- wsl.exe -- bash -c "cd {wsl_work_dir} && echo 正在启动弥娅终端代理... && python3 {wsl_agent_script} --session-id {session_id} && exec bash"'
+                    else:
+                        # 只打开WSL终端，不运行代理
+                        logger.info("WSL中未找到 terminal_agent.py，只打开终端")
+                        wsl_cmd = f'wt.exe -w 0 new-tab --profile "Ubuntu"'
+
                     subprocess.Popen(
                         wsl_cmd,
                         shell=True,
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
-                    logger.info(
-                        f"已使用 Windows Terminal 打开 WSL 窗口并启动弥娅代理: {session_id}"
-                    )
+                    logger.info(f"已使用 Windows Terminal 打开 WSL 窗口: {session_id}")
                 except FileNotFoundError:
                     # 方案2: 如果没有 Windows Terminal，使用 start wsl
                     logger.warning("Windows Terminal 未找到，使用 start wsl 命令")
-                    wsl_cmd = f'start wsl bash -c "cd {wsl_work_dir} && echo 正在启动弥娅终端代理... && python3 {wsl_agent_script} --session-id {session_id} && exec bash"'
+                    wsl_cmd = f"start wsl"
                     subprocess.Popen(
                         wsl_cmd,
                         shell=True,

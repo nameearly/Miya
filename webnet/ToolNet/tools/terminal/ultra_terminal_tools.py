@@ -741,12 +741,26 @@ class CodeExplainTool(BaseTool):
     def config(self) -> Dict[str, Any]:
         return {
             "name": "code_explain",
-            "description": "分析解释代码",
+            "description": """分析解释代码结构。
+
+当用户请求分析代码、解释代码、查看代码结构时使用此工具。
+可以提供文件路径或直接提供代码内容。
+
+示例:
+- 分析文件: 查看 src/main.py 的代码结构
+- 解释代码: 分析以下代码... 
+- 代码结构: 解释这段Python代码""",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file_path": {"type": "string"},
-                    "code": {"type": "string"},
+                    "file_path": {
+                        "type": "string",
+                        "description": "要分析的文件路径（绝对路径或相对路径）",
+                    },
+                    "code": {
+                        "type": "string",
+                        "description": "要分析的代码内容（直接提供代码）",
+                    },
                 },
             },
         }
