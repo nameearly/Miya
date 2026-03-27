@@ -363,6 +363,22 @@ class DecisionHub:
         Returns:
             响应文本
         """
+        return await self.process_perception_cross_platform(message)
+
+    async def process_perception_cross_platform(
+        self, message: Message
+    ) -> Optional[str]:
+        """
+        处理跨平台感知数据（统一入口）
+
+        委托给感知处理器和响应生成器
+
+        Args:
+            message: M-Link 消息（包含感知数据）
+
+        Returns:
+            响应文本
+        """
         perception = message.content
 
         # 提取感知信息
