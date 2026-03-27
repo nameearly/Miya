@@ -1321,3 +1321,16 @@ def _extract_target(task: str) -> str:
     if match:
         return match.group()
     return "."
+
+
+async def list_skills() -> ExecutionResult:
+    """列出所有弥娅技能"""
+    try:
+        from core.skills.registry import get_skills_registry
+
+        registry = await get_skills_registry()
+
+        output = registry.get_help()
+        return ExecutionResult(success=True, output=output)
+    except Exception as e:
+        return ExecutionResult(success=False, output="", error=str(e))
