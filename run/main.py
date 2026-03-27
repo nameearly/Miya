@@ -23,27 +23,11 @@ if sys.platform == "win32":
         pass
 
     # Windows 下设置标准输入输出编码
+    # 注意：不要在模块加载时包装 stdout/stderr，因为这会与 uvicorn 等库的日志配置冲突
+    # 仅在需要时在 chinese_input 函数中进行包装
     import io
     import codecs
     import locale
-
-    # 设置标准输出编码
-    if hasattr(sys.stdout, "buffer"):
-        sys.stdout = io.TextIOWrapper(
-            sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True
-        )
-
-    # 设置标准错误编码
-    if hasattr(sys.stderr, "buffer"):
-        sys.stderr = io.TextIOWrapper(
-            sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True
-        )
-
-    # 设置标准输入编码（这个最重要）
-    if hasattr(sys.stdin, "buffer"):
-        sys.stdin = io.TextIOWrapper(
-            sys.stdin.buffer, encoding="utf-8", errors="replace", line_buffering=True
-        )
 
 
 def chinese_input(prompt: str) -> str:
@@ -779,43 +763,11 @@ class Miya:
                             )
                             app.include_router(self.web_api.router)
 
-                            # 使用自定义日志配置，避免修改 sys.stdout/stderr
-                            import logging
-                            import uvicorn.logging
-
-                            # 创建简单的日志配置，不依赖 stdout/stderr
-                            class NoOpHandler(logging.Handler):
-                                def emit(self, record):
-                                    pass
-
-                            logging_config = {
-                                "version": 1,
-                                "disable_existing_loggers": True,
-                                "formatters": {
-                                    "default": {
-                                        "format": "%(levelname)s: %(message)s",
-                                    },
-                                },
-                                "handlers": {
-                                    "default": NoOpHandler(),
-                                },
-                                "root": {
-                                    "level": "WARNING",
-                                    "handlers": ["default"],
-                                },
-                                "loggers": {
-                                    "uvicorn": {"level": "WARNING"},
-                                    "uvicorn.access": {"level": "WARNING"},
-                                    "uvicorn.error": {"level": "WARNING"},
-                                },
-                            }
-
                             uvicorn.run(
                                 app,
                                 host="0.0.0.0",
                                 port=current_api_port,
                                 log_level="warning",
-                                log_config=logging_config,
                             )
                             # uvicorn.run 会阻塞，所以下面的代码不会执行
                             # 但为了类型安全，返回 True
