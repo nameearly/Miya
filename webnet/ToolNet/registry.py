@@ -318,11 +318,13 @@ class ToolRegistry:
                 ProjectContextTool,
                 TaskPlanTool,
                 SuggestionsTool,
-                # Agent 工具 (5个)
+                # Agent 工具 (4个)
                 CodeExplorerAgentTool,
                 CodeReviewerAgentTool,
                 CodeArchitectAgentTool,
                 TerminalAgentTool,
+                # Skills 工具 (1个)
+                ListSkillsTool,
             )
 
             # 注册所有超级终端基础工具 (8个)
@@ -366,7 +368,10 @@ class ToolRegistry:
             self.register(CodeArchitectAgentTool())
             self.register(TerminalAgentTool())
 
-            self.logger.info("已加载超级终端工具: TerminalUltra (37 tools)")
+            # 注册 Skills 工具 (1个)
+            self.register(ListSkillsTool())
+
+            self.logger.info("已加载超级终端工具: TerminalUltra (38 tools)")
         except Exception as e:
             self.logger.warning(f"加载超级终端工具失败: {e}")
 

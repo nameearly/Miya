@@ -1018,3 +1018,32 @@ __all__ = [
     "CodeArchitectAgentTool",
     "TerminalAgentTool",
 ]
+
+
+class ListSkillsTool(BaseTool):
+    """列出弥娅所有技能"""
+
+    @property
+    def config(self) -> Dict[str, Any]:
+        return {
+            "name": "list_skills",
+            "description": "列出弥娅所有已注册的技能，包括 Agents、Slash Commands、MCP Services、Hooks 等",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "description": "可选：筛选特定类别 (agent/command/mcp/hook)",
+                    },
+                },
+            },
+        }
+
+    async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
+        from core.skills.registry import get_skills_registry
+
+        registry = await get_skills_registry()
+        return registry.get_help()
+
+
+__all__.append("ListSkillsTool")

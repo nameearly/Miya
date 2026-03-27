@@ -42,6 +42,39 @@ class PlatformToolsManager:
             "send_to_desktop",
             "send_to_terminal",
             "terminal_command",
+            # Terminal Ultra 工具
+            "terminal_exec",
+            "file_read",
+            "file_write",
+            "file_edit",
+            "file_delete",
+            "directory_tree",
+            "code_execute",
+            "project_analyze",
+            # Git 工具
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_branch",
+            "git_commit",
+            "git_push",
+            "git_pull",
+            "git_checkout",
+            "git_stash",
+            # 搜索工具
+            "file_grep",
+            "file_glob",
+            # 智能工具
+            "project_context",
+            "task_plan",
+            "suggestions",
+            # Agent 工具
+            "code_explorer_agent",
+            "code_reviewer_agent",
+            "code_architect_agent",
+            "terminal_agent",
+            # Skills 工具
+            "list_skills",
         ],
         "terminal": [
             "terminal_command",
@@ -60,6 +93,33 @@ class PlatformToolsManager:
             "directory_tree",
             "code_execute",
             "project_analyze",
+            # Git 工具
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_branch",
+            "git_commit",
+            "git_push",
+            "git_pull",
+            "git_checkout",
+            "git_stash",
+            # 搜索工具
+            "file_grep",
+            "file_glob",
+            # 代码理解
+            "code_explain",
+            "code_search_symbol",
+            # 智能工具
+            "project_context",
+            "task_plan",
+            "suggestions",
+            # Agent 工具
+            "code_explorer_agent",
+            "code_reviewer_agent",
+            "code_architect_agent",
+            "terminal_agent",
+            # Skills 工具
+            "list_skills",
         ],
         "desktop": [
             "execute_on_desktop",
@@ -76,6 +136,30 @@ class PlatformToolsManager:
             "directory_tree",
             "code_execute",
             "project_analyze",
+            # Git 工具
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_branch",
+            "git_commit",
+            "git_push",
+            "git_pull",
+            "git_checkout",
+            "git_stash",
+            # 搜索工具
+            "file_grep",
+            "file_glob",
+            # 智能工具
+            "project_context",
+            "task_plan",
+            "suggestions",
+            # Agent 工具
+            "code_explorer_agent",
+            "code_reviewer_agent",
+            "code_architect_agent",
+            "terminal_agent",
+            # Skills 工具
+            "list_skills",
         ],
         "web": [
             "send_to_qq",
@@ -90,6 +174,30 @@ class PlatformToolsManager:
             "directory_tree",
             "code_execute",
             "project_analyze",
+            # Git 工具
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_branch",
+            "git_commit",
+            "git_push",
+            "git_pull",
+            "git_checkout",
+            "git_stash",
+            # 搜索工具
+            "file_grep",
+            "file_glob",
+            # 智能工具
+            "project_context",
+            "task_plan",
+            "suggestions",
+            # Agent 工具
+            "code_explorer_agent",
+            "code_reviewer_agent",
+            "code_architect_agent",
+            "terminal_agent",
+            # Skills 工具
+            "list_skills",
         ],
     }
 
