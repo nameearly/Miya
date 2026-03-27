@@ -168,6 +168,49 @@
 
 ---
 
+## Slash Commands
+
+### /git 命令组
+
+- `/git status` - 查看仓库状态
+- `/git diff` - 查看差异
+- `/git log` - 查看提交历史
+- `/git branch` - 查看分支
+- `/git commit <message>` - 提交更改
+- `/git push` - 推送到远程
+- `/git pull` - 从远程拉取
+- `/git checkout <branch>` - 切换分支
+
+### /feature-dev 功能开发工作流
+
+- `/feature-dev start <功能描述>` - 开始新功能开发 (7 阶段工作流)
+- `/feature-dev status` - 查看当前工作流状态
+- `/feature-dev cancel` - 取消当前工作流
+
+### /project 项目操作
+
+- `/project analyze` - 分析项目
+- `/project tree` - 查看项目结构
+- `/project deps` - 查看依赖
+
+### /code 代码操作
+
+- `/code explore <目标>` - 探索代码库
+- `/code review <目标>` - 审查代码
+- `/code architect <目标>` - 架构设计
+
+---
+
+## Hooks 系统
+
+安全钩子会自动拦截危险操作：
+
+- **PreToolUse**: 工具执行前检查
+- **危险命令**: `rm -rf /` 等会被阻止
+- **敏感文件**: 检测 `.env`、凭证等硬编码
+
+---
+
 ## 使用原则
 
 1. **必须使用工具**: 当用户请求执行操作时，必须调用对应工具，不能只回复
