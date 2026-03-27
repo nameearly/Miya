@@ -180,6 +180,109 @@ async def get_skills_registry() -> SkillsRegistry:
     return _registry
 
 
+async def get_agent_handler(agent_name: str):
+    """获取 Agent handler (供 ToolNet 调用)
+
+    Args:
+        agent_name: Agent 名称
+
+    Returns:
+        Agent handler 函数，如果不存在返回 None
+    """
+    registry = await get_skills_registry()
+    skill = registry.get_skill(agent_name)
+
+    if not skill or skill.type != SkillType.AGENT:
+        return None
+
+    try:
+        module_path = skill.module.replace(".", "/") + ".py"
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            f"agent_{agent_name}", f"core/skills/agents/{agent_name}/handler.py"
+        )
+        if spec and spec.loader:
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module.handler
+    except Exception as e:
+        logger.warning(f"[Skills] 获取 Agent handler 失败: {agent_name} - {e}")
+
+    return None
+
+
+async def call_mcp_service(
+    service_name: str, tool_name: str, params: Dict[str, Any]
+) -> str:
+    """调用 MCP Service (供 ToolNet 调用)
+
+    Args:
+        service_name: 服务名称 (filesystem, memory, database, web_search, code_executor)
+        tool_name: 工具名称
+        params: 参数
+
+    Returns:
+        执行结果 JSON 字符串
+    """
+    registry = await get_skills_registry()
+    skill = registry.get_skill(service_name)
+
+    if not skill or skill.type != SkillType.MCP:
+        return json.dumps({"error": f"服务不存在: {service_name}"})
+
+    try:
+        module_path = skill.module.replace(".", "/") + ".py"
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            f"mcp_{service_name}", module_path
+        )
+        if spec and spec.loader:
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            if hasattr(module, "service"):
+                result = await module.service.handle_handoff(
+                    {"tool_name": tool_name, **params}
+                )
+                return result
+            elif hasattr(module, "service"):
+                result = await module.service.handle_handoff(
+                    {"tool_name": tool_name, **params}
+                )
+                return result
+    except Exception as e:
+        return json.dumps({"error": f"服务调用失败: {str(e)}"})
+
+    return json.dumps({"error": "服务未正确实现"})
+
+
+async def get_mcp_tools_schema() -> List[Dict[str, Any]]:
+    """获取所有 MCP 服务的工具 schema (供 ToolNet 使用)"""
+    registry = await get_skills_registry()
+    tools = []
+
+    for skill in registry.list_skills(SkillType.MCP):
+        metadata = skill.metadata
+        # 支持两种格式: capabilities.tools 或直接 tools
+        tool_list = metadata.get("capabilities", {}).get("tools") or metadata.get(
+            "tools", []
+        )
+        for tool in tool_list:
+            tools.append(
+                {
+                    "name": f"mcp_{skill.name}_{tool['name']}",
+                    "description": tool.get("description", ""),
+                    "parameters": tool.get("parameters", {}),
+                    "service": skill.name,
+                    "tool": tool["name"],
+                }
+            )
+
+    return tools
+
+
 def list_all_skills() -> Dict[str, List[str]]:
     """列出所有技能"""
 
