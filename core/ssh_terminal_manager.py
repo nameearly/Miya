@@ -70,7 +70,8 @@ class SSHTerminalManager:
             )
 
             # 创建SSH会话
-            session = conn.create_process(
+            # FIX: asyncssh 的 create_process 返回 awaitable；不 await 会保存协程/awaitable 而非会话对象。
+            session = await conn.create_process(
                 terminal_type='xterm-256color',
                 term_size=(80, 24)
             )

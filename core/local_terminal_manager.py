@@ -644,8 +644,13 @@ class LocalTerminalManager:
                     drive_letter = wsl_work_dir[0].lower()
                     wsl_work_dir = f"/mnt/{drive_letter}{wsl_work_dir[2:]}"
                 
-                # WSL中的脚本路径
-                wsl_agent_script = wsl_work_dir + "/core/terminal_agent.py"
+                # FIX: terminal_agent.py 位于项目根目录的 core 下，不一定在 work_dir 里；
+                # 这里应基于 project_root 计算脚本路径，并转换为 WSL 路径。
+                wsl_project_root = str(project_root).replace("\\", "/")
+                if len(wsl_project_root) >= 2 and wsl_project_root[1] == ":":
+                    drive_letter = wsl_project_root[0].lower()
+                    wsl_project_root = f"/mnt/{drive_letter}{wsl_project_root[2:]}"
+                wsl_agent_script = wsl_project_root + "/core/terminal_agent.py"
                 
                 # 方案1: 使用 Windows Terminal 的 wt.exe 打开新的WSL标签页
                 try:

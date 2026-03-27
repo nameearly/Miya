@@ -141,10 +141,16 @@ class CacheManager:
             while True:
                 await asyncio.sleep(self.config.cleanup_interval)
                 self.cleanup()
-        
-        if asyncio.get_event_loop().is_running():
-            self._cleanup_task = asyncio.create_task(cleanup_loop())
-        else:
+
+        # FIX: 在无事件循环/非主线程环境下，get_event_loop() 可能抛异常或返回未运行的 loop。
+        # 使用 get_running_loop() 更可靠；若当前没有运行中的 loop，则不启动后台清理任务。
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                self._cleanup_task = loop.create_task(cleanup_loop())
+            else:
+                logger.warning("事件循环未运行，无法启动清理任务")
+        except RuntimeError:
             logger.warning("事件循环未运行，无法启动清理任务")
     
     def _generate_key(self, func: Callable, *args, **kwargs) -> str:
@@ -200,7 +206,8 @@ class CacheManager:
                 for key in expired_keys:
                     del self._cache[key]
                     self._remove_from_tag_index(key)
-                    self._stats.evictions += len(expired_keys)
+                    # FIX: 逐条驱逐时不应每次加 len(expired_keys)，否则统计会被放大 N 倍。
+                    self._stats.evictions += 1
     
     def _add_to_tag_index(self, key: str, tags: List[str]):
         """添加到标签索引"""

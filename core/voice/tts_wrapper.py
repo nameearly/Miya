@@ -90,15 +90,28 @@ class TTSWrapper:
         try:
             import subprocess
             rate = f"+{int((speed-1)*100)}%"
-            # 使用命令行方式
-            cmd = f'edge-tts -t "{text}" -v {voice} -r {rate} -o temp_audio.{response_format}'
-            result = subprocess.run(cmd, shell=True, capture_output=True, timeout=30)
+            # FIX: 避免 shell=True + 拼接用户文本，防止命令注入；使用参数数组调用。
+            import os
+            tmp_path = tempfile.NamedTemporaryFile(
+                suffix=f".{response_format}", delete=False
+            ).name
+            cmd = [
+                "edge-tts",
+                "-t",
+                str(text),
+                "-v",
+                str(voice),
+                "-r",
+                str(rate),
+                "-o",
+                tmp_path,
+            ]
+            result = subprocess.run(cmd, capture_output=True, timeout=30)
             
             if result.returncode == 0:
-                with open(f'temp_audio.{response_format}', "rb") as f:
+                with open(tmp_path, "rb") as f:
                     data = f.read()
-                import os
-                os.remove(f'temp_audio.{response_format}')
+                os.remove(tmp_path)
                 return data
         except Exception as e:
             logger.error(f"[TTSWrapper] 回退方案失败: {e}")

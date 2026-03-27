@@ -144,8 +144,10 @@ class QueueManager:
         """
         queue = self.get_model_queue(model_name)
         request["_enqueue_time"] = time.time()
-        request["_max_retries"] = max_retries or self._max_retries
-        request["_current_retries"] = 0
+        # FIX: 重试入队时不能重置 _current_retries，否则会导致永远达不到上限、无限重试。
+        # 仅在首次入队时初始化重试字段。
+        request.setdefault("_max_retries", max_retries or self._max_retries)
+        request.setdefault("_current_retries", 0)
 
         try:
             if priority == "superadmin":

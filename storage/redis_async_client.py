@@ -305,7 +305,8 @@ class RedisAsyncClient:
 
             try:
                 import redis.asyncio as redis
-                self._client = await redis.Redis(
+                # FIX: redis.asyncio.Redis(...) 是同步构造，不能 await；否则会触发异常并错误降级到 mock。
+                self._client = redis.Redis(
                     host=self.config.host,
                     port=self.config.port,
                     db=self.config.db,

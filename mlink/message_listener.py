@@ -91,7 +91,8 @@ class MessageListener:
             处理结果
         """
         # 标记消息已接收
-        self.mlink.receive(message)
+        # FIX: MLinkCore.receive 是 async，必须 await；否则只创建协程不执行，统计/监控会失效且可能产生“coroutine was never awaited”。
+        await self.mlink.receive(message)
 
         # 查找对应的处理器
         handler = self.handlers.get(message.msg_type)

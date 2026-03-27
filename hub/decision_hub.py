@@ -115,6 +115,9 @@ class DecisionHub:
         self.multi_model_manager = multi_model_manager
         self.miya_instance = miya_instance
 
+        # FIX: AdvancedOrchestrator 的工具执行包装器会读取 self.tool_context；此处必须初始化，避免首次使用抛 AttributeError。
+        self.tool_context = None
+
         # 对话历史上下文配置
         self.enable_conversation_context = True
         self.conversation_context_max_count = 10

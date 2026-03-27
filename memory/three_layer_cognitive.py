@@ -382,8 +382,14 @@ class CognitiveMemory:
                 logger.error(f"[CognitiveMemory] 处理任务失败 {file_path.name}: {e}")
                 # 移动到失败目录
                 try:
-                    failed_path = self.failed_dir / file_path.name
-                    file_path.rename(failed_path)
+                    # FIX: file_path 在进入处理阶段已 rename 到 processing_path；异常时若继续用 file_path.rename()
+                    # 会因为源文件不存在而导致失败文件丢失。优先移动 processing_path（若存在），否则再回退 file_path。
+                    failed_name = processing_path.name if processing_path.exists() else file_path.name
+                    failed_path = self.failed_dir / failed_name
+                    if processing_path.exists():
+                        processing_path.rename(failed_path)
+                    elif file_path.exists():
+                        file_path.rename(failed_path)
                 except:
                     pass
 

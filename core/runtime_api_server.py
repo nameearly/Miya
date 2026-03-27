@@ -370,10 +370,20 @@ class RuntimeAPIServer:
         # 添加 CORS 中间件
         from fastapi.middleware.cors import CORSMiddleware
 
+        # FIX: allow_origins=['*'] 与 allow_credentials=True 组合在浏览器侧会被拒绝（规范不允许）。
+        # 这里提供可配置的允许来源列表；若未配置则默认关闭 credentials 并允许任意来源。
+        cors_origins_raw = os.getenv("MIYA_CORS_ALLOW_ORIGINS", "").strip()
+        allow_origins = (
+            [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
+            if cors_origins_raw
+            else ["*"]
+        )
+        allow_credentials = False if allow_origins == ["*"] else True
+
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],  # 允许所有来源
-            allow_credentials=True,
+            allow_origins=allow_origins,
+            allow_credentials=allow_credentials,
             allow_methods=["*"],  # 允许所有 HTTP 方法
             allow_headers=["*"],  # 允许所有请求头
         )

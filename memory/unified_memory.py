@@ -236,12 +236,21 @@ class EmbeddingService:
 
         vector = []
         for i in range(self.dimension):
-            freq_sum = sum(1 for w in words if hash(w) % self.dimension == i)
-            vector.append(float(freq_sum) / (len(words) + 1) + 0.01 * math.sin(i))
+            # FIX: 原实现使用 hash(...).hex_val（不存在该属性）会直接抛异常导致embedding全链路崩溃。
+            # 使用 sha256 生成稳定的伪随机值，并映射到 [0, 1) 区间作为伪向量分量。
+            digest = hashlib.sha256((text + str(i)).encode("utf-8")).digest()
+            hash_val = int.from_bytes(digest[:8], "big", signed=False)
 
-        norm = math.sqrt(sum(v * v for v in vector))
+            # 归一化到 [0, 1)
+            vector.append((hash_val % 10000) / 10000.0)
+
+            # 归一化到 [0, 1)
+            vector.append((hash_val % 10000) / 10000.0)
+
+        # L2 归一化
+        norm = math.sqrt(sum(x * x for x in vector))
         if norm > 0:
-            vector = [v / norm for v in vector]
+            vector = [x / norm for x in vector]
 
         return vector
 
