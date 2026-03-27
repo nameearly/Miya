@@ -340,12 +340,33 @@ class ToolRegistry:
         ]
 
         for tool_name in tool_names:
-            # 创建简单的包装器函数
+            # 创建简单的包装器函数，实际调用 TerminalUltra 执行命令
             def make_wrapper(name):
                 async def wrapper(context, params):
-                    # context: ToolContext 对象（实际不使用，仅为兼容）
-                    # params: 工具参数字典
-                    return f"跨端工具 {name} 占位实现: {params}"
+                    # 导入 TerminalUltra
+                    try:
+                        from core.terminal_ultra import get_terminal_ultra
+
+                        terminal = get_terminal_ultra()
+
+                        # 提取命令参数
+                        command = params.get("command", "")
+                        if not command:
+                            return f"缺少 command 参数"
+
+                        # 使用 TerminalUltra 执行命令
+                        import asyncio
+
+                        result = asyncio.run(
+                            terminal.terminal_exec(command, timeout=30)
+                        )
+
+                        if result.success:
+                            return result.output or "命令执行成功（无输出）"
+                        else:
+                            return f"命令执行失败: {result.error or '未知错误'}"
+                    except Exception as e:
+                        return f"执行失败: {str(e)}"
 
                 return wrapper
 
