@@ -354,12 +354,8 @@ class ToolRegistry:
                         if not command:
                             return f"缺少 command 参数"
 
-                        # 使用 TerminalUltra 执行命令
-                        import asyncio
-
-                        result = asyncio.run(
-                            terminal.terminal_exec(command, timeout=30)
-                        )
+                        # 使用 await 直接执行（不是 asyncio.run）
+                        result = await terminal.terminal_exec(command, timeout=30)
 
                         if result.success:
                             return result.output or "命令执行成功（无输出）"
