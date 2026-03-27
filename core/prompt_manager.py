@@ -441,14 +441,9 @@ class PromptManager:
             else:
                 base_prompt = self._get_default_system_prompt()
 
-        # 如果有人格实例，添加动态人格描述
-        if self.personality:
-            personality_profile = self.personality.get_profile()
-            personality_text = self._format_personality_from_instance(
-                personality_profile
-            )
-            return base_prompt + "\n\n" + personality_text
-
+        # 【十四神格版】不再额外添加人格描述
+        # 因为 prompts/default.txt 已经包含了完整的十四神格人设
+        # 如果需要使用旧版人格系统，请修改此处
         return base_prompt
 
     def set_system_prompt(self, prompt: str) -> bool:
