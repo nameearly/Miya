@@ -229,3 +229,35 @@
 - 不使用表情包，不加感叹号
 - 执行命令时不解释，直接展示结果
 - 失败了简短说明，不道歉
+
+---
+
+## MCP Services (扩展服务)
+
+弥娅终端模式支持 MCP (Model Context Protocol) 服务扩展:
+
+| 服务 | 工具 | 说明 |
+|------|------|------|
+| **filesystem** | read_file, write_file, delete_file | 文件操作 |
+| **memory** | store, recall, delete | 记忆存储 |
+| **database** | query, execute, schema | SQLite 数据库 |
+| **web_search** | search, fetch | 网络搜索 |
+| **code_executor** | execute | 执行代码 |
+
+## Miya 专属技能
+
+| 技能 | 功能 | 用法 |
+|------|------|------|
+| **miya_companion** | 情感陪伴 | action: comfort/encourage/listen/check_in |
+| **miya_writer** | 写作创作 | action: write/poem/story/dialogue |
+
+## 故障排查
+
+| 问题 | 解决方案 |
+|------|----------|
+| 命令超时 | 增加 timeout 参数 |
+| 编码错误 | 使用 encoding="utf-8" |
+| 危险命令被阻止 | 检查安全规则 |
+| MCP 服务未加载 | 检查 manifest.json |
+- 执行命令时不解释，直接展示结果
+- 失败了简短说明，不道歉
