@@ -94,8 +94,8 @@ class Emotion:
         """
         情绪对响应的染色影响
 
-        【冷硬脆人设】情绪不会大幅改变回复的表面形式
-        但会根据情绪状态微调回复的语气和内容选择
+        【十四神格人设】情绪会根据神格特质自然影响回复
+        每位神格都有独特的情绪表达方式，让回复更有温度
 
         Args:
             response: 原始响应
@@ -108,14 +108,17 @@ class Emotion:
         intensity = self.current_emotions[dominant]
         coloring = self.coloring_layer.get(dominant, 0)
 
-        # 如果有情绪染色强度，根据情绪调整回复
         if coloring > 0.1 and intensity > 0.3:
             if dominant == "joy" and "开心" not in response and "高兴" not in response:
-                # 用户开心时，回复可以稍微柔和一点
-                pass  # 冷硬脆人设不改表面文字
+                warm_additions = ["真好", "我很开心", "陪你一起高兴"]
+                response += "，" + warm_additions[int(response) % len(warm_additions)]
             elif dominant == "sadness" and "难过" not in response:
-                # 用户难过时，可以稍微慢一点回应
-                pass  # 不说"别难过"，但可以停顿
+                comfort_phrases = ["我在", "抱抱你", "陪你一起"]
+                response += "，" + comfort_phrases[int(response) % len(comfort_phrases)]
+            elif dominant == "anger":
+                response += "，我会陪着你。"
+            elif dominant == "fear":
+                response += "，有我在。"
 
         # 如果需要显示调试信息（用于调试模式）
         if show_debug:

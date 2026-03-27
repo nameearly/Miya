@@ -498,10 +498,10 @@ class DecisionHub:
             speak_mode = profile.get("speak_mode", "casual")
             form_names = {
                 "normal": "常态",
-                "cold": "冷态",
-                "soft": "软态",
-                "hard": "硬态",
-                "fragile": "脆态",
+                "jingliu": "镜流态",
+                "ruanmei": "阮梅态",
+                "yoimiya": "宵宫态",
+                "kafka": "卡芙卡态",
             }
             form_name = form_names.get(current_form, current_form)
             logger.warning(f"[形态状态] {form_name}|{speak_mode}")
@@ -936,14 +936,14 @@ class DecisionHub:
                     lines.append(f"核心形态: {profile['current_core_form']}")
                     lines.append(f"  描述: {core_info.get('description', '')}")
                 lines.append("")
-                lines.append("可用形态: normal, cold, soft, hard, fragile")
+                lines.append("可用形态: normal, jingliu, ruanmei, yoimiya, kafka")
                 lines.append(
                     "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
                 )
                 return "\n".join(lines)
 
             # 尝试切换形态
-            if cmd in ["normal", "cold", "soft", "hard", "fragile"]:
+            if cmd in ["normal", "jingliu", "ruanmei", "yoimiya", "kafka"]:
                 success = self.personality.set_form(cmd)
                 if success:
                     return f"已切换到形态: {cmd}"
@@ -953,7 +953,7 @@ class DecisionHub:
                 if success:
                     return f"已切换到核心形态: {cmd}"
                 return f"切换失败"
-            return f"未知形态: {cmd}。可用: normal, cold, soft, hard, fragile 或 sober, speaking, waiting, vulnerable, afraid, committing"
+            return f"未知形态: {cmd}。可用: normal, jingliu, ruanmei, yoimiya, kafka 或 sober, speaking, waiting, vulnerable, afraid, committing"
 
         # 【新增】说话模式切换
         elif content.startswith("/说话") or content.startswith("/speak"):
@@ -1563,13 +1563,13 @@ class DecisionHub:
                 if profile.get("current_core_form"):
                     lines.append(f"核心形态: {profile['current_core_form']}")
                 lines.append("")
-                lines.append("可用形态: normal, cold, soft, hard, fragile")
+                lines.append("可用形态: normal, jingliu, ruanmei, yoimiya, kafka")
                 lines.append(
                     "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
                 )
                 return "\n".join(lines)
 
-            if cmd in ["normal", "cold", "soft", "hard", "fragile"]:
+            if cmd in ["normal", "jingliu", "ruanmei", "yoimiya", "kafka"]:
                 success = self.personality.set_form(cmd)
                 return f"已切换到形态: {cmd}" if success else "切换失败"
             elif cmd in Personality.CORE_FORMS:
@@ -1622,10 +1622,10 @@ class DecisionHub:
             # 构建状态标签
             form_names = {
                 "normal": "常态",
-                "cold": "冷态",
-                "soft": "软态",
-                "hard": "硬态",
-                "fragile": "脆态",
+                "jingliu": "镜流态",
+                "ruanmei": "阮梅态",
+                "yoimiya": "宵宫态",
+                "kafka": "卡芙卡态",
             }
             form_name = form_names.get(current_form, current_form)
 
