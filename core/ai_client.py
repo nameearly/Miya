@@ -6,6 +6,7 @@ AI客户端模块
 
 import logging
 import json
+import re
 from typing import Optional, Dict, List, Any, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -482,7 +483,9 @@ class OpenAIClient(BaseAIClient):
                     normalized_tool_choice = tool_choice
                     if normalized_tool_choice == "required":
                         normalized_tool_choice = "auto"
-                    if not isinstance(normalized_tool_choice, dict) and normalized_tool_choice not in (
+                    if not isinstance(
+                        normalized_tool_choice, dict
+                    ) and normalized_tool_choice not in (
                         "auto",
                         "none",
                     ):
@@ -578,7 +581,7 @@ class OpenAIClient(BaseAIClient):
 
                     adapter = get_tool_adapter()
 
-                    # 解析工具参数，增加错误处理
+                    # 解析工具参数，增加错误处理和自动修复
                     try:
                         tool_args = (
                             json.loads(tool_call.function.arguments)
@@ -586,10 +589,28 @@ class OpenAIClient(BaseAIClient):
                             else {}
                         )
                     except json.JSONDecodeError as e:
-                        logger.warning(
-                            f"[AIClient] 工具参数解析失败: {e}, 参数: {tool_call.function.arguments}"
-                        )
-                        tool_args = {}
+                        # 尝试自动修复常见的JSON格式问题
+                        arguments_str = tool_call.function.arguments
+                        if arguments_str:
+                            # 修复未加引号的值 (如 user_id: 佳 -> user_id: "佳")
+                            # 匹配 key: value 其中 value 不是字符串也不是数字
+                            fixed = re.sub(
+                                r'(\w+):\s*([^\s,"\[\]{}\d][^\s,"\[\]{}]*)',
+                                r'\1: "\2"',
+                                arguments_str,
+                            )
+                            try:
+                                tool_args = json.loads(fixed)
+                                logger.info(
+                                    f"[AIClient] 自动修复JSON成功: {arguments_str[:50]}..."
+                                )
+                            except:
+                                logger.warning(
+                                    f"[AIClient] 工具参数解析失败: {e}, 参数: {arguments_str}"
+                                )
+                                tool_args = {}
+                        else:
+                            tool_args = {}
 
                     logger.info(
                         f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
@@ -791,7 +812,9 @@ class DeepSeekClient(BaseAIClient):
                     normalized_tool_choice = tool_choice
                     if normalized_tool_choice == "required":
                         normalized_tool_choice = "auto"
-                    if not isinstance(normalized_tool_choice, dict) and normalized_tool_choice not in (
+                    if not isinstance(
+                        normalized_tool_choice, dict
+                    ) and normalized_tool_choice not in (
                         "auto",
                         "none",
                     ):
