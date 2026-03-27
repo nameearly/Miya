@@ -382,10 +382,11 @@ class DecisionHub:
         perception = message.content
 
         # 提取感知信息
-        content = perception.get("content", "")
+        content = perception.get("content", perception.get("input", ""))
         sender_name = perception.get("sender_name", "用户")
         message_type = perception.get("message_type", "")
-        platform = perception.get("source", "qq")
+        # 兼容多种来源：source字段或platform字段
+        platform = perception.get("source", perception.get("platform", "qq"))
 
         logger.info(f"[决策层] 收到感知数据: {sender_name} - {content[:50]}")
 
