@@ -229,32 +229,65 @@ class MultiEndMonitor:
     
     def _keyboard_listener(self):
         """键盘监听"""
-        import select
-        import tty
-        import termios
-        
-        # 保存原始终端设置
-        old_settings = termios.tcgetattr(sys.stdin)
-        
-        try:
-            tty.setcbreak(sys.stdin.fileno())
-            
+        # FIX: Windows 环境没有 tty/termios；需要按平台分支实现非阻塞按键读取。
+        if platform.system() == "Windows":
+            import msvcrt
+
             while self.running:
-                # 非阻塞读取
-                if select.select([sys.stdin], [], [], 0.1)[0]:
-                    key = sys.stdin.read(1)
-                    
-                    if key == 'q' or key == '\x03':  # q 或 Ctrl+C
-                        self.running = False
-                        print("\n正在退出监控...")
-                        break
-                    elif key == 'r':  # r 刷新
-                        asyncio.run_coroutine_threadsafe(self.update_all_services(), asyncio.get_event_loop())
-                        asyncio.run_coroutine_threadsafe(self.print_status_dashboard(), asyncio.get_event_loop())
-                    
-        finally:
-            # 恢复原始终端设置
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+                try:
+                    if msvcrt.kbhit():
+                        key = msvcrt.getch()
+                        try:
+                            key_str = key.decode("utf-8", errors="ignore")
+                        except Exception:
+                            key_str = ""
+
+                        if key_str in ("q", "Q"):
+                            self.running = False
+                            print("\n正在退出监控...")
+                            break
+                        elif key_str in ("r", "R"):
+                            loop = asyncio.get_event_loop()
+                            asyncio.run_coroutine_threadsafe(
+                                self.update_all_services(), loop
+                            )
+                            asyncio.run_coroutine_threadsafe(
+                                self.print_status_dashboard(), loop
+                            )
+                    time.sleep(0.1)
+                except Exception:
+                    time.sleep(0.1)
+        else:
+            import select
+            import tty
+            import termios
+
+            # 保存原始终端设置
+            old_settings = termios.tcgetattr(sys.stdin)
+
+            try:
+                tty.setcbreak(sys.stdin.fileno())
+
+                while self.running:
+                    # 非阻塞读取
+                    if select.select([sys.stdin], [], [], 0.1)[0]:
+                        key = sys.stdin.read(1)
+
+                        if key == 'q' or key == '\x03':  # q 或 Ctrl+C
+                            self.running = False
+                            print("\n正在退出监控...")
+                            break
+                        elif key == 'r':  # r 刷新
+                            asyncio.run_coroutine_threadsafe(
+                                self.update_all_services(), asyncio.get_event_loop()
+                            )
+                            asyncio.run_coroutine_threadsafe(
+                                self.print_status_dashboard(), asyncio.get_event_loop()
+                            )
+
+            finally:
+                # 恢复原始终端设置
+                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
     
     def stop(self):
         """停止监控器"""

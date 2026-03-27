@@ -195,8 +195,16 @@ class GRAGMemoryManager:
             # 尝试使用 LLM 提取（如果可用）
             from core.ai_client import AIClientFactory
 
+            # FIX: AIClientFactory.create_client 需要显式传入 api_key；否则会 TypeError。
+            # 这里从环境变量读取，若缺失则抛错并走 except 回退到规则提取。
+            api_key = os.getenv("OPENAI_API_KEY", "")
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY is not set")
+
             client = AIClientFactory.create_client(
-                provider="openai", model="gpt-4o-mini"
+                provider="openai",
+                api_key=api_key,
+                model="gpt-4o-mini",
             )
 
             prompt = f"""从以下对话中提取知识五元组（主体, 关系, 客体, 属性, 上下文）。
@@ -293,56 +301,28 @@ class GRAGMemoryManager:
             return False
 
         try:
-            # 使用同步 session
-            with driver.session() as session:
-                session.run(
-                    """
-                    MERGE (s:Entity {name: $subject})
-                    MERGE (o:Entity {name: $object})
-                    MERGE (s)-[r:RELATION {type: $relation}]->(o)
-                    SET r.timestamp = $timestamp,
-                        r.context = $context,
-                        r.attributes = $attributes
-                    """,
-                    subject=quintuple.subject,
-                    relation=quintuple.relation,
-                    object=quintuple.object,
-                    timestamp=quintuple.timestamp,
-                    context=quintuple.context,
-                    attributes=json.dumps(quintuple.attributes),
-                )
+            # FIX: GraphDatabase.driver 创建的是同步 driver；不能使用 async with/await session.run。
+            # 为避免阻塞事件循环，这里把同步的 Neo4j I/O 放入线程池执行。
+            def _run():
+                with driver.session() as session:
+                    session.run(
+                        """
+                        MERGE (s:Entity {name: $subject})
+                        MERGE (o:Entity {name: $object})
+                        MERGE (s)-[r:RELATION {type: $relation}]->(o)
+                        SET r.timestamp = $timestamp,
+                            r.context = $context,
+                            r.attributes = $attributes
+                        """,
+                        subject=quintuple.subject,
+                        relation=quintuple.relation,
+                        object=quintuple.object,
+                        timestamp=quintuple.timestamp,
+                        context=quintuple.context,
+                        attributes=json.dumps(quintuple.attributes),
+                    )
 
-            logger.debug(
-                f"[GRAG] 已存储五元组: {quintuple.subject} - {quintuple.relation} -> {quintuple.object}"
-            )
-            return True
-        except Exception as e:
-            logger.error(f"[GRAG] 存储五元组失败: {e}")
-            return False
-
-        driver = self.neo4j_driver
-        if not driver:
-            logger.warning("[GRAG] Neo4j 不可用，跳过存储")
-            return False
-
-        try:
-            async with driver.session() as session:
-                await session.run(
-                    """
-                    MERGE (s:Entity {name: $subject})
-                    MERGE (o:Entity {name: $object})
-                    MERGE (s)-[r:RELATION {type: $relation}]->(o)
-                    SET r.timestamp = $timestamp,
-                        r.context = $context,
-                        r.attributes = $attributes
-                    """,
-                    subject=quintuple.subject,
-                    relation=quintuple.relation,
-                    object=quintuple.object,
-                    timestamp=quintuple.timestamp,
-                    context=quintuple.context,
-                    attributes=json.dumps(quintuple.attributes),
-                )
+            await asyncio.to_thread(_run)
 
             logger.debug(
                 f"[GRAG] 已存储五元组: {quintuple.subject} - {quintuple.relation} -> {quintuple.object}"
@@ -361,22 +341,24 @@ class GRAGMemoryManager:
             return []
 
         try:
-            async with driver.session() as session:
-                result = await session.run(
-                    """
-                    MATCH (s:Entity)-[r:RELATION]->(o:Entity)
-                    WHERE s.name CONTAINS $keyword OR o.name CONTAINS $keyword
-                       OR r.type CONTAINS $keyword
-                    RETURN s.name as subject, r.type as relation, o.name as object,
-                           r.timestamp as timestamp, r.context as context
-                    LIMIT $limit
-                    """,
-                    keyword=keywords[0] if keywords else "",
-                    limit=limit,
-                )
+            # FIX: 同步 Neo4j driver + 异步调用混用会报错；在线程中执行同步查询。
+            def _run() -> List[Dict]:
+                with driver.session() as session:
+                    result = session.run(
+                        """
+                        MATCH (s:Entity)-[r:RELATION]->(o:Entity)
+                        WHERE s.name CONTAINS $keyword OR o.name CONTAINS $keyword
+                           OR r.type CONTAINS $keyword
+                        RETURN s.name as subject, r.type as relation, o.name as object,
+                               r.timestamp as timestamp, r.context as context
+                        LIMIT $limit
+                        """,
+                        keyword=keywords[0] if keywords else "",
+                        limit=limit,
+                    )
+                    return result.data()
 
-                records = await result.data()
-                return records
+            return await asyncio.to_thread(_run)
         except Exception as e:
             logger.error(f"[GRAG] 查询失败: {e}")
             return []
@@ -390,26 +372,29 @@ class GRAGMemoryManager:
             return []
 
         try:
-            async with driver.session() as session:
-                if relation:
-                    result = await session.run(
-                        """
-                        MATCH (s:Entity {name: $entity})-[r:RELATION {type: $relation}]->(o:Entity)
-                        RETURN s.name as subject, r.type as relation, o.name as object
-                        """,
-                        entity=entity,
-                        relation=relation,
-                    )
-                else:
-                    result = await session.run(
-                        """
-                        MATCH (s:Entity {name: $entity})-[r:RELATION]->(o:Entity)
-                        RETURN s.name as subject, r.type as relation, o.name as object
-                        """,
-                        entity=entity,
-                    )
+            # FIX: 同步 Neo4j driver + 异步调用混用会报错；在线程中执行同步查询。
+            def _run() -> List[Dict]:
+                with driver.session() as session:
+                    if relation:
+                        result = session.run(
+                            """
+                            MATCH (s:Entity {name: $entity})-[r:RELATION {type: $relation}]->(o:Entity)
+                            RETURN s.name as subject, r.type as relation, o.name as object
+                            """,
+                            entity=entity,
+                            relation=relation,
+                        )
+                    else:
+                        result = session.run(
+                            """
+                            MATCH (s:Entity {name: $entity})-[r:RELATION]->(o:Entity)
+                            RETURN s.name as subject, r.type as relation, o.name as object
+                            """,
+                            entity=entity,
+                        )
+                    return result.data()
 
-                return await result.data()
+            return await asyncio.to_thread(_run)
         except Exception as e:
             logger.error(f"[GRAG] 实体查询失败: {e}")
             return []
@@ -439,29 +424,34 @@ class GRAGMemoryManager:
             return {"enabled": self.enabled, "neo4j": "disconnected"}
 
         try:
-            async with driver.session() as session:
-                result = await session.run(
-                    """
-                    MATCH (n:Entity)
-                    OPTIONAL MATCH ()-[r:RELATION]->()
-                    RETURN count(DISTINCT n) as entities, count(r) as relations
-                    """
-                )
-                record = await result.single()
-                return {
-                    "enabled": self.enabled,
-                    "neo4j": "connected",
-                    "entities": record["entities"] if record else 0,
-                    "relations": record["relations"] if record else 0,
-                    "context_length": len(self.recent_context),
-                }
+            # FIX: 同步 Neo4j driver + 异步调用混用会报错；在线程中执行同步查询。
+            def _run() -> Dict[str, Any]:
+                with driver.session() as session:
+                    result = session.run(
+                        """
+                        MATCH (n:Entity)
+                        OPTIONAL MATCH ()-[r:RELATION]->()
+                        RETURN count(DISTINCT n) as entities, count(r) as relations
+                        """
+                    )
+                    record = result.single()
+                    return {
+                        "enabled": self.enabled,
+                        "neo4j": "connected",
+                        "entities": record["entities"] if record else 0,
+                        "relations": record["relations"] if record else 0,
+                        "context_length": len(self.recent_context),
+                    }
+
+            return await asyncio.to_thread(_run)
         except Exception as e:
             return {"enabled": self.enabled, "neo4j": "error", "error": str(e)}
 
     async def close(self) -> None:
         """关闭连接"""
         if self._neo4j_driver:
-            await self._neo4j_driver.close()
+            # FIX: GraphDatabase.driver 返回同步 driver；close() 不是 awaitable。
+            await asyncio.to_thread(self._neo4j_driver.close)
             self._neo4j_driver = None
             self._neo4j_initialized = False
 

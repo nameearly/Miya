@@ -385,12 +385,13 @@ class MasterTerminalController:
         # 步骤2: 执行命令
         if needs_parallel and len(commands) > 1:
             # 并行执行
-            for i, cmd in enumerate(commands):
-                steps.append({
-                    "type": "execute_parallel",
-                    "commands": {f"terminal_{i}": cmd},
-                    "description": f"并行执行命令 {i+1}"
-                })
+            # FIX: execute_parallel 需要真实的 session_id；不能使用 terminal_{i} 这类占位键，否则执行阶段会找不到会话。
+            # 这里仅记录 commands 列表，真实的 session_id 在执行阶段创建并回填。
+            steps.append({
+                "type": "execute_parallel",
+                "commands": commands,
+                "description": f"并行执行命令 {len(commands)} 条"
+            })
         else:
             # 串行执行
             for cmd in commands:
@@ -454,9 +455,20 @@ class MasterTerminalController:
             
             elif step['type'] == 'execute_parallel':
                 # 并行执行
-                results = await self.local_manager.execute_parallel(
-                    step['commands']
-                )
+                # FIX: 并行执行前为每条命令创建真实终端会话，并将 {session_id: cmd} 映射传给 LocalTerminalManager。
+                parallel_commands: List[str] = step.get('commands', [])
+                if not parallel_commands:
+                    continue
+
+                session_cmd_map: Dict[str, str] = {}
+                for idx, cmd in enumerate(parallel_commands):
+                    sid = await self.local_manager.create_terminal(
+                        name=f"并行终端{idx + 1}",
+                        terminal_type=TerminalType.CMD,
+                    )
+                    session_cmd_map[sid] = cmd
+
+                results = await self.local_manager.execute_parallel(session_cmd_map)
                 
                 for session_id, result in results.items():
                     task_result = TaskResult(

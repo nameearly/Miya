@@ -106,7 +106,8 @@ class BaseAIClient:
                 self._miya_prompt_full = prompt_config.get("system_prompt_full", "")
                 logger.info("成功加载弥娅人设提示词（紧凑版本-兼容）")
             elif legacy_prompt_path.exists():
-                with open(prompt_path, "r", encoding=Encoding.UTF8) as f:
+                # FIX: 命中旧路径分支时应读取 legacy_prompt_path，而不是 prompt_path。
+                with open(legacy_prompt_path, "r", encoding=Encoding.UTF8) as f:
                     prompt_config = json.load(f)
                 self._miya_prompt = prompt_config.get("system_prompt", "")
                 self._miya_prompt_full = self._miya_prompt
@@ -476,7 +477,17 @@ class OpenAIClient(BaseAIClient):
                 # 添加工具相关参数
                 if tools:
                     request_params["tools"] = tools
-                    request_params["tool_choice"] = tool_choice
+                    # FIX: OpenAI ChatCompletions 的 tool_choice 不支持 'required' 这样的自定义值；
+                    # 不同厂商/SDK 对 tool_choice 的校验也更严格。这里统一归一化，避免直接请求报 400。
+                    normalized_tool_choice = tool_choice
+                    if normalized_tool_choice == "required":
+                        normalized_tool_choice = "auto"
+                    if not isinstance(normalized_tool_choice, dict) and normalized_tool_choice not in (
+                        "auto",
+                        "none",
+                    ):
+                        normalized_tool_choice = "auto"
+                    request_params["tool_choice"] = normalized_tool_choice
 
                 response = await self.client.chat.completions.create(**request_params)
 
@@ -775,7 +786,17 @@ class DeepSeekClient(BaseAIClient):
                 # 添加工具相关参数
                 if tools:
                     request_params["tools"] = tools
-                    request_params["tool_choice"] = tool_choice
+                    # FIX: DeepSeek(OpenAI兼容) 侧对 tool_choice 的支持与 OpenAI 并不完全一致；
+                    # 为避免 'required' 等值导致请求直接失败，这里做兼容归一化。
+                    normalized_tool_choice = tool_choice
+                    if normalized_tool_choice == "required":
+                        normalized_tool_choice = "auto"
+                    if not isinstance(normalized_tool_choice, dict) and normalized_tool_choice not in (
+                        "auto",
+                        "none",
+                    ):
+                        normalized_tool_choice = "auto"
+                    request_params["tool_choice"] = normalized_tool_choice
 
                 response = await self.client.chat.completions.create(**request_params)
 

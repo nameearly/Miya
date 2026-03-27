@@ -12,6 +12,7 @@
 import asyncio
 import logging
 import time
+import uuid
 from typing import Any, Callable, Dict, List, Optional, Union, Type
 from dataclasses import dataclass, field
 from enum import Enum
@@ -154,14 +155,13 @@ class ConnectionPool:
     
     async def initialize(self):
         """初始化连接池"""
-        async with self._lock:
-            # 创建最小连接数
-            for i in range(self.config.min_connections):
-                await self._create_connection()
-            
-            # 启动健康检查任务
-            if self.config.health_check_interval > 0:
-                self._start_health_check_task()
+        # FIX: 初始化建连属于慢 IO；不要在持锁状态下 await _create_connection()/connect()。
+        for i in range(self.config.min_connections):
+            await self._create_connection()
+
+        # 启动健康检查任务
+        if self.config.health_check_interval > 0:
+            self._start_health_check_task()
     
     async def _create_connection(self) -> Optional[BaseConnection]:
         """创建新连接"""
@@ -170,18 +170,21 @@ class ConnectionPool:
             endpoint = self._select_endpoint()
             
             # 生成连接ID
-            connection_id = f"{self.config.connection_name}_{len(self._connections)}_{int(time.time())}"
+            # FIX: 避免依赖 len(self._connections) 生成 ID（并发下可能重复/需要持锁读取）；使用 uuid 保证唯一。
+            connection_id = f"{self.config.connection_name}_{uuid.uuid4().hex}"
             
             # 创建连接
             connection = self.connection_factory(connection_id, endpoint)
             
             # 建立连接
+            # FIX: connect() 可能是慢网络 IO；不要在持锁状态下 await。
             if await connection.connect():
-                self._connections[connection_id] = connection
-                self._available_connections.append(connection)
-                
-                self.stats.total_connections += 1
-                self.stats.idle_connections += 1
+                async with self._lock:
+                    self._connections[connection_id] = connection
+                    self._available_connections.append(connection)
+                    
+                    self.stats.total_connections += 1
+                    self.stats.idle_connections += 1
                 
                 logger.debug(f"[连接池] 创建连接: {connection_id}, endpoint={endpoint}")
                 return connection
@@ -212,33 +215,44 @@ class ConnectionPool:
         start_time = time.time()
         
         while True:
+            connection_to_use: Optional[BaseConnection] = None
+            should_create = False
+
             async with self._lock:
                 # 检查是否有可用连接
                 if self._available_connections:
-                    connection = self._available_connections.pop()
-                    self._busy_connections[connection.connection_id] = connection
+                    connection_to_use = self._available_connections.pop()
+                    self._busy_connections[connection_to_use.connection_id] = connection_to_use
                     
                     self.stats.idle_connections -= 1
                     self.stats.active_connections += 1
                     self.stats.connection_hits += 1
                     
-                    connection.touch()
-                    logger.debug(f"[连接池] 获取连接: {connection.connection_id}")
-                    return connection
-                
-                # 检查是否可以创建新连接
+                    connection_to_use.touch()
+                    logger.debug(f"[连接池] 获取连接: {connection_to_use.connection_id}")
+                    return connection_to_use
+
+                # 检查是否可以创建新连接（这里只做决策，不在锁内 await 建连）
                 if len(self._connections) < self.config.max_connections:
-                    connection = await self._create_connection()
-                    if connection:
-                        self._busy_connections[connection.connection_id] = connection
-                        
-                        self.stats.idle_connections -= 1
+                    # FIX: 建连是慢 IO；锁内只做容量判断，锁外执行 _create_connection().
+                    should_create = True
+
+            if should_create:
+                new_connection = await self._create_connection()
+                if new_connection:
+                    async with self._lock:
+                        # 连接创建成功后，直接标记为 busy 并从 available 中移除（_create_connection 已追加到 available）
+                        if new_connection in self._available_connections:
+                            self._available_connections.remove(new_connection)
+                            self.stats.idle_connections = max(0, self.stats.idle_connections - 1)
+
+                        self._busy_connections[new_connection.connection_id] = new_connection
                         self.stats.active_connections += 1
                         self.stats.connection_misses += 1
-                        
-                        connection.touch()
-                        logger.debug(f"[连接池] 创建并获取连接: {connection.connection_id}")
-                        return connection
+
+                    new_connection.touch()
+                    logger.debug(f"[连接池] 创建并获取连接: {new_connection.connection_id}")
+                    return new_connection
             
             # 检查超时
             if timeout is not None:
@@ -253,37 +267,45 @@ class ConnectionPool:
     
     async def release(self, connection: BaseConnection):
         """释放连接"""
+        should_close = False
         async with self._lock:
             if connection.connection_id in self._busy_connections:
                 del self._busy_connections[connection.connection_id]
-                
+
                 # 检查连接状态
                 if connection.status == ConnectionStatus.HEALTHY:
                     self._available_connections.append(connection)
                     self.stats.idle_connections += 1
                 else:
-                    # 不健康的连接，关闭并移除
-                    await self._close_connection(connection)
-                
+                    # FIX: close/disconnect 可能是慢 IO；不要在锁内 await。
+                    should_close = True
+
                 self.stats.active_connections -= 1
-                
+
                 logger.debug(f"[连接池] 释放连接: {connection.connection_id}")
+
+        if should_close:
+            # FIX: 不健康连接在 release 后关闭，避免锁被慢 IO 阻塞。
+            await self._close_connection(connection)
     
     async def _close_connection(self, connection: BaseConnection):
         """关闭连接"""
         try:
+            # FIX: disconnect 可能是慢 IO；锁外执行断开，锁内只做数据结构/统计更新。
             await connection.disconnect()
-            
-            # 从所有列表中移除
-            self._connections.pop(connection.connection_id, None)
-            
-            # 从可用列表中移除
-            if connection in self._available_connections:
-                self._available_connections.remove(connection)
-            
-            self.stats.total_connections -= 1
-            self.stats.idle_connections = max(0, self.stats.idle_connections - 1)
-            
+
+            async with self._lock:
+                # 从所有列表中移除
+                removed = self._connections.pop(connection.connection_id, None)
+
+                # 从可用列表中移除
+                if connection in self._available_connections:
+                    self._available_connections.remove(connection)
+
+                if removed is not None:
+                    self.stats.total_connections -= 1
+                    self.stats.idle_connections = max(0, self.stats.idle_connections - 1)
+
             logger.debug(f"[连接池] 关闭连接: {connection.connection_id}")
             
         except Exception as e:
@@ -307,48 +329,36 @@ class ConnectionPool:
     
     async def _perform_health_checks(self):
         """执行健康检查"""
+        # FIX: health_check() 也可能是慢 IO；不要在持锁状态下 await。
         async with self._lock:
             self.stats.last_health_check = time.time()
-            
             connections_to_check = list(self._connections.values())
-            
-            for connection in connections_to_check:
-                try:
-                    is_healthy = await connection.health_check()
-                    
-                    if is_healthy:
-                        connection.status = ConnectionStatus.HEALTHY
-                    else:
-                        connection.status = ConnectionStatus.UNHEALTHY
-                        logger.warning(f"[连接池] 连接不健康: {connection.connection_id}")
-                        
-                        # 如果不健康的连接正在使用中，尝试替换
-                        if connection.connection_id in self._busy_connections:
-                            await self._replace_unhealthy_connection(connection)
-                    
-                except Exception as e:
-                    logger.error(f"[连接池] 健康检查失败: {connection.connection_id}, error={e}")
+
+        for connection in connections_to_check:
+            try:
+                is_healthy = await connection.health_check()
+
+                if is_healthy:
+                    connection.status = ConnectionStatus.HEALTHY
+                else:
                     connection.status = ConnectionStatus.UNHEALTHY
-            
-            # 清理过期连接
-            await self._cleanup_expired_connections()
+                    logger.warning(f"[连接池] 连接不健康: {connection.connection_id}")
+                    # FIX: 不要替换 busy 映射中的连接对象；调用方仍可能持有 old_connection，替换会导致 release 找不到记录。
+                    # 兼容旧接口：这里仅标记连接不健康，真正的关闭/回收发生在 release().
+
+            except Exception as e:
+                logger.error(f"[连接池] 健康检查失败: {connection.connection_id}, error={e}")
+                connection.status = ConnectionStatus.UNHEALTHY
+
+        # 清理过期连接（该函数内部会 await close；但仅对 available 连接生效，且不持锁进行网络 IO）
+        await self._cleanup_expired_connections()
     
     async def _replace_unhealthy_connection(self, old_connection: BaseConnection):
         """替换不健康的连接"""
+        # FIX: 不要替换 busy 映射中的连接对象；调用方仍可能持有 old_connection，替换会导致 release 找不到记录。
+        # 兼容旧接口：这里仅标记连接不健康，真正的关闭/回收发生在 release()。
         try:
-            # 创建新连接
-            new_connection = await self._create_connection()
-            if new_connection:
-                # 转移繁忙状态
-                self._busy_connections[new_connection.connection_id] = new_connection
-                del self._busy_connections[old_connection.connection_id]
-                
-                # 关闭旧连接
-                await self._close_connection(old_connection)
-                
-                logger.info(f"[连接池] 替换不健康连接: {old_connection.connection_id} -> {new_connection.connection_id}")
-                
-                return new_connection
+            old_connection.status = ConnectionStatus.UNHEALTHY
         
         except Exception as e:
             logger.error(f"[连接池] 替换连接失败: {e}")
@@ -358,10 +368,14 @@ class ConnectionPool:
     async def _cleanup_expired_connections(self):
         """清理过期连接"""
         current_time = time.time()
-        
+
+        # FIX: snapshot 可用连接列表，避免遍历时并发修改。
+        async with self._lock:
+            available_snapshot = list(self._available_connections)
+
         # 检查空闲连接
         idle_to_remove = []
-        for connection in self._available_connections:
+        for connection in available_snapshot:
             # 检查空闲超时
             if current_time - connection.last_used_at > self.config.idle_timeout:
                 idle_to_remove.append(connection)

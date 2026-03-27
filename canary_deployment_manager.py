@@ -19,6 +19,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# FIX: P95 延迟的“推进阈值”和“告警阈值”此前不一致（success 用 50ms，而告警用 100ms），
+# 会导致推进被阻止但不触发告警，或监控解释困难。这里统一成可配置常量。
+P95_SUCCESS_THRESHOLD_MS = 50
+P95_ALERT_THRESHOLD_MS = 50
+
+
 class CanaryStage(Enum):
     """灰度阶段"""
     CANARY_1PCT = "canary_1pct"
@@ -180,7 +186,10 @@ class P2CanaryManager:
         # 检查关键指标
         checks = {
             "error_rate": (metrics.get("error_rate", 0) < 0.001, "错误率 < 0.1%"),
-            "p95_latency": (metrics.get("p95_latency", 0) < 50, "P95延迟 < 50ms"),
+            "p95_latency": (
+                metrics.get("p95_latency", 0) < P95_SUCCESS_THRESHOLD_MS,
+                f"P95延迟 < {P95_SUCCESS_THRESHOLD_MS}ms",
+            ),
             "memory_growth": (metrics.get("memory_growth_pct", 0) < 50, "内存增长 < 50%"),
         }
         
@@ -233,8 +242,11 @@ class P2CanaryManager:
         if metrics.get("error_rate", 0) > 0.001:
             self._add_alert("error_rate_exceeded", f"错误率: {metrics['error_rate']:.4f}")
         
-        if metrics.get("p95_latency", 0) > 100:  # 根据阶段调整
-            self._add_alert("latency_exceeded", f"P95延迟: {metrics['p95_latency']:.1f}ms")
+        if metrics.get("p95_latency", 0) > P95_ALERT_THRESHOLD_MS:
+            self._add_alert(
+                "latency_exceeded",
+                f"P95延迟: {metrics['p95_latency']:.1f}ms (>{P95_ALERT_THRESHOLD_MS}ms)",
+            )
         
         if metrics.get("memory_growth_pct", 0) > 50:
             self._add_alert("memory_exceeded", f"内存增长: {metrics['memory_growth_pct']:.1f}%")
