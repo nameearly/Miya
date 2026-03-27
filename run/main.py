@@ -779,28 +779,43 @@ class Miya:
                             )
                             app.include_router(self.web_api.router)
 
-                            # 临时保存原始 stdout/stderr 以避免 uvicorn 日志配置问题
-                            import io
+                            # 使用自定义日志配置，避免修改 sys.stdout/stderr
+                            import logging
+                            import uvicorn.logging
 
-                            original_stdout = sys.stdout
-                            original_stderr = sys.stderr
+                            # 创建简单的日志配置，不依赖 stdout/stderr
+                            class NoOpHandler(logging.Handler):
+                                def emit(self, record):
+                                    pass
 
-                            # 恢复为原始流以便 uvicorn 初始化
-                            if hasattr(sys.stdout, "buffer"):
-                                sys.stdout = io.TextIOWrapper(
-                                    sys.stdout.buffer, encoding="utf-8"
-                                )
-                            if hasattr(sys.stderr, "buffer"):
-                                sys.stderr = io.TextIOWrapper(
-                                    sys.stderr.buffer, encoding="utf-8"
-                                )
+                            logging_config = {
+                                "version": 1,
+                                "disable_existing_loggers": True,
+                                "formatters": {
+                                    "default": {
+                                        "format": "%(levelname)s: %(message)s",
+                                    },
+                                },
+                                "handlers": {
+                                    "default": NoOpHandler(),
+                                },
+                                "root": {
+                                    "level": "WARNING",
+                                    "handlers": ["default"],
+                                },
+                                "loggers": {
+                                    "uvicorn": {"level": "WARNING"},
+                                    "uvicorn.access": {"level": "WARNING"},
+                                    "uvicorn.error": {"level": "WARNING"},
+                                },
+                            }
 
                             uvicorn.run(
                                 app,
                                 host="0.0.0.0",
                                 port=current_api_port,
                                 log_level="warning",
-                                log_config=None,  # 禁用默认日志配置
+                                log_config=logging_config,
                             )
                             # uvicorn.run 会阻塞，所以下面的代码不会执行
                             # 但为了类型安全，返回 True
