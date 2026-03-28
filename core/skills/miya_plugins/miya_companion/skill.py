@@ -49,17 +49,23 @@ class MiyaCompanion:
 
     def _comfort(self, message: str) -> str:
         """安慰"""
-        responses = self._config.get("comfort_responses", ["我在。"])
+        responses = self._config.get("comfort_responses", [])
+        if not responses:
+            return ""  # 动态生成将处理空响应
         return random.choice(responses)
 
     def _encourage(self) -> str:
         """鼓励"""
-        responses = self._config.get("encourage_responses", ["加油。我在。"])
+        responses = self._config.get("encourage_responses", [])
+        if not responses:
+            return ""  # 动态生成将处理空响应
         return random.choice(responses)
 
     def _listen(self, message: str) -> str:
         """倾听"""
-        responses = self._config.get("listen_responses", ["我听着。你说。"])
+        responses = self._config.get("listen_responses", [])
+        if not responses:
+            return ""  # 动态生成将处理空响应
         return random.choice(responses)
 
     def _check_in(self) -> str:
@@ -67,15 +73,21 @@ class MiyaCompanion:
         hour = time.localtime().tm_hour
         check_in = self._config.get("check_in_responses", {})
         if 22 <= hour or hour < 6:
-            return check_in.get("night", "还不睡？我在。")
+            response = check_in.get("night", "")
         elif 6 <= hour < 12:
-            return check_in.get("morning", "早。睡好了？")
+            response = check_in.get("morning", "")
         else:
-            return check_in.get("day", "我在。")
+            response = check_in.get("day", "")
+        
+        if not response:
+            return ""  # 动态生成将处理空响应
+        return response
 
     def _default_response(self, message: str) -> str:
         """默认响应"""
-        responses = self._config.get("default_responses", ["我在。你说。"])
+        responses = self._config.get("default_responses", [])
+        if not responses:
+            return ""  # 动态生成将处理空响应
         return random.choice(responses)
 
 

@@ -82,6 +82,8 @@ class PersonalityLoader:
             result["check_in_responses"] = base["check_in_responses"]
         if "default_responses" in base:
             result["default_responses"] = base["default_responses"]
+        if "proactive_chat" in base:
+            result["proactive_chat"] = base["proactive_chat"]
 
         # 添加人格特定配置（覆盖基础配置）
         for key, value in config.items():
@@ -421,6 +423,30 @@ class PersonalityLoader:
             情绪染色风格字典
         """
         return config.get("emotions", {})
+
+    def get_proactive_chat_config(self, config: Dict) -> Dict:
+        """
+        从配置获取主动聊天配置
+
+        Args:
+            config: 人格配置
+
+        Returns:
+            主动聊天配置字典
+        """
+        return config.get("proactive_chat", {})
+
+    def reload_proactive_chat_config(self) -> Dict:
+        """
+        重新加载主动聊天配置
+
+        Returns:
+            主动聊天配置字典
+        """
+        # 清除基础配置缓存，强制重新加载
+        self._base_config = None
+        base = self._load_base_config()
+        return base.get("proactive_chat", {})
 
 
 # 全局加载器实例

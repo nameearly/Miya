@@ -19,6 +19,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 import random
 
+# 导入动态生成系统
+try:
+    from config.proactive_chat import DynamicMessageGenerator
+
+    DYNAMIC_GENERATION_AVAILABLE = True
+except ImportError:
+    DYNAMIC_GENERATION_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -89,6 +97,10 @@ class UserContext:
 class IntelligentActiveChatManager:
     """智能主动聊天管理器 - 基于上下文感知"""
 
+    # 人设配置（从PersonalityLoader加载）
+    _personality_config: Dict[str, Any] = {}
+    _personality_loader = None
+
     # 上下文触发模式
     ACTIVITY_PATTERNS = [
         (r"(去|上)(课|学|学校|教室)", "activity", "课程"),
@@ -157,12 +169,79 @@ class IntelligentActiveChatManager:
         # 上下文过期时间（小时）
         self.context_expiry_hours = 24
 
+        # 初始化人设加载器
+        self._init_personality_loader()
+
         # 数据持久化路径
         self.data_dir = None
         self._init_data_dir()
 
         # 加载持久化数据
         self._load_persisted_data()
+
+        # 用户最后互动时间（用于空闲检测）
+        self.user_last_interaction: Dict[str, datetime] = {}
+
+        # 动态消息生成器
+        self.dynamic_generator = None
+        if DYNAMIC_GENERATION_AVAILABLE:
+            try:
+                self.dynamic_generator = DynamicMessageGenerator()
+                logger.info("[IntelligentActiveChat] 动态消息生成器初始化成功")
+            except Exception as e:
+                logger.error(f"[IntelligentActiveChat] 动态消息生成器初始化失败: {e}")
+                self.dynamic_generator = None
+
+    def _init_personality_loader(self):
+        """初始化人设加载器并加载配置"""
+        try:
+            from core.personality_loader import get_personality_loader
+
+            IntelligentActiveChatManager._personality_loader = get_personality_loader()
+            IntelligentActiveChatManager._personality_config = (
+                IntelligentActiveChatManager._personality_loader.load("default")
+            )
+            logger.info("[IntelligentActiveChat] 人设配置加载成功")
+            self._log_loaded_templates()
+        except Exception as e:
+            logger.warning(
+                f"[IntelligentActiveChat] 人设配置加载失败: {e}, 使用默认配置"
+            )
+            IntelligentActiveChatManager._personality_config = {}
+
+    def _log_loaded_templates(self):
+        """记录已加载的模板配置"""
+        config = IntelligentActiveChatManager._personality_config
+        if not config:
+            return
+
+        template_keys = [
+            "greetings",
+            "check_in_responses",
+            "comfort_responses",
+            "encourage_responses",
+            "listen_responses",
+            "poke_responses",
+        ]
+
+        for key in template_keys:
+            if key in config:
+                count = len(config[key]) if isinstance(config[key], list) else 0
+                logger.info(f"[IntelligentActiveChat] 已加载模板 {key}: {count}条")
+
+    def _get_personality_template(self, key: str, default: Any = None) -> Any:
+        """从人设配置获取模板"""
+        config = IntelligentActiveChatManager._personality_config
+        if not config:
+            return default
+        return config.get(key, default)
+
+    def _get_random_template(self, key: str, default: List[str] = None) -> str:
+        """从配置中随机获取一条模板"""
+        templates = self._get_personality_template(key, default or [])
+        if not templates:
+            return "在。"
+        return random.choice(templates)
 
     def _init_data_dir(self):
         """初始化数据目录"""
@@ -491,70 +570,154 @@ class IntelligentActiveChatManager:
         pending.sort(key=lambda x: x.relevance_score, reverse=True)
         return pending
 
-    def generate_follow_up_message(self, context: UserContext) -> str:
-        """根据上下文生成跟进消息"""
+    async def generate_follow_up_message(self, context: UserContext) -> str:
+        """根据上下文生成跟进消息 - 动态生成版本"""
+        try:
+            # 动态生成跟进消息
+            return await self._generate_dynamic_follow_up(context)
+        except Exception as e:
+            logger.error(f"[ActiveChat] 动态生成跟进消息失败: {e}")
+            return None
+
+    async def _generate_dynamic_follow_up(self, context: UserContext) -> str:
+        """动态生成跟进消息"""
+        try:
+            # 优先使用动态生成系统
+            if self.dynamic_generator and self.dynamic_generator.is_initialized:
+                # 准备上下文数据
+                context_data = {
+                    "expectation": context.expectation,
+                    "content": context.content,
+                    "context_type": context.context_type.value
+                    if context.context_type
+                    else None,
+                    "metadata": context.metadata,
+                    "created_at": context.created_at,
+                }
+
+                # 使用动态生成器生成消息
+                message = await self.dynamic_generator.generate_message(
+                    user_id=context.user_id, context=context_data
+                )
+
+                if message:
+                    logger.debug(
+                        f"[ActiveChat] 动态生成跟进消息成功: {message[:50]}..."
+                    )
+                    return message
+
+            # 如果动态生成系统不可用，使用传统方法
+            return self._generate_traditional_follow_up(context)
+
+        except Exception as e:
+            logger.error(f"[ActiveChat] 动态生成跟进消息失败: {e}")
+            return self._generate_traditional_follow_up(context)
+
+    def _generate_traditional_follow_up(self, context: UserContext) -> str:
+        """传统跟进消息生成（备用）"""
         expectation = context.expectation
+        # 传统生成逻辑 - 从人设配置中获取
+        templates = self._get_personality_template("follow_up_templates", [])
 
-        # 根据预期结果生成自然的跟进
-        templates = {
-            "下课": [
-                "下课了。怎么样？",
-                "学完了？",
-            ],
-            "下班": [
-                "下班了？今天怎么样？",
-                "下班了吗。",
-            ],
-            "吃完": [
-                "吃完了？",
-                "怎么样。",
-            ],
-            "锻炼完": [
-                "锻炼完了？",
-                "怎么样。",
-            ],
-            "看完": [
-                "看完了？怎么样。",
-            ],
-            "看完医生": [
-                "看完了？医生怎么说。",
-            ],
-            "醒来": [
-                "醒了？",
-            ],
-            "回来": [
-                "回来了？今天怎么样？",
-            ],
-            "执行": [
-                "事情怎么样了？",
-            ],
-            "提醒": [
-                "提醒时间到了。",
-                "该提醒你的事情，别忘了。",
-                "时间到了。",
-            ],
-            "泡面好了": [
-                "泡面好了。",
-                "去吃。",
-                "泡面时间到。",
-            ],
-            "点赞": [
-                "该点赞了。",
-                "去。",
-                "提醒。",
-            ],
-        }
+        # 如果有配置模板，随机选择一个
+        if templates:
+            import random
 
-        # 获取对应模板
-        msg_templates = templates.get(
-            expectation,
-            [
-                f"怎么样了？",
-                "后续呢。",
-            ],
-        )
+            template = random.choice(templates)
+            # 替换占位符
+            template = template.replace("{expectation}", expectation)
+            template = template.replace(
+                "{content}", context.content[:20] if context.content else ""
+            )
+            return template
 
-        return random.choice(msg_templates)
+        # 回退到简单的默认消息
+        if expectation == "下课":
+            return "学完了？感觉怎么样。"
+        elif expectation == "下班":
+            return "下班了？今天辛苦了。"
+        elif expectation == "吃完":
+            return "吃完了？好吃吗。"
+        elif expectation == "锻炼完":
+            return "锻炼完了？累吗。"
+        elif expectation == "看完":
+            return "看完了？怎么样。"
+        elif expectation == "看完医生":
+            return "看完了？医生怎么说。"
+        elif expectation == "醒来":
+            return "醒了？休息好了吗。"
+        elif expectation == "回来":
+            return "回来了？今天怎么样。"
+        elif expectation == "执行":
+            return "事情怎么样了。"
+        elif expectation == "提醒":
+            return "提醒时间到了。"
+        elif expectation == "泡面好了":
+            return "泡面好了。去吃吧。"
+        elif expectation == "点赞":
+            return "该点赞了。"
+        else:
+            return f"{expectation}？怎么样了。"
+
+    async def generate_greeting_message(self, time_key: str) -> str:
+        """生成问候消息 - 动态生成版本"""
+        try:
+            # 优先使用动态生成系统
+            if self.dynamic_generator and self.dynamic_generator.is_initialized:
+                return await self._generate_dynamic_greeting(time_key)
+
+            # 如果动态生成系统不可用，使用传统方法
+            return self._generate_traditional_greeting(time_key)
+
+        except Exception as e:
+            logger.error(f"[ActiveChat] 生成问候消息失败: {e}")
+            return "在。"
+
+    async def _generate_dynamic_greeting(self, time_key: str) -> str:
+        """动态生成问候消息"""
+        try:
+            # 检查动态生成器是否可用
+            if not self.dynamic_generator:
+                return self._generate_traditional_greeting(time_key)
+
+            # 准备上下文数据
+            context_data = {
+                "time_key": time_key,
+                "timestamp": datetime.now(),
+            }
+
+            # 使用动态生成器生成消息
+            message = await self.dynamic_generator.generate_message(
+                user_id=0,  # 问候消息没有特定用户
+                context=context_data,
+            )
+
+            if message:
+                logger.debug(f"[ActiveChat] 动态生成问候消息成功: {message[:50]}...")
+                return message
+
+            # 如果动态生成失败，使用传统方法
+            return self._generate_traditional_greeting(time_key)
+
+        except Exception as e:
+            logger.error(f"[ActiveChat] 动态生成问候消息失败: {e}")
+            return self._generate_traditional_greeting(time_key)
+
+        except Exception as e:
+            logger.error(f"[ActiveChat] 动态生成问候消息失败: {e}")
+            return self._generate_traditional_greeting(time_key)
+
+    def _generate_traditional_greeting(self, time_key: str) -> str:
+        """传统问候消息生成（备用）"""
+        # 使用人设配置中的问候语
+        templates = self._get_personality_template("greetings", [])
+        if templates:
+            import random
+
+            return random.choice(templates)
+
+        # 回退到默认消息
+        return "在。"
 
     async def start(self):
         """启动智能主动聊天管理器"""
@@ -564,7 +727,7 @@ class IntelligentActiveChatManager:
 
         self.running = True
         logger.info("=" * 60)
-        logger.info("[ActiveChat] ========== 主动聊天管理器启动 ==========")
+        logger.info("[ActiveChat] ========== 智能主动聊天管理器启动 ==========")
         logger.info(f"[ActiveChat]   - 检查间隔: {self.check_interval}秒")
         logger.info(f"[ActiveChat]   - 上下文过期时间: {self.context_expiry_hours}小时")
         logger.info(
@@ -574,6 +737,19 @@ class IntelligentActiveChatManager:
             f"[ActiveChat]   - 已加载上下文数: {sum(len(v) for v in self.user_contexts.values())}"
         )
         logger.info(f"[ActiveChat]   - 已注册用户数: {len(self.user_preferences)}")
+
+        # 初始化动态生成器
+        if self.dynamic_generator:
+            try:
+                await self.dynamic_generator.initialize()
+                logger.info(
+                    f"[ActiveChat]   - 动态生成器: 已初始化 (插件数: {len(self.dynamic_generator.plugins)})"
+                )
+            except Exception as e:
+                logger.error(f"[ActiveChat]   - 动态生成器初始化失败: {e}")
+        else:
+            logger.info("[ActiveChat]   - 动态生成器: 未启用")
+
         logger.info("=" * 60)
 
         # 启动检查循环
@@ -581,21 +757,17 @@ class IntelligentActiveChatManager:
         logger.info("[ActiveChat] 检查循环已启动")
 
     async def stop(self):
-        """停止主动聊天管理器"""
+        """停止智能主动聊天管理器"""
         if not self.running:
             logger.warning("[ActiveChat] 未运行，忽略停止请求")
             return
 
         self.running = False
-        logger.info("[ActiveChat] 主动聊天管理器已停止")
+        logger.info("[ActiveChat] 智能主动聊天管理器已停止")
         logger.info(
             f"[ActiveChat]   - 本次运行期间发送消息: {len(self.sent_messages)}条"
         )
         logger.info(f"[ActiveChat]   - 待发送消息: {len(self.pending_messages)}条")
-
-    def get_pending_messages(self) -> List["ActiveMessage"]:
-        """获取待发消息列表"""
-        return list(self.pending_messages.values())
 
     async def _check_loop(self):
         """检查循环 - 检查需要跟进的上下文"""
@@ -684,7 +856,7 @@ class IntelligentActiveChatManager:
                             continue
 
                 # 生成跟进消息
-                follow_up_msg = self.generate_follow_up_message(context)
+                follow_up_msg = await self.generate_follow_up_message(context)
 
                 logger.info(
                     f"[ActiveChat] [上下文跟进] 用户={user_id} "
@@ -753,7 +925,7 @@ class IntelligentActiveChatManager:
                     continue
 
             # 生成问候消息
-            greeting_msg = self._generate_greeting(greeting_key)
+            greeting_msg = await self.generate_greeting_message(greeting_key)
 
             logger.info(
                 f"[ActiveChat] [定时问候] 用户={user_id} "
@@ -803,33 +975,6 @@ class IntelligentActiveChatManager:
                 sent += 1
 
         return sent
-
-    def _generate_greeting(self, time_key: str) -> str:
-        """生成问候消息"""
-        greetings = {
-            "morning": [
-                "早。",
-                "早上好。今天怎么样。",
-                "早。有什么计划吗。",
-            ],
-            "afternoon": [
-                "下午好。",
-                "午安。休息一下。",
-                "下午。怎么样。",
-            ],
-            "evening": [
-                "晚上好。",
-                "傍晚了。今天怎么样。",
-                "晚上好。",
-            ],
-            "night": [
-                "晚安。早点休息。",
-                "夜深了。",
-                "晚安。",
-            ],
-        }
-
-        return random.choice(greetings.get(time_key, ["在。"]))
 
     async def _send_follow_up(
         self, user_id: int, context: UserContext, message: str
@@ -953,10 +1098,9 @@ class IntelligentActiveChatManager:
             "last_check": datetime.now().isoformat(),
         }
 
-    TIME = "time"  # 定时触发
-    EVENT = "event"  # 事件触发
-    CONDITION = "condition"  # 条件触发
-    MANUAL = "manual"  # 手动触发
+    def get_pending_messages(self) -> List["ActiveMessage"]:
+        """获取待发消息列表"""
+        return list(self.pending_messages.values())
 
 
 @dataclass
@@ -1066,30 +1210,8 @@ class ActiveChatManager:
         self.trigger_cooldown = 300  # 触发冷却时间（秒）
         self.last_trigger_times: Dict[int, datetime] = {}  # 用户最后触发时间
 
-        # 问候消息模板
-        self._greeting_templates = {
-            "morning": [
-                "早上好呀~新的一天开始啦，有什么想聊的吗？",
-                "早安！今天感觉怎么样？",
-                "早呀~起得真早呢，祝你有美好的一天！",
-                "早上好！有什么我可以帮你的吗？",
-            ],
-            "afternoon": [
-                "下午好~工作或学习累了吗？休息一下吧",
-                "午安！有什么有趣的事情想分享吗？",
-                "下午茶时间到啦~要不要聊聊天？",
-            ],
-            "evening": [
-                "晚上好~今天过得怎么样？",
-                "傍晚啦~有什么想聊的吗？",
-                "晚上好！今天有什么收获吗？",
-            ],
-            "night": [
-                "夜深了，早点休息哦~晚安！",
-                "晚安！做个好梦~",
-                "这么晚还没睡呀，注意身体哦~晚安！",
-            ],
-        }
+        # 动态问候消息生成
+        self._greeting_templates = {}  # 空模板，使用动态生成
 
         # 数据持久化路径
         self.data_dir = None

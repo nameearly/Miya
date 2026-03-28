@@ -119,28 +119,6 @@ qq:
       min_interval: 300            # 消息最小间隔（秒）
       quiet_hours: [23, 0, 1, 2, 3, 4, 5, 6]  # 静默时段（小时）
     
-    # 默认消息模板
-    templates:
-      morning:
-        - "早安！今天也是充满希望的一天呢～ {random_emoji}"
-        - "早上好！愿你今天一切顺利！{random_emoji}"
-        - "新的一天开始啦！加油哦！{random_emoji}"
-      
-      evening:
-        - "晚安！祝你好梦！{random_emoji}"
-        - "晚上好！记得早点休息哦～{random_emoji}"
-        - "晚安，愿明天的你更加美好！{random_emoji}"
-      
-      birthday:
-        - "生日快乐！🎂 祝你天天开心！{random_emoji}"
-        - "生日快乐！愿你所有的愿望都能实现！{random_emoji}"
-        - "生日快乐！新的一岁更加精彩！{random_emoji}"
-      
-      holiday:
-        - "节日快乐！{random_emoji}"
-        - "祝你节日愉快！{random_emoji}"
-        - "节日快乐！愿幸福常伴你左右！{random_emoji}"
-    
     # 用户偏好
     user_preferences:
       learn_preferences: true      # 学习用户偏好

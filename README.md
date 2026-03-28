@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>Version 4.0 Ultimate Edition</strong><br>
-  多模态 AI 虚拟化身 · 跨平台 · 自我进化 · 记忆引擎
+  <strong>Version 4.3.0 Dynamic Edition</strong><br>
+  多模态 AI 虚拟化身 · 跨平台 · 自我进化 · 动态话题生成
 </p>
 
 <p align="center">
@@ -44,6 +44,7 @@
   - [MiyaAgentV3](#8-miya_agent_v3---ai驱动的推理引擎)
   - [Runtime API 缓存优化](#9-runtime-api-全局缓存优化)
   - [终端模式启动](#10-终端模式启动)
+  - [动态话题生成系统](#11-动态话题生成系统-dynamic-topic-generation)
 
 ---
 
@@ -466,7 +467,7 @@ class Identity:
     def __init__(self):
         self.name = "弥娅·阿尔缪斯"
         self.full_name = "Miya Almus"
-        self.version = "4.2.0"
+        self.version = "4.3.0"
         
         self.self_cognition = {
             'role': 'AI伴侣/数据生命体',
@@ -1979,6 +1980,24 @@ greetings = {
     ],
 }
 ```
+
+### 主动聊天动态生成系统
+
+弥娅的主动聊天系统已升级为动态生成系统，移除了所有硬编码的预设模板。
+
+#### 主要特性
+- **插件式架构**：时间感知、情绪感知、兴趣学习、上下文感知、生成策略
+- **配置驱动**：所有配置集中在  的  部分
+- **热重载机制**：支持文件监控、定时检查、手动触发
+- **失败处理**：动态生成失败时记录日志并跳过
+
+#### 目录结构
+
+
+#### 使用方法
+Ctrl click to launch VS Code Native REPL
+
+更多详情请查看 。
 
 #### 上下文跟进模板
 
@@ -6024,6 +6043,481 @@ python run/main.py --mode terminal
 
 ---
 
+### 11. 动态话题生成系统 (Dynamic Topic Generation)
+
+弥娅的主动交流系统已全面升级，从硬编码的预设话题模板转为基于配置的动态生成系统，使其能够根据时间、上下文、情绪、兴趣等因素智能生成话题，更像真实的人类伴侣。
+
+#### 系统概述
+
+动态话题生成系统是一个插件式架构，包含5个核心插件，协同工作生成自然、个性化的主动交流内容：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    动态话题生成系统架构 (Dynamic Topic Generation)    │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                  DynamicMessageGenerator                     │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │   │
+│   │  │ initialize()│  │  generate_  │  │  reload_   │           │   │
+│   │  │            │  │  message()  │  │  config()  │           │   │
+│   │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘           │   │
+│   └─────────┼────────────────┼────────────────┼────────────────────┘   │
+│             │                │                │                        │
+│   ┌─────────┴────────────────┴────────────────┴──────────────┐        │
+│   │                    插件系统 (Plugin System)                │        │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │        │
+│   │  │  time_      │  │   emotion_  │  │  interest_  │        │        │
+│   │  │  awareness  │  │ perception  │  │  learning   │        │        │
+│   │  └─────────────┘  └─────────────┘  └─────────────┘        │        │
+│   │  ┌─────────────┐  ┌─────────────┐                          │        │
+│   │  │  context_   │  │ generation_ │                          │        │
+│   │  │  awareness  │  │  strategy   │                          │        │
+│   │  └─────────────┘  └─────────────┘                          │        │
+│   └───────────────────────────────────────────────────────────┘        │
+│             │                                                        │
+│   ┌─────────┴──────────────────────────────────────────────┐        │
+│   │              配置系统 (Configuration System)             │        │
+│   │  ┌────────────────────────────────────────────────┐   │        │
+│   │  │  config/personalities/_base.yaml               │   │        │
+│   │  │  proactive_chat 配置节                          │   │        │
+│   │  └────────────────────────────────────────────────┘   │        │
+│   └───────────────────────────────────────────────────────────┘        │
+│             │                                                        │
+│   ┌─────────┴──────────────────────────────────────────────┐        │
+│   │              热重载系统 (Config Reloader)                │        │
+│   │  ┌────────────────────────────────────────────────┐   │        │
+│   │  │  watchdog 文件监控 + 定时检查 (5分钟)             │   │        │
+│   │  └────────────────────────────────────────────────┘   │        │
+│   └───────────────────────────────────────────────────────────┘        │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 核心插件详解
+
+| 插件 | 功能 | 优先级 | 说明 |
+|------|------|--------|------|
+| **time_awareness** | 时间感知 | 1 | 根据时间段（早晨、中午、晚上、深夜）生成合适的问候或话题 |
+| **emotion_perception** | 情绪感知 | 2 | 分析用户情绪状态，生成关怀或鼓励的消息 |
+| **interest_learning** | 兴趣学习 | 3 | 学习用户兴趣，生成相关话题 |
+| **context_awareness** | 上下文感知 | 4 | 根据用户的活动（下课、下班、吃饭等）生成跟进消息 |
+| **generation_strategy** | 生成策略 | 5 | 智能选择最佳生成策略 |
+
+#### 架构优势
+
+1. **完全去硬编码**：所有预设话题模板已移除，系统完全基于配置和插件生成
+2. **配置驱动**：所有配置集中在 `config/personalities/_base.yaml` 的 `proactive_chat` 部分
+3. **插件式架构**：易于扩展新的生成策略
+4. **热重载**：支持配置文件的热重载，无需重启系统
+5. **降级机制**：动态生成失败时自动降级到传统方法
+
+#### 配置文件示例
+
+```yaml
+# config/personalities/_base.yaml
+proactive_chat:
+  enabled: true
+  check_interval: 60  # 检查间隔（秒）
+  context_expiry_hours: 24  # 上下文过期时间
+  auto_trigger_enabled: true  # 启用自动触发
+  trigger_cooldown: 300  # 触发冷却时间（秒）
+  
+  # 动态生成系统配置
+  dynamic_generation:
+    enabled: true
+    max_failures: 3  # 最大失败次数
+    
+    # 时间感知配置
+    time_awareness:
+      enabled: true
+      morning_range: [5, 11]  # 早晨时间段
+      noon_range: [11, 14]    # 中午时间段
+      afternoon_range: [14, 18]  # 下午时间段
+      evening_range: [18, 22]  # 晚上时间段
+      night_range: [22, 5]     # 深夜时间段
+    
+    # 情绪感知配置
+    emotion_perception:
+      enabled: true
+      keywords:
+        positive: ["开心", "高兴", "快乐", "兴奋", "期待"]
+        negative: ["难过", "伤心", "累", "疲惫", "压力"]
+        neutral: ["还行", "一般", "还好", "正常"]
+    
+    # 兴趣学习配置
+    interest_learning:
+      enabled: true
+      categories:
+        games:
+          name: "游戏"
+          keywords: ["游戏", "原神", "鸣潮", "崩坏", "星穹铁道"]
+          weight: 1.0
+        technology:
+          name: "科技"
+          keywords: ["编程", "代码", "Python", "AI", "人工智能"]
+          weight: 0.8
+        anime:
+          name: "动漫"
+          keywords: ["动漫", "动画", "二次元", "番剧"]
+          weight: 0.7
+    
+    # 上下文感知配置
+    context_awareness:
+      enabled: true
+      context_types:
+        activity:
+          name: "活动"
+          patterns:
+            - regex: "(去|上)(课|学|学校)"
+              follow_ups: ["学完了？感觉怎么样。", "今天学了什么？"]
+            - regex: "(去|上)(班|工作)"
+              follow_ups: ["下班了？今天辛苦了。", "工作顺利吗？"]
+            - regex: "(去|吃)(饭|午餐|晚餐)"
+              follow_ups: ["吃完了？好吃吗。", "今天吃了什么？"]
+```
+
+#### 集成位置
+
+动态话题生成系统已集成到 `IntelligentActiveChatManager` 中，位于 `webnet/qq/active_chat_manager.py`。
+
+##### 核心类说明
+
+```python
+class IntelligentActiveChatManager:
+    """智能主动聊天管理器 - 基于上下文感知"""
+    
+    def __init__(self, qq_net):
+        # 动态消息生成器
+        self.dynamic_generator = None
+        if DYNAMIC_GENERATION_AVAILABLE:
+            try:
+                self.dynamic_generator = DynamicMessageGenerator()
+                logger.info("[IntelligentActiveChat] 动态消息生成器初始化成功")
+            except Exception as e:
+                logger.error(f"[IntelligentActiveChat] 动态消息生成器初始化失败: {e}")
+                self.dynamic_generator = None
+    
+    async def start(self):
+        """启动智能主动聊天管理器"""
+        # 初始化动态生成器
+        if self.dynamic_generator:
+            try:
+                await self.dynamic_generator.initialize()
+                logger.info(
+                    f"[ActiveChat]   - 动态生成器: 已初始化 (插件数: {len(self.dynamic_generator.plugins)})"
+                )
+            except Exception as e:
+                logger.error(f"[ActiveChat]   - 动态生成器初始化失败: {e}")
+    
+    async def generate_follow_up_message(self, context: UserContext) -> str:
+        """根据上下文生成跟进消息 - 动态生成版本"""
+        try:
+            # 动态生成跟进消息
+            return await self._generate_dynamic_follow_up(context)
+        except Exception as e:
+            logger.error(f"[ActiveChat] 动态生成跟进消息失败: {e}")
+            return None
+    
+    async def _generate_dynamic_follow_up(self, context: UserContext) -> str:
+        """动态生成跟进消息"""
+        try:
+            # 优先使用动态生成系统
+            if self.dynamic_generator and self.dynamic_generator.is_initialized:
+                # 准备上下文数据
+                context_data = {
+                    "expectation": context.expectation,
+                    "content": context.content,
+                    "context_type": context.context_type.value if context.context_type else None,
+                    "metadata": context.metadata,
+                    "created_at": context.created_at,
+                }
+                
+                # 使用动态生成器生成消息
+                message = await self.dynamic_generator.generate_message(
+                    user_id=context.user_id,
+                    context=context_data
+                )
+                
+                if message:
+                    logger.debug(f"[ActiveChat] 动态生成跟进消息成功: {message[:50]}...")
+                    return message
+            
+            # 如果动态生成系统不可用，使用传统方法
+            return self._generate_traditional_follow_up(context)
+            
+        except Exception as e:
+            logger.error(f"[ActiveChat] 动态生成跟进消息失败: {e}")
+            return self._generate_traditional_follow_up(context)
+```
+
+#### 动态消息生成器类
+
+```python
+class DynamicMessageGenerator:
+    """动态消息生成器 - 插件式架构"""
+    
+    def __init__(self, config_loader=None):
+        self.config_loader = config_loader
+        self.plugins = {}
+        self.plugin_load_order = [
+            "time_awareness",
+            "emotion_perception",
+            "interest_learning",
+            "context_awareness",
+            "generation_strategy",
+        ]
+        
+        # 状态
+        self.is_initialized = False
+        self.failure_count = 0
+        self.max_failures = 3
+    
+    async def initialize(self):
+        """初始化生成器"""
+        if self.is_initialized:
+            return
+        
+        try:
+            # 加载插件
+            await self._load_plugins()
+            self.is_initialized = True
+        except Exception as e:
+            raise
+    
+    async def generate_message(self, user_id: int, context: Dict = None) -> Optional[str]:
+        """生成动态消息"""
+        try:
+            # 检查是否已初始化
+            if not self.is_initialized:
+                await self.initialize()
+            
+            # 收集上下文信息
+            context_data = await self._collect_context(user_id, context)
+            
+            # 选择生成策略
+            strategy_plugin = self.plugins.get("generation_strategy")
+            if strategy_plugin:
+                strategy = strategy_plugin.select_strategy(context_data)
+            else:
+                strategy = "time_awareness"
+            
+            # 生成消息
+            if strategy in self.plugins:
+                plugin = self.plugins[strategy]
+                message = await plugin.generate(context_data)
+                if message:
+                    return message
+            
+            # 如果策略插件没有生成消息，尝试其他插件
+            for plugin_name, plugin in self.plugins.items():
+                try:
+                    message = await plugin.generate(context_data)
+                    if message:
+                        return message
+                except Exception as e:
+                    pass
+            
+            return None
+        except Exception as e:
+            self.failure_count += 1
+            if self.failure_count >= self.max_failures:
+                self.failure_count = 0
+            return None
+```
+
+#### 使用示例
+
+##### 1. 测试动态生成系统
+
+```python
+# test_dynamic_generator.py
+import asyncio
+from config.proactive_chat import DynamicMessageGenerator
+
+async def test_generator():
+    """测试动态消息生成器"""
+    generator = DynamicMessageGenerator()
+    
+    # 初始化生成器
+    await generator.initialize()
+    print(f"加载了 {len(generator.plugins)} 个插件")
+    
+    # 测试生成问候消息
+    context_data = {
+        "time_key": "morning",
+        "timestamp": datetime.now(),
+    }
+    
+    message = await generator.generate_message(user_id=0, context=context_data)
+    print(f"问候消息: {message}")
+    
+    # 测试生成跟进消息
+    context_data = {
+        "expectation": "下课",
+        "content": "刚下课",
+        "context_type": "activity",
+        "metadata": {"activity": "课程"},
+        "timestamp": datetime.now(),
+    }
+    
+    message = await generator.generate_message(user_id=12345, context=context_data)
+    print(f"跟进消息: {message}")
+
+asyncio.run(test_generator())
+```
+
+##### 2. 在主动聊天管理器中使用
+
+```python
+from webnet.qq.active_chat_manager import IntelligentActiveChatManager, UserContext, ContextType
+
+# 创建管理器
+manager = IntelligentActiveChatManager(qq_net)
+
+# 启动管理器（会自动初始化动态生成器）
+await manager.start()
+
+# 创建上下文
+context = UserContext(
+    context_id="test_123",
+    user_id=12345,
+    context_type=ContextType.ACTIVITY,
+    content="刚下课",
+    expectation="下课",
+    created_at=datetime.now()
+)
+
+# 生成跟进消息
+message = await manager.generate_follow_up_message(context)
+print(f"生成的消息: {message}")
+
+# 生成问候消息
+greeting = await manager.generate_greeting_message("morning")
+print(f"问候消息: {greeting}")
+```
+
+#### 配置热重载
+
+动态话题生成系统支持配置热重载，无需重启系统即可更新配置。
+
+```python
+# 手动重载配置
+await manager.dynamic_generator.reload_config()
+
+# 自动重载（通过 watchdog）
+# 系统会监控配置文件变化，自动重载配置
+```
+
+#### 插件开发指南
+
+##### 1. 创建自定义插件
+
+```python
+# config/proactive_chat/plugins/my_custom/plugin.py
+from ..base_plugin import BasePlugin
+from typing import Dict, Optional
+
+class Plugin(BasePlugin):
+    """自定义插件示例"""
+    
+    def __init__(self, name: str = "my_custom", config: Dict = None):
+        super().__init__(name, config)
+        # 初始化插件配置
+        
+    async def collect_context(self, user_id: int, context: Dict = None) -> Dict:
+        """收集上下文信息"""
+        return {
+            "custom_data": "自定义数据",
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    async def generate(self, context_data: Dict) -> Optional[str]:
+        """生成消息"""
+        # 实现你的生成逻辑
+        return "自定义消息"
+```
+
+##### 2. 注册插件
+
+在 `config/proactive_chat/dynamic_message_generator.py` 中添加插件到加载顺序：
+
+```python
+self.plugin_load_order = [
+    "time_awareness",
+    "emotion_perception", 
+    "interest_learning",
+    "context_awareness",
+    "generation_strategy",
+    "my_custom",  # 添加你的插件
+]
+```
+
+#### 文件结构
+
+```
+config/proactive_chat/
+├── __init__.py                    # 包初始化，导出 DynamicMessageGenerator
+├── dynamic_message_generator.py   # 主生成器类
+├── plugins/                       # 插件目录
+│   ├── __init__.py
+│   ├── base_plugin.py            # 插件基类
+│   ├── time_awareness/           # 时间感知插件
+│   │   ├── __init__.py
+│   │   └── plugin.py
+│   ├── emotion_perception/       # 情绪感知插件
+│   │   ├── __init__.py
+│   │   └── plugin.py
+│   ├── interest_learning/        # 兴趣学习插件
+│   │   ├── __init__.py
+│   │   └── plugin.py
+│   ├── context_awareness/        # 上下文感知插件
+│   │   ├── __init__.py
+│   │   └── plugin.py
+│   └── generation_strategy/      # 生成策略插件
+│       ├── __init__.py
+│       └── plugin.py
+├── config/                        # 配置系统
+│   ├── __init__.py
+│   ├── loader.py                  # 配置加载器
+│   └── reloader.py               # 配置重载器（支持 watchdog 降级）
+└── utils/                         # 工具函数
+    ├── __init__.py
+    ├── validators.py             # 消息验证器
+    └── helpers.py                # 辅助函数
+```
+
+#### 与旧系统对比
+
+| 特性 | 旧系统 (硬编码) | 新系统 (动态生成) |
+|------|-----------------|------------------|
+| **话题生成** | 预设模板随机选择 | 基于上下文智能生成 |
+| **扩展性** | 需要修改代码 | 配置文件或插件 |
+| **个性化** | 有限 | 高度个性化 |
+| **维护性** | 低 | 高 |
+| **重载** | 需要重启 | 支持热重载 |
+| **降级机制** | 无 | 有（传统方法） |
+
+#### 性能考虑
+
+1. **插件加载顺序**：按优先级顺序加载插件，确保关键插件优先执行
+2. **失败降级**：动态生成失败时自动降级到传统方法
+3. **上下文缓存**：缓存用户上下文，减少重复计算
+4. **异步处理**：所有操作均为异步，不阻塞主流程
+
+#### 注意事项
+
+1. **watchdog 依赖**：建议安装 `watchdog` 模块以启用完整的文件监控功能
+   ```bash
+   pip install watchdog
+   ```
+
+2. **配置文件位置**：配置文件位于 `config/personalities/_base.yaml`
+3. **插件目录**：插件位于 `config/proactive_chat/plugins/`
+4. **日志查看**：动态生成系统的日志前缀为 `[ActiveChat]` 和 `[DynamicMessageGenerator]`
+
+---
+
 ## 更新日志
 
 ### v4.2 (Terminal Ultra Edition) - 当前版本
@@ -6160,6 +6654,38 @@ python run/main.py --mode terminal
   - TerminalUltra 工具修复
   - validate_args 兼容性修复
   - ToolRegistry 稳定运行
+
+##### 4. 动态话题生成系统 (Dynamic Topic Generation)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    动态话题生成系统架构                               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐                │
+│  │  插件系统   │   │   配置系统   │   │   热重载    │                │
+│  │  (5个插件)  │   │  (_base.yaml)│   │  (watchdog) │                │
+│  └──────┬──────┘   └──────┬──────┘   └──────┬──────┘                │
+│         │                 │                 │                        │
+│  ┌──────┴────────────────────────────────────────────┐              │
+│  │          DynamicMessageGenerator                  │              │
+│  │   时间感知 | 情绪感知 | 兴趣学习 | 上下文 | 策略   │              │
+│  └────────────────────────────────────────────────────┘              │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────┐              │
+│  │          IntelligentActiveChatManager              │              │
+│  │   集成动态生成系统，支持降级到传统方法              │              │
+│  └────────────────────────────────────────────────────┘              │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**核心特性**：
+- **完全去硬编码**：移除所有预设话题模板，基于配置和插件生成
+- **插件式架构**：5个核心插件协同工作（时间、情绪、兴趣、上下文、策略）
+- **配置驱动**：所有配置集中在 `config/personalities/_base.yaml`
+- **热重载**：支持配置文件的热重载，无需重启系统
+- **降级机制**：动态生成失败时自动降级到传统方法
+- **智能生成**：根据时间、上下文、情绪、兴趣等因素智能生成话题
 
 ### v4.1 (Upgrade Edition)
 

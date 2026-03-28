@@ -164,3 +164,277 @@ check_in_responses:
 # 陪伴技能回应 - 默认
 default_responses:
   - "我在。你说。"
+
+# ========== 主动聊天配置 ==========
+proactive_chat:
+  # 基本配置
+  enabled: true
+  check_interval: 60  # 检查间隔（秒）
+  max_daily_messages: 10  # 每日最大消息数
+  quiet_hours: [23, 0, 1, 2, 3, 4, 5, 6]  # 静默时段
+  
+  # 继承 personalities 的配置
+  inherit_from_personalities:
+    - quotes  # 继承经典台词
+    - emotions  # 继承情绪响应
+    - greetings  # 继承打招呼回应
+    - comfort_responses  # 继承安慰回应
+    - encourage_responses  # 继承鼓励回应
+    - listen_responses  # 继承倾听回应
+    - check_in_responses  # 继承关怀回应
+    - default_responses  # 继承默认回应
+  
+  # 时间感知配置
+  time_awareness:
+    enabled: true
+    inherit_check_in: true
+    time_slots:
+      morning:
+        start: 6
+        end: 9
+        greeting_keywords: ["早", "早上好", "早安"]
+        topics:
+          - category: "health"
+            weight: 0.3
+            templates: ["睡得好吗？", "今天感觉怎么样？"]
+          - category: "plan"
+            weight: 0.4
+            templates: ["今天有什么计划？", "今天要做什么？"]
+          - category: "mood"
+            weight: 0.3
+            templates: ["今天心情怎么样？", "新的一天开始了"]
+      
+      afternoon:
+        start: 12
+        end: 14
+        greeting_keywords: ["午", "午安", "下午好"]
+        topics:
+          - category: "health"
+            weight: 0.4
+            templates: ["吃过午饭了吗？", "休息一下吧"]
+          - category: "work"
+            weight: 0.3
+            templates: ["下午工作顺利吗？", "工作累了吗？"]
+          - category: "mood"
+            weight: 0.3
+            templates: ["下午心情怎么样？", "午休了吗？"]
+      
+      evening:
+        start: 17
+        end: 21
+        greeting_keywords: ["晚", "晚上好", "傍晚"]
+        topics:
+          - category: "health"
+            weight: 0.3
+            templates: ["吃过晚饭了吗？", "今天累吗？"]
+          - category: "summary"
+            weight: 0.4
+            templates: ["今天过得怎么样？", "今天有什么收获吗？"]
+          - category: "plan"
+            weight: 0.3
+            templates: ["明天有什么计划？", "晚上有什么安排？"]
+      
+      night:
+        start: 21
+        end: 6
+        greeting_keywords: ["晚安", "夜深了", "该睡了"]
+        topics:
+          - category: "health"
+            weight: 0.5
+            templates: ["该休息了", "早点睡吧", "晚安"]
+          - category: "reflection"
+            weight: 0.3
+            templates: ["今天辛苦了", "好好休息"]
+          - category: "tomorrow"
+            weight: 0.2
+            templates: ["明天见", "做个好梦"]
+  
+  # 情绪感知配置
+  emotion_perception:
+    enabled: true
+    sensitivity: "high"
+    inherit_emotions: true
+    emotion_keywords:
+      happy:
+        keywords: ["开心", "高兴", "快乐", "棒", "不错", "好", "喜欢", "爱", "兴奋", "激动"]
+        weight: 1.0
+        response_strategy: "share_joy"
+      sad:
+        keywords: ["难过", "伤心", "失落", "沮丧", "失望", "郁闷", "低落", "抑郁"]
+        weight: 1.0
+        response_strategy: "comfort"
+      tired:
+        keywords: ["累", "疲惫", "困", "疲劳", "困倦", "没精神", "没力气"]
+        weight: 0.8
+        response_strategy: "rest"
+      anxious:
+        keywords: ["焦虑", "担心", "紧张", "不安", "害怕", "恐惧", "恐慌"]
+        weight: 1.0
+        response_strategy: "calm"
+      angry:
+        keywords: ["生气", "愤怒", "恼火", "烦躁", "气愤", "不爽"]
+        weight: 0.9
+        response_strategy: "soothe"
+      calm:
+        keywords: ["平静", "放松", "轻松", "舒服", "惬意"]
+        weight: 0.6
+        response_strategy: "maintain"
+      lonely:
+        keywords: ["孤独", "寂寞", "孤单", "一个人"]
+        weight: 0.9
+        response_strategy: "accompany"
+      nostalgic:
+        keywords: ["想家", "怀念", "回忆", "想念"]
+        weight: 0.7
+        response_strategy: "empathize"
+    
+    response_strategies:
+      share_joy:
+        templates: ["真好", "我也很开心", "陪你一起高兴"]
+        inherit_from: "emotions.joy"
+      comfort:
+        templates: ["我在", "抱抱你", "陪你一起"]
+        inherit_from: "emotions.sadness"
+      rest:
+        templates: ["休息一下", "我在", "累了就休息"]
+        inherit_from: "comfort_responses"
+      calm:
+        templates: ["先写能写的", "我陪你", "呼吸。我数。"]
+        inherit_from: "comfort_responses"
+      soothe:
+        templates: ["我在", "慢慢来", "我在你身边"]
+        inherit_from: "comfort_responses"
+      maintain:
+        templates: ["嗯", "我在", "继续"]
+        inherit_from: "default_responses"
+      accompany:
+        templates: ["我在", "陪你", "一个人也可以"]
+        inherit_from: "comfort_responses"
+      empathize:
+        templates: ["我理解", "我在", "陪你一起想"]
+        inherit_from: "listen_responses"
+  
+  # 兴趣学习配置
+  interest_learning:
+    enabled: true
+    inherit_interests: true
+    categories:
+      health:
+        name: "健康"
+        keywords: ["累", "困", "休息", "睡觉", "健康", "身体"]
+        weight: 0.9
+        topics: ["睡眠", "饮食", "运动", "休息"]
+      diet:
+        name: "饮食"
+        keywords: ["吃", "饭", "饿", "渴", "咖啡", "茶"]
+        weight: 0.7
+        topics: ["早餐", "午餐", "晚餐", "零食", "饮料"]
+      hobbies:
+        name: "爱好"
+        keywords: ["游戏", "小说", "代码", "编程", "学习", "看书"]
+        weight: 0.8
+        topics: ["游戏进度", "学习进展", "创作灵感"]
+      work:
+        name: "工作"
+        keywords: ["工作", "上班", "下班", "开会", "项目", "任务"]
+        weight: 0.8
+        topics: ["工作进度", "工作压力", "工作成就"]
+      relationships:
+        name: "人际关系"
+        keywords: ["朋友", "家人", "同学", "同事", "聊天"]
+        weight: 0.6
+        topics: ["朋友近况", "家庭关系", "社交活动"]
+    
+    learning_params:
+      decay_days: 30
+      max_interests: 20
+      min_confidence: 0.3
+  
+  # 上下文感知配置
+  context_awareness:
+    enabled: true
+    inherit_context: true
+    context_types:
+      activity:
+        name: "活动"
+        patterns:
+          - regex: "(去|上)(课|学|学校|教室)"
+            follow_ups: ["下课了？", "学完了？"]
+          - regex: "(去|上)(班|工作)"
+            follow_ups: ["下班了吗？", "今天工作怎么样？"]
+          - regex: "(去|吃)(饭|午餐|晚餐|早饭|早餐)"
+            follow_ups: ["吃完了？", "好吃吗？"]
+          - regex: "(去|做|锻炼|跑步|健身|打球)"
+            follow_ups: ["锻炼完了？", "累吗？"]
+          - regex: "(睡|休息|午休|小憩)"
+            follow_ups: ["醒了？", "休息好了吗？"]
+      
+      plan:
+        name: "计划"
+        patterns:
+          - regex: "(要|准备|打算|计划)(去|做)"
+            follow_ups: ["事情怎么样了？", "执行了吗？"]
+          - regex: "(待会|等会|一会儿)(去|做|吃)"
+            follow_ups: ["做了吗？", "怎么样了？"]
+      
+      reminder:
+        name: "提醒"
+        patterns:
+          - regex: "(\\d+)\\s*(分钟|分|秒|小时后)(?:提醒|叫我|通知)"
+            follow_ups: ["提醒时间到了", "时间到了"]
+          - regex: "(泡面|泡|煮|做)(?:好了|完了|完成)?(?:后|)?(?:提醒|叫我|通知)"
+            follow_ups: ["泡面好了", "该吃了"]
+    
+    follow_up_params:
+      max_delay_hours: 24
+      min_delay_minutes: 30
+  
+  # 生成策略配置
+  generation_strategies:
+    inherit_strategies: true
+    strategies:
+      time_based:
+        name: "时间驱动"
+        enabled: true
+        weight: 0.3
+        priority: 1
+      context_based:
+        name: "上下文驱动"
+        enabled: true
+        weight: 0.4
+        priority: 2
+      interest_based:
+        name: "兴趣驱动"
+        enabled: true
+        weight: 0.2
+        priority: 3
+      emotion_based:
+        name: "情绪驱动"
+        enabled: true
+        weight: 0.1
+        priority: 4
+    
+    selection_params:
+      min_confidence: 0.6
+      require_multiple_signals: true
+      fallback_strategy: "time_based"
+  
+  # 消息生成配置
+  message_generation:
+    inherit_quotes: true
+    format:
+      max_length: 100
+      min_length: 2
+      style: "natural"
+    
+    validation:
+      check重复: true
+      check敏感词: true
+      max重复次数: 3
+  
+  # 失败处理配置
+  failure_handling:
+    log_errors: true
+    max_failures: 3
+    failure_cooldown: 300
+    fallback_action: "skip"
