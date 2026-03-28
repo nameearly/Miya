@@ -78,49 +78,11 @@ class BaseAIClient:
         self.personality = personality
 
     def _load_miya_prompt(self):
-        """加载弥娅人设提示词"""
-        try:
-            prompt_path = Path(__file__).parent.parent / "prompts" / "miya_core.json"
-            legacy_prompt_path = (
-                Path(__file__).parent.parent / "prompts" / "miya_personality.json"
-            )
-            legacy_compact_path = (
-                Path(__file__).parent.parent
-                / "prompts"
-                / "miya_personality_compact.json"
-            )
-
-            # 优先加载统一人设文件
-            if prompt_path.exists():
-                with open(prompt_path, "r", encoding=Encoding.UTF8) as f:
-                    prompt_config = json.load(f)
-                self._miya_prompt = prompt_config.get("system_prompt", "")
-                self._miya_prompt_full = prompt_config.get(
-                    "system_prompt_full", self._miya_prompt
-                )
-                logger.info("成功加载弥娅人设提示词（统一版本）")
-            # 兼容旧文件
-            elif legacy_compact_path.exists():
-                with open(legacy_compact_path, "r", encoding=Encoding.UTF8) as f:
-                    prompt_config = json.load(f)
-                self._miya_prompt = prompt_config.get("system_prompt", "")
-                self._miya_prompt_full = prompt_config.get("system_prompt_full", "")
-                logger.info("成功加载弥娅人设提示词（紧凑版本-兼容）")
-            elif legacy_prompt_path.exists():
-                # FIX: 命中旧路径分支时应读取 legacy_prompt_path，而不是 prompt_path。
-                with open(legacy_prompt_path, "r", encoding=Encoding.UTF8) as f:
-                    prompt_config = json.load(f)
-                self._miya_prompt = prompt_config.get("system_prompt", "")
-                self._miya_prompt_full = self._miya_prompt
-                logger.info("成功加载弥娅人设提示词（完整版本）")
-            else:
-                logger.warning(f"弥娅人设提示词文件不存在：{prompt_path}")
-                self._miya_prompt = ""
-                self._miya_prompt_full = ""
-        except Exception as e:
-            logger.warning(f"加载弥娅人设提示词失败：{e}")
-            self._miya_prompt = ""
-            self._miya_prompt_full = ""
+        """加载弥娅人设提示词（已弃用，使用YAML配置）"""
+        # 现在系统使用 YAML 配置和人格模块，不再使用 prompts/ 目录
+        # 这里保留空的提示词，由 prompt_manager 动态生成
+        self._miya_prompt = ""
+        self._miya_prompt_full = ""
 
     def get_miya_system_prompt(
         self, additional_context: Optional[Dict] = None, use_full: bool = False

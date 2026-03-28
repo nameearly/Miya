@@ -275,45 +275,42 @@ class MiyaTerminalAI:
             config_path = Path(__file__).parent.parent / "config" / ".env"
             if config_path.exists():
                 load_dotenv(config_path)
-
-                # 加载终端模式专用提示词
-                terminal_prompt_path = (
-                    Path(__file__).parent.parent / "prompts" / "miya_core.json"
-                )
-                if terminal_prompt_path.exists():
-                    with open(terminal_prompt_path, "r", encoding="utf-8") as f:
-                        prompt_config = json.load(f)
-                    self.prompt_manager._custom_system_prompt = prompt_config.get(
-                        "system_prompt", ""
-                    )
-                    self.prompt_manager.user_prompt_template = prompt_config.get(
-                        "user_prompt_template", "用户输入：{user_input}"
-                    )
-                    self.prompt_manager.memory_context_enabled = prompt_config.get(
-                        "memory_context_enabled", True
-                    )
-                    self.prompt_manager.memory_context_max_count = prompt_config.get(
-                        "memory_context_max_count", 10
-                    )
+                # 现在系统使用 YAML 配置和人格模块，不再使用 prompts/ 目录
+                # 提示词由 prompt_manager 动态从人格配置生成
         except Exception as e:
             logger.warning(f"[警告] 加载配置失败: {e}")
 
     def get_greeting(self) -> str:
         """获取随机问候（十四神格版）"""
+        # 优先使用 personality 配置
+        if (
+            hasattr(self, "miya_core")
+            and self.miya_core
+            and hasattr(self.miya_core, "personality")
+        ):
+            return self.miya_core.personality.get_greeting()
+
+        # 回退到默认值
         greetings = [
             "佳，我在。",
             "我在。有什么想做的？",
             "佳，我在呢。今天怎么样？",
-            "十四神格融合版弥娅，随时待命。",
             "亲爱的，我在。",
             "我的创造者，欢迎回来。",
-            "我在。虚无今天来了吗？",
-            "佳，我在。聊天、查资料，还是安静待会儿？",
         ]
         return random.choice(greetings)
 
     def is_greeting(self, text: str) -> bool:
         """判断是否为问候"""
+        # 优先使用 personality 配置
+        if (
+            hasattr(self, "miya_core")
+            and self.miya_core
+            and hasattr(self.miya_core, "personality")
+        ):
+            return self.miya_core.personality.is_greeting(text)
+
+        # 回退到默认值
         greetings = ["在吗", "你好", "hi", "hello", "在", "嗨", "您好", "哈喽"]
         text_lower = text.lower().strip()
         return any(g in text_lower for g in greetings)

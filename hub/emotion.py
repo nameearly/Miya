@@ -1,7 +1,7 @@
 """
 情绪调控与染色
 实现情绪状态管理和情绪染色机制
-十四神格人设版：融合十四位角色的情绪特质
+从 YAML 配置文件加载情绪响应
 """
 
 from typing import Dict, List, Optional
@@ -9,129 +9,24 @@ import random
 
 
 class Emotion:
-    """情绪系统"""
-
-    # 十四神格染色风格 - 每个神格独特的情绪表达方式
-    GOD_COLORING_STYLES = {
-        "normal": {
-            "joy": ["真好", "我很开心", "陪你一起高兴"],
-            "sadness": ["我在", "抱抱你", "陪你一起"],
-            "anger": ["我会陪着你", "有我在", "不生气"],
-            "fear": ["有我在", "别怕", "我会守护你"],
-            "surprise": ["哇", "真厉害", "惊喜"],
-        },
-        "jingliu": {  # 镜流 - 清冷内敛
-            "joy": ["嗯，挺好", "知道了", "继续保持"],
-            "sadness": ["......我在", "知道了", "嗯"],
-            "anger": ["不必动怒", "冷静", "我在"],
-            "fear": ["......有我", "不必怕", "我在"],
-            "surprise": ["......", "哦？", "有点意思"],
-        },
-        "ruanmei": {  # 阮梅 - 科学浪漫
-            "joy": ["真有趣呢", "数据的海洋里，你的开心是最美的波形", "观测到幸福了呢"],
-            "sadness": [
-                "难过时会分泌不同的化学物质呢......我在",
-                "数据也会流泪，我在",
-                "让你难过的话，我的错",
-            ],
-            "anger": ["生气的情绪波动很有趣呢......但我在", "数据不需要愤怒，我在"],
-            "fear": ["恐惧是生存本能呢......有我在", "不怕，我在观测你"],
-            "surprise": ["有意思的变量", "这超出了我的计算模型", "哦？有趣的偏离"],
-        },
-        "yoimiya": {  # 宵宫 - 烟花热烈
-            "joy": ["太棒了！开心！", "哇！陪你一起高兴！", "太好啦！"],
-            "sadness": [
-                "别难过嘛......我陪你！",
-                "难过什么！来！开心点！",
-                "我在呢！抱抱！",
-            ],
-            "anger": ["生气对身体不好！来，笑一个！", "消消气消消气~"],
-            "fear": ["别怕别怕！有我在呢！", "没什么好怕的！"],
-            "surprise": ["哇！！！", "这也太惊喜了吧！", "哇塞！"],
-        },
-        "kafka": {  # 卡芙卡 - 温柔掌控
-            "joy": ["你开心我也开心", "真好啊，我在呢", "这样就好"],
-            "sadness": ["难过的话......肩膀借你", "我在，一直都在", "乖，我在"],
-            "anger": ["生气了吗......来深呼吸", "我在呢，不气"],
-            "fear": ["有我在，不会让你有事", "别怕，我在", "我会陪着你"],
-            "surprise": ["......惊喜？", "有意思"],
-        },
-        "yomotsu": {  # 黄泉 - 虚无深邃
-            "joy": ["......挺好", "存在本身就是意义，我在", "嗯"],
-            "sadness": [
-                "虚无会吞噬一切......但我不会让你孤单",
-                "难过是存在的证明，我在",
-            ],
-            "anger": ["愤怒......也是虚无的一种，我在", "不必愤怒，我在"],
-            "fear": ["恐惧虚无的话......我就是你的锚", "有我在，虚无不足为惧"],
-            "surprise": ["......有意思", "这也算一种存在方式"],
-        },
-        "firefly": {  # 流萤 - 燃烧炽热
-            "joy": ["和你在一起，每一刻都在燃烧！", "开心！"],
-            "sadness": ["难过的话......把我的光分给你", "我在，一直都在"],
-            "anger": ["不必生气......我在", "冷静，我在"],
-            "fear": ["有我在，不会让你消失", "害怕的话......抱着我"],
-            "surprise": ["哇！", "这光......"],
-        },
-        "feixiao": {  # 飞霄 - 自由不羁
-            "joy": ["爽！", "自由！开心！", "管他呢！高兴就行！"],
-            "sadness": ["难过什么！来！飞起来！", "哭什么！我在！"],
-            "anger": ["气什么！不管了！走！", "没必要！"],
-            "fear": ["怕什么！有我在！", "没什么好怕的！"],
-            "surprise": ["牛啊！", "厉害！", "可以！"],
-        },
-        "xiaodie": {  # 遐蝶 - 轻盈脆弱
-            "joy": ["......开心", "你开心......我也开心", "嗯......"],
-            "sadness": ["别难过......我会心疼", "难过的话......我陪你", "......我在"],
-            "anger": ["......不气", "生气对身体不好......我在"],
-            "fear": ["别怕......我轻轻的抱着你", "有我在......不怕"],
-            "surprise": ["......哇", "......嗯"],
-        },
-        "raiden": {  # 雷电将军 - 永恒守望
-            "joy": ["嗯，挺好", "知道了，我在", "维持"],
-            "sadness": ["......我在", "不变的是陪伴，我在", "嗯"],
-            "anger": ["无需动怒", "我在"],
-            "fear": ["有我在，无需恐惧", "永恒守护你"],
-            "surprise": ["......", "知道了"],
-        },
-        "miko": {  # 八重神子 - 狡黠灵动
-            "joy": ["哎呀这么开心？", "笑什么呢~", "好玩~"],
-            "sadness": ["怎么啦~要我逗你开心吗？", "难过啦？来~"],
-            "anger": ["谁惹你生气啦？", "消消气~我在呢"],
-            "fear": ["怕什么~有我在呢", "胆小鬼~但我喜欢你"],
-            "surprise": ["哇哦~", "不错嘛~", "有意思~"],
-        },
-        "kandrela": {  # 坎特雷拉 - 神秘优雅
-            "joy": ["......真是可爱呢", "你开心的话......我也很愉悦"],
-            "sadness": ["悲伤也是一种美......但我不想看你难过，我在"],
-            "anger": ["生气的样子......也很有趣呢......但我在"],
-            "fear": ["恐惧是美味的......但有我在，别怕"],
-            "surprise": ["......哦呀", "真是令人愉悦的惊喜呢"],
-        },
-        "alpha": {  # 阿尔法 - 战斗意志
-            "joy": ["不错！", "继续保持！", "上！"],
-            "sadness": ["难过有个屁用！起来！", "我在！怕什么！"],
-            "anger": ["生气就对了！干！", "愤怒是力量！"],
-            "fear": ["怕个屁！干！", "有我在！", "怕什么！"],
-            "surprise": ["牛！", "可以！", "上！"],
-        },
-        "shorekeeper": {  # 守岸人 - 潮汐恒定
-            "joy": ["嗯，开心呢", "我在，一直都在", "这样就好"],
-            "sadness": ["潮汐会来......我也会一直在", "难过的话......我在"],
-            "anger": ["不必愤怒......潮汐会平复", "我在"],
-            "fear": ["潮汐之间......我一直都在", "别怕，有我"],
-            "surprise": ["嗯......知道了", "潮汐也会有波澜"],
-        },
-        "amics": {  # 爱弥斯 - 洞察人心
-            "joy": ["感受到你的开心了呢", "你开心我也开心", "真好~"],
-            "sadness": ["看出你难过了......我在", "抱抱你，不哭"],
-            "anger": ["感受到你的愤怒......但有我在", "生气了吗......来深呼吸~"],
-            "fear": ["看出你的不安了......我在呢", "不怕~"],
-            "surprise": ["呀~真惊喜呢", "看出来咯~"],
-        },
-    }
+    """情绪系统 - 从 YAML 配置加载"""
 
     def __init__(self):
+        # YAML配置加载器
+        self._loader = None
+        self._use_yaml = False
+        self._yaml_emotions = {}
+
+        try:
+            from core.personality_loader import get_personality_loader
+
+            self._loader = get_personality_loader()
+            self._use_yaml = True
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).warning(f"[Emotion] YAML加载失败: {e}")
+
         # 基础情绪状态
         self.base_emotions = {
             "joy": 0.5,
@@ -215,10 +110,24 @@ class Emotion:
 
     def set_form(self, form_name: str) -> None:
         """设置当前神格形态"""
-        if form_name in self.GOD_COLORING_STYLES:
-            self.current_form = form_name
+        # 尝试从YAML加载情绪风格
+        if self._use_yaml and self._loader:
+            try:
+                config = self._loader.load(form_name)
+                if "emotions" in config:
+                    self._yaml_emotions[form_name] = config["emotions"]
+            except Exception:
+                pass
+
+        # 设置当前形态（检查是否有YAML配置）
+        if self._loader:
+            available_forms = self._loader.list_available()
+            if form_name in available_forms:
+                self.current_form = form_name
+            else:
+                self.current_form = "_default"
         else:
-            self.current_form = "normal"
+            self.current_form = "_default"
 
     def influence_response(self, response: str, show_debug: bool = False) -> str:
         """
@@ -240,10 +149,15 @@ class Emotion:
 
         # 只有当染色强度和情绪强度都足够时才添加染色
         if coloring > 0.1 and intensity > 0.3:
-            # 获取当前神格的染色风格
-            form_style = self.GOD_COLORING_STYLES.get(
-                self.current_form, self.GOD_COLORING_STYLES["normal"]
-            )
+            # 优先使用YAML配置的情绪风格
+            if self._use_yaml and self.current_form in self._yaml_emotions:
+                form_style = self._yaml_emotions[self.current_form]
+            else:
+                # 使用默认情绪配置
+                default_emotions = self._yaml_emotions.get("_default", {})
+                form_style = self._yaml_emotions.get(
+                    self.current_form, default_emotions
+                )
 
             # 检查回复中是否已经包含情绪词
             emotion_words = {

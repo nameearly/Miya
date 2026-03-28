@@ -1582,10 +1582,32 @@ class DecisionHub:
                 )
                 return "\n".join(lines)
 
-            if cmd in Personality.FORMS:
+            if self.personality._use_yaml and self.personality._loader:
+                available_forms = self.personality._loader.list_available()
+                if cmd in available_forms:
+                    success = self.personality.set_form(cmd)
+                    return f"已切换到形态: {cmd}" if success else "切换失败"
+            elif cmd in [
+                "normal",
+                "jingliu",
+                "ruanmei",
+                "yoimiya",
+                "kafka",
+                "yomotsu",
+                "firefly",
+                "feixiao",
+                "xiaodie",
+                "raiden",
+                "miko",
+                "kandrela",
+                "alpha",
+                "shorekeeper",
+                "amics",
+            ]:
                 success = self.personality.set_form(cmd)
                 return f"已切换到形态: {cmd}" if success else "切换失败"
-            elif cmd in Personality.CORE_FORMS:
+
+            if cmd in Personality.CORE_FORMS:
                 success = self.personality.set_core_form(cmd)
                 return f"已切换到核心形态: {cmd}" if success else "切换失败"
             return f"未知形态: {cmd}"

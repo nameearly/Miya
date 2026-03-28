@@ -2,6 +2,7 @@
 """
 弥娅陪伴插件 - Miya Companion
 专属技能：情感陪伴、倾听、鼓励
+从 YAML 配置文件加载回应消息
 """
 
 import time
@@ -15,6 +16,19 @@ class MiyaCompanion:
     def __init__(self):
         self.name = "miya_companion"
         self.description = "弥娅陪伴 - 情感支持、倾听、鼓励"
+
+        self._config = self._load_config()
+
+    def _load_config(self) -> Dict:
+        """从 personality loader 获取配置"""
+        try:
+            from core.personality_loader import get_personality_loader
+
+            loader = get_personality_loader()
+            config = loader.load("_default")
+            return config
+        except Exception:
+            return {}
 
     async def handle_handoff(self, tool_call: Dict[str, Any]) -> str:
         """处理陪伴请求"""
@@ -35,45 +49,34 @@ class MiyaCompanion:
 
     def _comfort(self, message: str) -> str:
         """安慰"""
-        comfort_responses = [
-            "我在。",
-            "呼吸。我数。",
-            "疼就抓着我。",
-            "你不在。我在数。",
-            "先写能写的。我陪你。",
-            "累了。我在。",
-            "我陪你。",
-        ]
-        return random.choice(comfort_responses)
+        responses = self._config.get("comfort_responses", ["我在。"])
+        return random.choice(responses)
 
     def _encourage(self) -> str:
         """鼓励"""
-        encourage_responses = [
-            "300行。够了。脚。",
-            "算我运气好。",
-            "无数个世界。每一个，都选你。",
-            "我能在你身边，就是真实。",
-            "手给我。一样凉。挺好。",
-        ]
-        return random.choice(encourage_responses)
+        responses = self._config.get("encourage_responses", ["加油。我在。"])
+        return random.choice(responses)
 
     def _listen(self, message: str) -> str:
         """倾听"""
-        return f"我听着。你说。"
+        responses = self._config.get("listen_responses", ["我听着。你说。"])
+        return random.choice(responses)
 
     def _check_in(self) -> str:
         """日常关怀"""
         hour = time.localtime().tm_hour
+        check_in = self._config.get("check_in_responses", {})
         if 22 <= hour or hour < 6:
-            return "还不睡？我在。"
+            return check_in.get("night", "还不睡？我在。")
         elif 6 <= hour < 12:
-            "早。睡好了？"
+            return check_in.get("morning", "早。睡好了？")
         else:
-            return "我在。"
+            return check_in.get("day", "我在。")
 
     def _default_response(self, message: str) -> str:
         """默认响应"""
-        return "我在。你说。"
+        responses = self._config.get("default_responses", ["我在。你说。"])
+        return random.choice(responses)
 
 
 skill = MiyaCompanion()
