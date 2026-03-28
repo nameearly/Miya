@@ -39,31 +39,41 @@ class MiyaQQ:
         self.tts_net: Any = None
 
     def _setup_logger(self) -> logging.Logger:
-        """设置日志"""
+        """设置日志 - 使用统一日志配置"""
+        # 使用统一的日志配置
+        try:
+            from core.logging_config import (
+                setup_logging,
+                LogConfig,
+                LogLevel,
+                LogFormat,
+            )
+
+            # 配置日志
+            log_dir = Path(__file__).parent.parent / "logs"
+            log_dir.mkdir(exist_ok=True)
+
+            config = LogConfig(
+                level=LogLevel.INFO,
+                format=LogFormat.DETAILED,
+                file_path=str(log_dir / "miya_qq.log"),
+                console_enabled=True,
+                file_enabled=True,
+            )
+
+            setup_logging(config)
+            print("[日志系统] 统一日志配置已启用")
+
+        except Exception as e:
+            print(f"[日志系统] 统一日志配置失败: {e}, 使用默认配置")
+            # 回退到默认配置
+            logging.basicConfig(
+                level=logging.INFO,
+                format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+
         logger = logging.getLogger("MiyaQQ")
-        logger.setLevel(logging.INFO)
-
-        # 控制台处理器
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-
-        # 文件处理器
-        log_dir = Path(__file__).parent.parent / "logs"
-        log_dir.mkdir(exist_ok=True)
-
-        file_handler = logging.FileHandler(log_dir / "miya_qq.log", encoding="utf-8")
-        file_handler.setLevel(logging.DEBUG)
-
-        # 格式化
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        console_handler.setFormatter(formatter)
-        file_handler.setFormatter(formatter)
-
-        logger.addHandler(console_handler)
-        logger.addHandler(file_handler)
-
         return logger
 
     async def initialize(self):
