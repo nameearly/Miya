@@ -654,6 +654,9 @@ class DecisionHub:
                         logger.info(f"[决策层] 检索到 {len(knowledge)} 条知识图谱记忆")
 
             # 构建提示词（统一使用默认提示词，通过上下文传递平台信息）
+            # 获取当前形态状态，注入到提示词中
+            status_prompt = self.personality.get_status_for_prompt()
+
             prompt_info = self.prompt_manager.build_full_prompt(
                 user_input=content,
                 memory_context=conversation_context,
@@ -668,6 +671,7 @@ class DecisionHub:
                     "is_creator": self.platform_tools_manager.is_creator(
                         user_id, self.onebot_client
                     ),
+                    "status_prompt": status_prompt,
                 },
             )
 
