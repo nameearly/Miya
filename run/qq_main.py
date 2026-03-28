@@ -39,46 +39,55 @@ class MiyaQQ:
         self.tts_net: Any = None
 
     def _setup_logger(self) -> logging.Logger:
-        """设置日志 - 使用统一日志配置"""
-        # 使用统一的日志配置
-        try:
-            from core.logging_config import (
-                setup_logging,
-                LogConfig,
-                LogLevel,
-                LogFormat,
-            )
-
-            # 配置日志
-            log_dir = Path(__file__).parent.parent / "logs"
-            log_dir.mkdir(exist_ok=True)
-
-            config = LogConfig(
-                level=LogLevel.INFO,
-                format=LogFormat.DETAILED,
-                file_path=str(log_dir / "miya_qq.log"),
-                console_enabled=True,
-                file_enabled=True,
-            )
-
-            setup_logging(config)
-            print("[日志系统] 统一日志配置已启用")
-
-        except Exception as e:
-            print(f"[日志系统] 统一日志配置失败: {e}, 使用默认配置")
-            # 回退到默认配置
-            logging.basicConfig(
-                level=logging.INFO,
-                format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-            )
-
+        """设置日志"""
         logger = logging.getLogger("MiyaQQ")
+        logger.setLevel(logging.DEBUG)
+
+        # 控制台处理器 - 使用更详细的格式
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        # 文件处理器
+        log_dir = Path(__file__).parent.parent / "logs"
+        log_dir.mkdir(exist_ok=True)
+
+        file_handler = logging.FileHandler(log_dir / "miya_qq.log", encoding="utf-8")
+        file_handler.setLevel(logging.DEBUG)
+
+        # 控制台格式化 - 简洁风格
+        console_formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+
+        # 文件格式化 - 完整格式
+        file_formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+
+        console_handler.setFormatter(console_formatter)
+        file_handler.setFormatter(file_formatter)
+
+        logger.addHandler(console_handler)
+        logger.addHandler(file_handler)
+
         return logger
+
+    def _log_system_info(self):
+        """记录系统信息"""
+        import platform
+        import sys
+        from datetime import datetime
+
+        self.logger.info(f"系统信息:")
+        self.logger.info(f"  操作系统: {platform.system()} {platform.version()}")
+        self.logger.info(f"  Python: {sys.version.split()[0]}")
+        self.logger.info(f"  工作目录: {Path(__file__).parent.parent}")
+        self.logger.info(f"  启动时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     async def initialize(self):
         """初始化系统"""
-        self.logger.info("初始化弥娅 QQ 系统...")
+        self.logger.info("弥娅 QQ 机器人初始化中...")
+        self._log_system_info()
 
         # 加载环境变量
         env_path = Path(__file__).parent.parent / "config" / ".env"
@@ -221,11 +230,22 @@ class MiyaQQ:
             qq_message: QQMessage对象
         """
         try:
-            self.logger.info(
-                f"[QQ消息] type={qq_message.message_type} "
-                f"sender={qq_message.sender_id} "
-                f"content={qq_message.message[:50]}"
+            # 记录收到消息
+            msg_preview = (
+                qq_message.message[:80]
+                if len(qq_message.message) > 80
+                else qq_message.message
             )
+            self.logger.info(
+                f"QQ消息 -> {qq_message.message_type} | {qq_message.sender_id}({qq_message.sender_name})"
+            )
+            if qq_message.group_id:
+                self.logger.info(
+                    f"    群: {qq_message.group_id}({qq_message.group_name})"
+                )
+            if qq_message.is_at_bot:
+                self.logger.info(f"    @弥娅: 是")
+            self.logger.info(f"    内容: {msg_preview}")
 
             # 构建感知数据
             perception = {
@@ -279,63 +299,71 @@ class MiyaQQ:
                 success = await self.miya.mlink.send(message, available_nodes)
 
                 if success:
-                    # 决策层处理感知数据并返回响应（使用新版 ToolNet 架构）
-                    self.logger.info(f"[QQ消息] → 弥娅处理中...")
+                    # 决策处理开始
+                    self.logger.info("决策处理 -> 开始")
 
                     # 记录处理开始时间，用于检测延迟
                     import time
 
                     start_time = time.time()
 
-                    # 获取决策中心处理的详细信息（工具调用等）
+                    # 收集处理信息
                     tool_info = ""
+                    tool_calls = []
+                    memory_info = ""
+
+                    # 获取工具调用信息
                     if hasattr(self.miya.decision_hub, "tool_subnet"):
                         tool_info = (
                             self.miya.decision_hub.tool_subnet.get_last_execution_info()
                         )
 
-                    # 记录更多详细信息
+                    # 获取ToolNet的工具调用记录
+                    if hasattr(self.miya.decision_hub, "_last_tool_calls"):
+                        tool_calls = self.miya.decision_hub._last_tool_calls or []
+
+                    # 获取记忆操作信息
+                    if hasattr(self.miya.decision_hub, "memory_manager"):
+                        mm = self.miya.decision_hub.memory_manager
+                        if hasattr(mm, "_last_operation"):
+                            memory_info = mm._last_operation
+
+                    # 记录工具调用
+                    if tool_calls:
+                        self.logger.info(f"工具调用 -> {len(tool_calls)} 个工具")
+                    if tool_info:
+                        self.logger.info(f"工具详情 -> {tool_info}")
+
+                    # 记录记忆操作
+                    if memory_info:
+                        self.logger.info(f"记忆操作 -> {memory_info}")
+
+                    # 记录消息分析
                     perception = message.content
-                    self.logger.info(
-                        f"[QQ详细] 用户输入: {perception.get('content', '')[:100]}"
-                    )
-                    self.logger.info(f"[QQ详细] 用户ID: {perception.get('user_id')}")
-                    self.logger.info(
-                        f"[QQ详细] 消息类型: {perception.get('message_type')}"
-                    )
+                    content_preview = perception.get("content", "")[:50]
+                    self.logger.info(f"消息分析 -> {content_preview}...")
 
-                    # 检查是否有可用模型
-                    if hasattr(self.miya.decision_hub, "multi_model_manager"):
-                        mm = self.miya.decision_hub.multi_model_manager
-                        self.logger.info(
-                            f"[QQ详细] 可用模型: {list(mm.model_clients.keys())}"
-                        )
-
+                    # 处理感知数据
                     response_text = await self.miya.decision_hub.process_perception(
                         message
                     )
 
                     # 记录处理耗时
                     process_time = time.time() - start_time
-                    self.logger.info(f"[QQ消息] 弥娅处理耗时: {process_time:.2f}秒")
+                    self.logger.info(f"处理完成 -> 耗时: {process_time:.3f}秒")
 
-                    # 记录弥娅的回复
+                    # 记录并发送响应
                     if response_text:
-                        # 检查回复是否包含换行或多个段落（可能包含历史内容）
-                        lines = response_text.strip().split("\n")
-                        if len(lines) > 3:
-                            self.logger.warning(
-                                f"[弥娅回复] 警告: 回复包含 {len(lines)} 行，可能包含历史内容"
-                            )
-                        self.logger.info(f"[弥娅回复] {response_text[:200]}")
-                        if tool_info:
-                            self.logger.info(f"[工具调用] {tool_info}")
-                    else:
-                        self.logger.warning("[弥娅回复] 无回复内容")
+                        response_preview = response_text[:100]
+                        self.logger.info(f"弥娅回复 -> {response_preview}...")
 
-                    # 发送响应
-                    if response_text:
+                        # 发送响应
                         await self._send_qq_response(qq_message, response_text)
+
+                        # 处理完成
+                        self.logger.info(f"消息处理 -> 完成")
+                    else:
+                        self.logger.warning("弥娅无回复内容")
                 else:
                     self.logger.warning("M-Link 发送消息失败")
             else:
@@ -356,45 +384,41 @@ class MiyaQQ:
             return
 
         try:
-            # 拍一拍消息需要在群中发送回复（如果有群ID）
+            # 简化发送日志
             if qq_message.message_type == "poke":
                 if qq_message.group_id and qq_message.group_id > 0:
+                    self.logger.info(f"发送群聊拍一拍回复至 {qq_message.group_id}")
                     _ = await self.qq_net.send_group_message(
                         qq_message.group_id, response_text
                     )
                 elif qq_message.user_id and qq_message.user_id > 0:
-                    # 私聊拍一拍
+                    self.logger.info(f"发送私聊拍一拍回复至 {qq_message.user_id}")
                     _ = await self.qq_net.send_private_message(
                         qq_message.user_id, response_text
                     )
             elif qq_message.message_type == "group":
-                self.logger.info(f"[QQBot] 发送群消息: group_id={qq_message.group_id}")
+                self.logger.info(f"发送群消息至 {qq_message.group_id}")
                 _ = await self.qq_net.send_group_message(
                     qq_message.group_id, response_text
                 )
-                self.logger.info(f"[QQBot] 群消息发送完成")
             elif qq_message.message_type == "private":
-                self.logger.info(f"[QQBot] 发送私聊消息: user_id={qq_message.user_id}")
+                self.logger.info(f"发送私聊消息至 {qq_message.user_id}")
                 _ = await self.qq_net.send_private_message(
                     qq_message.user_id, response_text
                 )
-                self.logger.info(f"[QQBot] 私聊消息发送完成")
         except Exception as e:
-            self.logger.error(f"发送QQ响应失败: {e}", exc_info=True)
+            self.logger.error(f"QQ响应发送失败: {e}", exc_info=True)
 
     async def start(self):
         """启动 QQ 机器人"""
-        self.logger.info("")
-        self.logger.info("=" * 70)
-        self.logger.info("                    弥娅 QQ 机器人启动中...")
-        self.logger.info("=" * 70)
+        self.logger.info("弥娅 QQ 机器人启动中...")
 
         try:
             # 连接到 QQ
             if self.qq_net:
-                self.logger.info("[1/5] 连接到 OneBot WebSocket...")
+                self.logger.info("连接到 OneBot WebSocket...")
                 await self.qq_net.connect()
-                self.logger.info("[OK] QQ 机器人连接成功！")
+                self.logger.info("QQ 机器人连接成功！")
 
                 # 设置 onebot_client 到 decision_hub
                 if (
@@ -403,51 +427,38 @@ class MiyaQQ:
                     and self.qq_net.onebot_client
                 ):
                     self.miya.decision_hub.onebot_client = self.qq_net.onebot_client
-                    self.logger.info("[OK] DecisionHub onebot_client 已设置")
+                    self.logger.info("DecisionHub onebot_client 已设置")
 
                 # 2. 启动主动聊天管理器
-                self.logger.info("[2/5] 启动主动聊天管理器...")
+                self.logger.info("启动主动聊天管理器...")
                 if hasattr(self.qq_net, "active_chat_manager"):
                     await self.qq_net.active_chat_manager.start()
                     self.logger.info(
-                        f"[OK] 主动聊天管理器已启动 "
-                        f"(检查间隔: {self.qq_net.active_chat_manager.check_interval}s)"
+                        f"主动聊天管理器已启动 (检查间隔: {self.qq_net.active_chat_manager.check_interval}s)"
                     )
                 else:
-                    self.logger.warning("[!] 主动聊天管理器未初始化")
+                    self.logger.warning("主动聊天管理器未初始化")
 
                 # 3. 跨端终端注册
-                self.logger.info("[3/5] 注册跨端终端...")
+                self.logger.info("注册跨端终端...")
                 self._register_cross_terminal()
 
                 # 4. 加载定时任务
-                self.logger.info("[4/5] 加载定时任务...")
+                self.logger.info("加载定时任务...")
                 self.logger.info(
-                    f"[OK] 已加载 {len(self.qq_net.active_chat_manager.get_pending_messages())} 个待发消息"
+                    f"已加载 {len(self.qq_net.active_chat_manager.get_pending_messages())} 个待发消息"
                 )
 
                 # 5. 启动消息接收循环
-                self.logger.info("[5/5] 启动消息接收循环...")
-                self.logger.info("")
-                self.logger.info("=" * 70)
-                self.logger.info("                 弥娅 QQ 机器人已启动！")
-                self.logger.info("=" * 70)
+                self.logger.info("启动消息接收循环...")
 
                 if self.miya.identity:
-                    self.logger.info(f"  名称: {self.miya.identity.name} QQ机器人")
+                    self.logger.info(f"弥娅 QQ 机器人已启动: {self.miya.identity.name}")
                     self.logger.info(f"  UUID: {self.miya.identity.uuid}")
                     self.logger.info(f"  版本: {self.miya.identity.version}")
                 self.logger.info(f"  工具: ToolNet (新版架构)")
                 self.logger.info(f"  主动聊天: 已启用 (定时+上下文)")
                 self.logger.info(f"  跨端联动: 已启用")
-                self.logger.info("=" * 70)
-                self.logger.info("")
-                self.logger.info("  功能说明:")
-                self.logger.info('  - 上下文感知: 自动识别"去上课了"等消息并跟进')
-                self.logger.info('  - 定时提醒: 支持"30秒后提醒我"等')
-                self.logger.info("  - 定时问候: 自动早安、晚安问候")
-                self.logger.info("  - 跨端联动: QQ/终端/Web 消息互通")
-                self.logger.info("")
 
                 # 启动 QQNet
                 await self.qq_net.start()
@@ -470,15 +481,7 @@ class MiyaQQ:
 
 async def main():
     """主函数"""
-    print("""
-╔══════════════════════════════════════════╗
-║                                         ║
-║      弥娅 QQ 机器人                     ║
-║      Miya QQ Bot                        ║
-║                                         ║
-║      [ToolNet 新版架构]                  ║
-╚══════════════════════════════════════════╝
-    """)
+    print("弥娅 QQ 机器人启动中...")
 
     app = MiyaQQ()
 
@@ -505,7 +508,7 @@ async def main():
         print()
         print("=" * 60)
     except Exception as e:
-        print(f"❌ 启动失败: {e}")
+        print(f"启动失败: {e}")
         logging.error(f"运行错误: {e}", exc_info=True)
 
 
