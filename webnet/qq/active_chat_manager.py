@@ -184,13 +184,18 @@ class IntelligentActiveChatManager:
 
         # 动态消息生成器
         self.dynamic_generator = None
+        logger.info(
+            f"[IntelligentActiveChat] DYNAMIC_GENERATION_AVAILABLE = {DYNAMIC_GENERATION_AVAILABLE}"
+        )
         if DYNAMIC_GENERATION_AVAILABLE:
             try:
                 self.dynamic_generator = DynamicMessageGenerator()
-                logger.info("[IntelligentActiveChat] 动态消息生成器初始化成功")
+                logger.info("[IntelligentActiveChat] 动态消息生成器创建成功")
             except Exception as e:
-                logger.error(f"[IntelligentActiveChat] 动态消息生成器初始化失败: {e}")
+                logger.error(f"[IntelligentActiveChat] 动态消息生成器创建失败: {e}")
                 self.dynamic_generator = None
+        else:
+            logger.warning("[IntelligentActiveChat] 动态生成系统不可用")
 
     def _init_personality_loader(self):
         """初始化人设加载器并加载配置"""
