@@ -570,7 +570,9 @@ class ResponseGenerator:
                 if profile.get("current_core_form"):
                     lines.append(f"核心形态: {profile['current_core_form']}")
                 lines.append("")
-                lines.append("可用形态: normal, jingliu, ruanmei, yoimiya, kafka")
+                lines.append(
+                    "可用形态: normal, jingliu, ruanmei, yoimiya, kafka, yomotsu, firefly, feixiao, xiaodie, raiden, miko, kandrela, alpha, shorekeeper, amics"
+                )
                 lines.append(
                     "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
                 )

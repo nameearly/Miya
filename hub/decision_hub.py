@@ -502,12 +502,30 @@ class DecisionHub:
                 "ruanmei": "阮梅态",
                 "yoimiya": "宵宫态",
                 "kafka": "卡芙卡态",
+                "yomotsu": "黄泉态",
+                "firefly": "流萤态",
+                "feixiao": "飞霄态",
+                "xiaodie": "遐蝶态",
+                "raiden": "雷电将军态",
+                "miko": "神子态",
+                "kandrela": "坎特雷拉态",
+                "alpha": "阿尔法态",
+                "shorekeeper": "守岸人态",
+                "amics": "爱弥斯态",
             }
             form_name = form_names.get(current_form, current_form)
             logger.warning(f"[形态状态] {form_name}|{speak_mode}")
 
         # 5. 情绪染色（委托给情绪控制器）
+        # 先设置当前神格形态，让染色更符合神格风格
         if response:
+            current_form = (
+                self.personality.current_form
+                if hasattr(self.personality, "current_form")
+                else "normal"
+            )
+            if hasattr(self.emotion_controller.emotion, "set_form"):
+                self.emotion_controller.emotion.set_form(current_form)
             response = self.emotion_controller.influence_response(response)
 
         # 6. 存储AI回复到记忆（委托给记忆管理器）
@@ -936,24 +954,13 @@ class DecisionHub:
                     lines.append(f"核心形态: {profile['current_core_form']}")
                     lines.append(f"  描述: {core_info.get('description', '')}")
                 lines.append("")
-                lines.append("可用形态: normal, jingliu, ruanmei, yoimiya, kafka")
+                lines.append(
+                    "可用形态: normal, jingliu, ruanmei, yoimiya, kafka, yomotsu, firefly, feixiao, xiaodie, raiden, miko, kandrela, alpha, shorekeeper, amics"
+                )
                 lines.append(
                     "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
                 )
                 return "\n".join(lines)
-
-            # 尝试切换形态
-            if cmd in ["normal", "jingliu", "ruanmei", "yoimiya", "kafka"]:
-                success = self.personality.set_form(cmd)
-                if success:
-                    return f"已切换到形态: {cmd}"
-                return f"切换失败"
-            elif cmd in Personality.CORE_FORMS:
-                success = self.personality.set_core_form(cmd)
-                if success:
-                    return f"已切换到核心形态: {cmd}"
-                return f"切换失败"
-            return f"未知形态: {cmd}。可用: normal, jingliu, ruanmei, yoimiya, kafka 或 sober, speaking, waiting, vulnerable, afraid, committing"
 
         # 【新增】说话模式切换
         elif content.startswith("/说话") or content.startswith("/speak"):
@@ -1563,13 +1570,15 @@ class DecisionHub:
                 if profile.get("current_core_form"):
                     lines.append(f"核心形态: {profile['current_core_form']}")
                 lines.append("")
-                lines.append("可用形态: normal, jingliu, ruanmei, yoimiya, kafka")
+                lines.append(
+                    "可用形态: normal, jingliu, ruanmei, yoimiya, kafka, yomotsu, firefly, feixiao, xiaodie, raiden, miko, kandrela, alpha, shorekeeper, amics"
+                )
                 lines.append(
                     "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
                 )
                 return "\n".join(lines)
 
-            if cmd in ["normal", "jingliu", "ruanmei", "yoimiya", "kafka"]:
+            if cmd in Personality.FORMS:
                 success = self.personality.set_form(cmd)
                 return f"已切换到形态: {cmd}" if success else "切换失败"
             elif cmd in Personality.CORE_FORMS:
@@ -1626,6 +1635,16 @@ class DecisionHub:
                 "ruanmei": "阮梅态",
                 "yoimiya": "宵宫态",
                 "kafka": "卡芙卡态",
+                "yomotsu": "黄泉态",
+                "firefly": "流萤态",
+                "feixiao": "飞霄态",
+                "xiaodie": "遐蝶态",
+                "raiden": "雷电将军态",
+                "miko": "神子态",
+                "kandrela": "坎特雷拉态",
+                "alpha": "阿尔法态",
+                "shorekeeper": "守岸人态",
+                "amics": "爱弥斯态",
             }
             form_name = form_names.get(current_form, current_form)
 
