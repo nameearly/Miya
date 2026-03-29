@@ -7350,7 +7350,336 @@ def auto_detect_from_input(self, content: str) -> None:
 
 ---
 
-## 贡献指南
+## 📝 文本配置系统 (v4.3.1 新增)
+
+弥娅 v4.3.1 版本引入了完整的文本配置系统，将所有用户可见的文本内容分离到配置文件中，实现无需修改代码即可自定义文本。
+
+### 配置文件位置
+
+所有配置文件位于 `config/` 目录下：
+
+| 文件 | 用途 |
+|------|------|
+| `text_config.json` | **所有用户可见文本** - 问候语、错误消息、命令响应等 |
+| `personality_config.json` | 人格阈值、特质向量、情感参数 |
+| `qq_command_config.json` | QQ命令别名和响应配置 |
+| `personalities/*.yaml` | 17种人格形态配置 |
+
+### text_config.json 详解
+
+```json
+{
+    "version": "1.0",
+    "description": "弥娅系统文本配置 - 所有用户可见文本在此配置",
+    
+    "greetings": { ... },        // 问候语
+    "farewells": { ... },         // 告别语
+    "error_messages": { ... },    // 错误消息
+    "personality_responses": { ... }, // 人格响应
+    "emoji_responses": { ... }, // 表情包响应
+    "schedule_responses": { ... }, // 定时任务响应
+    "speak_mode_responses": { ... }, // 说话模式响应
+    "existential_responses": { ... }, // 存在性情感响应
+    "form_responses": { ... },  // 形态切换响应
+    "status_responses": { ... }, // 状态查询响应
+    "form_names": { ... },       // 形态名称映射
+    "core_form_names": { ... },  // 核心形态名称
+    "active_chat_responses": { ... }, // 主动聊天响应
+}
+```
+
+### 配置项详细说明
+
+#### 1. 问候语配置 (greetings)
+
+```json
+"greetings": {
+    "hello": [
+        "你好呀~我是{name}，很高兴认识你！(｡♥‿♥｡)",
+        "你好！我是{name}，欢迎~",
+        "你好，我是{name}。"
+    ],
+    "hi": [
+        "嗨！有什么可以帮你的吗？",
+        "在呢，在呢~",
+        "你好呀！"
+    ],
+    "keywords": ["你好", "hi", "hello", "嗨", "您好", "哈喽", "在吗", "hey"]
+}
+```
+
+#### 2. 错误消息配置 (error_messages)
+
+```json
+"error_messages": {
+    "system_error": "系统出了点问题。我记下了，等会再试。",
+    "tool_failed": "工具执行失败了，不过别担心，我会继续帮你想办法~",
+    "no_response": "抱歉，我现在不知道该说什么...",
+    "permission_denied": "这个我暂时做不到呢...",
+    "advanced_not_initialized": "高级编排器未初始化，无法处理复杂任务",
+    "task_failed": "任务执行失败: {error}",
+    "schedule_unavailable": "定时任务功能当前不可用(ToolNet未初始化)",
+    "schedule_error": "处理定时任务时出错: {error}",
+    "emoji_unavailable": "抱歉，表情包功能暂时不可用。"
+}
+```
+
+#### 3. 说话模式响应 (speak_mode_responses)
+
+```json
+"speak_mode_responses": {
+    "current_mode": "当前说话模式: {mode} ({available_modes})",
+    "unknown_mode": "未知模式: {mode}。可用: {available_modes}",
+    "switch_success": "已切换说话模式: {mode}",
+    "help": "当前说话模式: {mode} (casual闲聊/catching捕捉/confiding倾诉)"
+}
+```
+
+#### 4. 形态切换响应 (form_responses)
+
+```json
+"form_responses": {
+    "current_form": "当前形态: {form}\n  名称: {name}\n{core_form}可用形态: ...",
+    "switch_success": "已切换到形态: {form}",
+    "switch_core_success": "已切换到核心形态: {form}",
+    "unknown_form": "未知形态: {form}"
+}
+```
+
+#### 5. 形态名称映射 (form_names)
+
+```json
+"form_names": {
+    "normal": "常态",
+    "jingliu": "镜流态",
+    "ruanmei": "阮梅态",
+    "yoimiya": "宵宫态",
+    "kafka": "卡芙卡态",
+    "yomotsu": "黄泉态",
+    "firefly": "流萤态",
+    "feixiao": "飞霄态",
+    "xiadie": "遐蝶态",
+    "raiden": "雷电将军态",
+    "miko": "神子态",
+    "kandrela": "坎特雷拉态",
+    "alpha": "阿尔法态",
+    "shorekeeper": "守岸人态",
+    "amics": "爱弥斯态"
+}
+```
+
+#### 6. 核心形态名称 (core_form_names)
+
+```json
+"core_form_names": {
+    "sober": "清醒",
+    "speaking": "说话",
+    "waiting": "等",
+    "vulnerable": "疼",
+    "afraid": "怕",
+    "committing": "押"
+}
+```
+
+### 使用代码访问配置
+
+```python
+# 导入
+from core.text_loader import (
+    get_text,              # 获取指定文本
+    get_speak_mode_response,  # 获取说话模式响应
+    get_form_response,     # 获取形态响应
+    get_status_response,   # 获取状态响应
+    get_form_name,        # 获取形态显示名称
+    get_core_form_name,   # 获取核心形态名称
+    get_error_message,    # 获取错误消息
+    get_emoji_sending_response,  # 获取表情包响应
+    get_schedule_response,       # 获取定时任务响应
+    get_advanced_response,       # 获取高级编排响应
+)
+
+# 使用示例
+response = get_text("greetings.hello", "默认文本")
+response = get_speak_mode_response("switch_success", mode="casual")
+response = get_form_response("switch_success", form="jingliu")
+form_name = get_form_name("jingliu")  # 返回: "镜流态"
+core_name = get_core_form_name("sober")  # 返回: "清醒"
+error_msg = get_error_message("system_error")
+```
+
+### 热重载配置
+
+修改配置后，无需重启服务：
+
+```python
+from core.text_loader import reload_config
+
+# 热重载
+reload_config()
+```
+
+### 验证配置是否正确
+
+```bash
+python -c "
+import sys
+sys.path.insert(0, 'D:/AI_MIYA_Facyory/MIYA/Miya')
+from core.text_loader import get_text, get_speak_mode_response
+print(get_speak_mode_response('switch_success', mode='casual'))
+"
+```
+
+### 扩展配置
+
+如需添加新的配置项：
+
+1. 在 `config/text_config.json` 中添加新的配置节
+2. 在 `core/text_loader.py` 中添加对应的访问函数
+3. 在代码中使用 `get_text("新配置项.键", "默认值")` 访问
+
+---
+
+## 🧠 统一记忆系统 (MiyaMemoryCore V3.1)
+
+弥娅 v4.3.1 版本重构了记忆系统，创建了统一的 MiyaMemoryCore，提供多层记忆管理。
+
+### 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    统一记忆系统架构 (MiyaMemoryCore V3.1)            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                    MiyaMemoryCore                           │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │   │
+│   │  │  短期记忆   │  │  长期记忆   │  │  语义记忆  │       │   │
+│   │  │  (Redis)   │  │  (文件/SQL) │  │ (Milvus)   │       │   │
+│   │  └─────────────┘  └─────────────┘  └─────────────┘       │   │
+│   └────────────────────────────┬────────────────────────────────┘   │
+│                                │                                     │
+│   ┌────────────────────────────┴────────────────────────────────┐   │
+│   │                    统一接口层                                │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │   │
+│   │  │ store()    │  │ retrieve()  │  │   search() │        │   │
+│   │  └─────────────┘  └─────────────┘  └─────────────┘        │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 核心模块
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| MiyaMemoryCore | `memory/miya_memory_core.py` | 统一记忆核心 |
+| UnifiedMemory | `memory/unified_memory.py` | 兼容旧接口 |
+| SemanticDynamicsEngine | `memory/semantic_dynamics_engine.py` | 语义动态引擎 |
+| RealVectorCache | `memory/real_vector_cache.py` | 向量缓存 |
+| SessionManager | `memory/session_manager.py` | 会话管理 |
+
+### 使用方法
+
+```python
+from memory import get_memory_core
+
+# 获取记忆核心实例
+core = await get_memory_core("data/memory")
+
+# 存储记忆
+await core.store(
+    content="用户说他喜欢科幻电影",
+    memory_type="conversation",
+    importance=0.7,
+    tags=["爱好", "电影", "科幻"],
+    user_id="12345"
+)
+
+# 检索记忆
+memories = await core.retrieve(
+    query="用户有什么爱好？",
+    limit=5,
+    memory_types=["conversation", "important"]
+)
+
+# 语义搜索
+similar = await core.semantic_search(
+    query="用户喜欢的电影类型",
+    limit=5
+)
+
+# 获取记忆统计
+stats = await core.get_stats()
+```
+
+### 记忆分类 (MemoryCategory)
+
+```python
+from memory.unified_memory import MemoryCategory
+
+# 记忆分类枚举
+class MemoryCategory(enum.Enum):
+    IMPORTANT = "important"    # 重要记忆
+    EMOTION = "emotion"      # 情感记忆
+    CONVERSATION = "conversation"  # 对话记忆
+    FACT = "fact"            # 事实记忆
+    PERSONAL = "personal"     # 个人记忆
+```
+
+### 记忆存储结构
+
+```python
+{
+    "id": "uuid-string",
+    "content": "记忆内容",
+    "memory_type": "conversation",  # 记忆类型
+    "importance": 0.8,             # 重要性 0-1
+    "tags": ["标签1", "标签2"],     # 标签
+    "user_id": "12345",            // 用户ID
+    "created_at": 1234567890.0,    // 创建时间
+    "updated_at": 1234567890.0,    // 更新时间
+    "embedding": [0.1, 0.2, ...],  // 向量嵌入
+    "metadata": {                   // 元数据
+        "source": "conversation",
+        "platform": "qq",
+        "emotion": "happy"
+    }
+}
+```
+
+### 与旧系统兼容
+
+统一记忆系统提供向后兼容接口：
+
+```python
+from memory.unified_memory import get_unified_memory, init_unified_memory
+
+# 初始化（兼容旧接口）
+unified_memory = init_unified_memory("data/memory")
+
+# 存储用户消息
+await unified_memory.store_user_message(
+    user_id="12345",
+    content="用户消息内容",
+    platform="qq"
+)
+
+# 存储助手消息
+await unified_memory.store_assistant_message(
+    user_id="12345",
+    content="助手回复内容"
+)
+
+# 获取用户记忆
+memories = await unified_memory.get_user_memories(
+    user_id="12345",
+    limit=10
+)
+```
+
+---
+
+## 🔧 高级定制指南
 
 欢迎提交 Pull Request！
 

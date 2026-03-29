@@ -21,7 +21,7 @@ import random
 
 # 导入动态生成系统
 try:
-    from config.proactive_chat import DynamicMessageGenerator
+    from config.proactive_chat import DynamicMessageGenerator, ProactiveChatConfigLoader
 
     DYNAMIC_GENERATION_AVAILABLE = True
 except ImportError:
@@ -100,6 +100,15 @@ class IntelligentActiveChatManager:
     # 人设配置（从PersonalityLoader加载）
     _personality_config: Dict[str, Any] = {}
     _personality_loader = None
+
+    # 期望到工具动作的映射
+    EXPECTATION_TO_TOOL_ACTION = {
+        "点赞": "qq_like",
+        "给赞": "qq_like",
+        "点个赞": "qq_like",
+        "拍一拍": "send_poke",
+        "拍一下": "send_poke",
+    }
 
     # 上下文触发模式
     ACTIVITY_PATTERNS = [
@@ -189,7 +198,9 @@ class IntelligentActiveChatManager:
         )
         if DYNAMIC_GENERATION_AVAILABLE:
             try:
-                self.dynamic_generator = DynamicMessageGenerator()
+                # 创建配置加载器
+                config_loader = ProactiveChatConfigLoader()
+                self.dynamic_generator = DynamicMessageGenerator(config_loader)
                 logger.info("[IntelligentActiveChat] 动态消息生成器创建成功")
             except Exception as e:
                 logger.error(f"[IntelligentActiveChat] 动态消息生成器创建失败: {e}")
@@ -860,7 +871,83 @@ class IntelligentActiveChatManager:
                             )
                             continue
 
-                # 生成跟进消息
+                # 检查是否需要执行工具动作（如点赞、拍一拍等）
+                expectation = context.expectation
+                tool_action = self.EXPECTATION_TO_TOOL_ACTION.get(expectation)
+
+                if (
+                    tool_action
+                    and hasattr(self.qq_net, "tool_registry")
+                    and self.qq_net.tool_registry
+                ):
+                    # 执行工具动作
+                    logger.info(
+                        f"[ActiveChat] [工具动作] 用户={user_id} "
+                        f"期望={expectation} -> 工具={tool_action}"
+                    )
+
+                    try:
+                        from core.tool_adapter import ToolAdapter
+
+                        adapter = ToolAdapter()
+                        adapter.set_tool_registry(self.qq_net.tool_registry)
+
+                        # 构建工具上下文
+                        tool_context = {
+                            "onebot_client": getattr(
+                                self.qq_net, "onebot_client", None
+                            ),
+                            "send_like_callback": getattr(
+                                getattr(self.qq_net, "onebot_client", None),
+                                "send_like",
+                                None,
+                            )
+                            if getattr(self.qq_net, "onebot_client", None)
+                            else None,
+                            "user_id": user_id,
+                            "group_id": context.metadata.get("group_id"),
+                            "message_type": "private"
+                            if not context.metadata.get("group_id")
+                            else "group",
+                            "sender_name": "active_chat",
+                        }
+
+                        # 根据工具类型准备参数
+                        args = {}
+                        if tool_action == "qq_like":
+                            args = {"target_user_id": user_id, "times": 1}
+                        elif tool_action == "send_poke":
+                            args = {
+                                "target_user_id": user_id,
+                                "group_id": context.metadata.get("group_id")
+                                if context.metadata.get("group_id")
+                                else None,
+                            }
+
+                        result = await adapter.execute_tool(
+                            tool_action, args, tool_context
+                        )
+                        logger.info(f"工具动作已执行: {result}")
+
+                        # 标记为已处理
+                        context.follow_up_sent = True
+                        prefs["last_message_time"] = now.isoformat()
+                        self._save_persisted_data()
+                        processed += 1
+
+                        logger.info(
+                            f"[ActiveChat] [工具动作成功] -> 用户{user_id} "
+                            f"动作={tool_action}"
+                        )
+                        continue  # 跳过消息发送
+
+                    except Exception as e:
+                        logger.error(
+                            f"[ActiveChat] 工具动作执行失败: {e}", exc_info=True
+                        )
+                        # 如果工具执行失败，回退到发送消息
+
+                # 生成跟进消息（原有逻辑）
                 follow_up_msg = await self.generate_follow_up_message(context)
 
                 logger.info(

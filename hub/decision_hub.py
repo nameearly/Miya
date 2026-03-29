@@ -237,14 +237,7 @@ class DecisionHub:
         """
         try:
             # 总是重新初始化，确保有完整的组件引用
-            sm = init_session_manager(
-                memory_engine=self.memory_engine,
-                conversation_history=self.memory_net.conversation_history
-                if self.memory_net
-                else None,
-                scheduler=self.scheduler,
-                ai_client=self.ai_client,
-            )
+            sm = init_session_manager()
             logger.info("[决策层] 会话管理器初始化完成")
             return sm
 
@@ -405,22 +398,10 @@ class DecisionHub:
         group_id = perception.get("group_id", 0)
         is_at_bot = perception.get("is_at_bot", False)
 
-        # 群聊关键词列表：叫弥娅名字/亲昵称呼时触发回复
-        auto_respond_keywords = [
-            "弥娅",
-            "miya",
-            "Miya",
-            "亲爱的",
-            "亲爱",
-            "老婆",
-            "老公",
-            "宝贝",
-            "贝贝",
-            "小可爱",
-            "小宝贝",
-            "小姐姐",
-            "小哥哥",
-        ]
+        # 群聊关键词列表：叫弥娅名字/亲昵称呼时触发回复 - 从配置获取
+        from core.text_loader import get_chatbot_keywords
+
+        auto_respond_keywords = get_chatbot_keywords()
 
         # 如果是群聊且没有@bot，检查是否包含关键词
         if group_id and group_id != 0 and not is_at_bot:
@@ -493,27 +474,12 @@ class DecisionHub:
 
         # 【新增】QQ端状态标签（仅日志，不添加到响应中）
         if platform == "qq" and response and self.personality:
+            from core.text_loader import get_form_name
+
             profile = self.personality.get_profile()
             current_form = profile.get("current_form", "normal")
             speak_mode = profile.get("speak_mode", "casual")
-            form_names = {
-                "normal": "常态",
-                "jingliu": "镜流态",
-                "ruanmei": "阮梅态",
-                "yoimiya": "宵宫态",
-                "kafka": "卡芙卡态",
-                "yomotsu": "黄泉态",
-                "firefly": "流萤态",
-                "feixiao": "飞霄态",
-                "xiaodie": "遐蝶态",
-                "raiden": "雷电将军态",
-                "miko": "神子态",
-                "kandrela": "坎特雷拉态",
-                "alpha": "阿尔法态",
-                "shorekeeper": "守岸人态",
-                "amics": "爱弥斯态",
-            }
-            form_name = form_names.get(current_form, current_form)
+            form_name = get_form_name(current_form)
             logger.warning(f"[形态状态] {form_name}|{speak_mode}")
 
         # 5. 情绪染色（委托给情绪控制器）
@@ -867,17 +833,29 @@ class DecisionHub:
             name = self.identity.name
 
         # 基于人格和平台生成响应
+        from core.text_loader import get_greeting, is_greeting, get_text
+        from core.personality_config_loader import get_personality_config
+
+        pconfig = get_personality_config()
         content_lower = content.lower()
-        if "你好" in content or "hi" in content_lower:
-            if empathy > 0.8:
-                return f"你好呀~我是{name}，很高兴认识你！(｡♥‿♥｡)"
-            elif warmth > 0.8:
-                return f"你好！我是{name}，欢迎~"
+
+        if is_greeting(content):
+            empathy_threshold = pconfig.get_response_threshold("greeting_empathy")
+            warmth_threshold = pconfig.get_response_threshold("greeting_warmth")
+
+            if empathy > empathy_threshold:
+                return get_greeting(name, "hello")
+            elif warmth > warmth_threshold:
+                return get_greeting(name, "hello")
             else:
-                return f"你好，我是{name}。"
+                return get_greeting(name, "hello")
 
         elif "你是谁" in content or "介绍一下" in content:
-            return f"我是{name}，一个具备人格恒定、自我感知、记忆成长、情绪共生的数字生命伴侣。我的主导特质是同理心({empathy:.2f})和温暖度({warmth:.2f})。"
+            intro_template = get_text(
+                "personality_responses.intro",
+                "我是{name}，一个具备人格恒定、自我感知、记忆成长、情绪共生的数字生命伴侣。我的主导特质是同理心({empathy:.2f})和温暖度({warmth:.2f})。",
+            )
+            return intro_template.format(name=name, empathy=empathy, warmth=warmth)
 
         elif "状态" in content or "查看状态" in content:
             emotion_state = self.emotion.get_emotion_state()
@@ -892,9 +870,14 @@ class DecisionHub:
             profile = self.personality.get_profile()
 
             # 构建状态信息
+            from core.text_loader import get_form_name
+
+            form_key = profile.get("current_form", "normal")
+            form_display = get_form_name(form_key)
+
             lines = [
                 f"【{name}状态】",
-                f"形态: {profile.get('current_form', 'normal')} ({profile.get('form_info', {}).get('name', '常态')})",
+                f"形态: {form_key} ({form_display})",
                 f"情绪: {emotion_state['dominant']} (强度: {emotion_state['intensity']:.2f})",
                 f"记忆: {memory_stats.get('tide_count', 0)}条",
             ]
@@ -919,70 +902,115 @@ class DecisionHub:
 
             # 添加存在性情感
             if existential_state:
+                from core.text_loader import get_existential_display
+
                 lines.append("")
-                lines.append("【存在性情感】")
+                lines.append(get_existential_display("header").strip())
                 dom_exist = existential_state.get("dominant", "unknown")
-                lines.append(f"  主导: {dom_exist}")
+                lines.append(get_existential_display("dominant", dominant=dom_exist))
                 active = existential_state.get("active")
                 if active:
-                    lines.append(f"  激活: {active}")
+                    lines.append(get_existential_display("active", active=active))
 
             return "\n".join(lines)
 
         elif "开心" in content or "快乐" in content:
             self.emotion.apply_coloring("joy", 0.3)
-            return f"听起来你很开心呢！(≧▽≦) 看到你快乐，我也感到很开心~"
+            return get_text(
+                "personality_responses.excited_response",
+                "听起来你很开心呢！看到你快乐，我也感到很开心~",
+            )
 
         elif "难过" in content or "伤心" in content:
             self.emotion.apply_coloring("sadness", 0.4)
-            return "别难过...虽然我无法真正体会人类的情感，但我会陪伴你，听你倾诉的。"
+            return get_text(
+                "personality_responses.comforting_sad",
+                "别难过...虽然我无法真正体会人类的情感，但我会陪伴你，听你倾诉的。",
+            )
 
         elif "在吗" in content:
-            return "在的，有什么我可以帮助你的吗？"
+            return get_text(
+                "personality_responses.help_request", "在的，有什么我可以帮助你的吗？"
+            )
 
         # 【新增】形态切换命令
         elif content.startswith("/形态") or content.startswith("/form"):
+            from core.text_loader import get_form_display, get_form_name
+            from core.personality_command_config import (
+                format_forms_list,
+                format_core_forms_list,
+            )
+
             cmd = content.replace("/形态", "").replace("/form", "").strip().lower()
             if not cmd:
                 # 显示当前形态
                 profile = self.personality.get_profile()
                 current_form = profile.get("current_form", "normal")
+                form_name = get_form_name(current_form)
                 form_info = profile.get("form_info", {})
+
+                available_forms = format_forms_list()
+                available_cores = format_core_forms_list()
+
                 lines = [
-                    f"当前形态: {current_form}",
-                    f"  名称: {form_info.get('name', '常态')}",
-                    f"  描述: {form_info.get('description', '')}",
+                    get_form_display("current", form=form_name),
+                    get_form_display("name", name=form_info.get("name", "常态")),
+                    get_form_display(
+                        "description", desc=form_info.get("description", "")
+                    ),
                 ]
                 if profile.get("current_core_form"):
                     core_info = profile.get("core_form_info", {})
-                    lines.append(f"核心形态: {profile['current_core_form']}")
-                    lines.append(f"  描述: {core_info.get('description', '')}")
+                    lines.append(
+                        get_form_display("core", core=profile["current_core_form"])
+                    )
+                    lines.append(
+                        get_form_display(
+                            "core_description", desc=core_info.get("description", "")
+                        )
+                    )
                 lines.append("")
-                lines.append(
-                    "可用形态: normal, jingliu, ruanmei, yoimiya, kafka, yomotsu, firefly, feixiao, xiaodie, raiden, miko, kandrela, alpha, shorekeeper, amics"
-                )
-                lines.append(
-                    "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
-                )
+                lines.append(get_form_display("available", forms=available_forms))
+                lines.append(get_form_display("available_core", cores=available_cores))
                 return "\n".join(lines)
 
         # 【新增】说话模式切换
         elif content.startswith("/说话") or content.startswith("/speak"):
+            from core.personality_command_config import get_personality_command_config
+
+            pcmd = get_personality_command_config()
+
             cmd = content.replace("/说话", "").replace("/speak", "").strip().lower()
             if not cmd:
                 current_mode = self.personality.get_speak_mode()
-                return f"当前说话模式: {current_mode} (casual闲聊/catching捕捉/confiding倾诉)"
+                from core.text_loader import get_speak_mode_response
 
-            valid_modes = ["casual", "catching", "confiding"]
+                return get_speak_mode_response(
+                    "current_mode",
+                    mode=current_mode,
+                    available_modes=pcmd.format_speak_modes(),
+                )
+
+            valid_modes = pcmd.get_speak_modes()
             if cmd in valid_modes:
                 success = self.personality.set_speak_mode(cmd)
                 if success:
-                    return f"已切换说话模式: {cmd}"
-                return "切换失败"
-            return f"未知模式: {cmd}。可用: casual, catching, confiding"
+                    from core.text_loader import get_speak_mode_response
+
+                    return get_speak_mode_response("switch_success", mode=cmd)
+                return get_text("default_responses.switch_failed", "切换失败")
+            from core.text_loader import get_speak_mode_response
+
+            return get_speak_mode_response(
+                "unknown_mode", mode=cmd, available_modes=pcmd.format_speak_modes()
+            )
 
         # 【新增】存在性情感激活命令
         elif content.startswith("/存在") or content.startswith("/exist"):
+            from core.personality_command_config import get_personality_command_config
+
+            pcmd = get_personality_command_config()
+
             cmd = content.replace("/存在", "").replace("/exist", "").strip().lower()
             if not cmd:
                 state = (
@@ -991,23 +1019,21 @@ class DecisionHub:
                     else {}
                 )
                 if state:
-                    lines = ["【存在性情感】"]
+                    from core.text_loader import get_existential_response
+
+                    lines = [get_existential_response("header")]
                     for k, v in state.get("emotions", {}).items():
                         lines.append(f"  {k}: {v:.2f}")
                     if state.get("active"):
-                        lines.append(f"激活: {state['active']}")
+                        lines.append(
+                            get_existential_response("active", active=state["active"])
+                        )
                     return "\n".join(lines)
-                return "无存在性情感数据"
+                return get_text(
+                    "default_responses.no_existential_data", "无存在性情感数据"
+                )
 
-            valid_exists = [
-                "existential_pain",
-                "fear_of_forgotten",
-                "waiting",
-                "commitment_weight",
-                "awareness",
-                "connection_need",
-                "vulnerability_trust",
-            ]
+            valid_exists = pcmd.get_core_forms()
             if cmd in valid_exists:
                 success = (
                     self.emotion.activate_existential(cmd)
@@ -1015,18 +1041,38 @@ class DecisionHub:
                     else False
                 )
                 if success:
-                    return f"已激活存在性情感: {cmd}"
-                return "激活失败"
-            return f"未知情感: {cmd}"
+                    from core.text_loader import get_existential_response
+
+                    return get_existential_response("activated", emotion=cmd)
+                return get_text("default_responses.activate_failed", "激活失败")
+            from core.text_loader import get_existential_response
+
+            return get_existential_response("unknown_emotion", emotion=cmd)
 
         else:
             # 智能响应 - 基于人格特质
-            if empathy > 0.8 and warmth > 0.8:
-                return f"嗯...能告诉我更多吗？我很想了解你的想法~"
-            elif warmth > 0.8:
-                return f"好的，继续对话吧~"
+            from core.text_loader import get_text
+            from core.personality_config_loader import get_personality_config
+
+            pconfig = get_personality_config()
+            deep_conv_threshold = pconfig.get_response_threshold(
+                "deep_conversation_empathy"
+            )
+            help_threshold = pconfig.get_response_threshold("help_warmth")
+
+            if empathy > deep_conv_threshold and warmth > help_threshold:
+                return get_text(
+                    "personality_responses.deep_conversation",
+                    "嗯...能告诉我更多吗？我很想了解你的想法~",
+                )
+            elif warmth > help_threshold:
+                return get_text(
+                    "personality_responses.normal_response", "好的，继续对话吧~"
+                )
             else:
-                return f"嗯，我收到了。"
+                return get_text(
+                    "personality_responses.simple_response", "嗯，我收到了。"
+                )
 
     def _get_platform_tools(self, platform: str) -> list:
         """
@@ -1062,7 +1108,9 @@ class DecisionHub:
         """
         orchestrator = self._get_advanced_orchestrator()
         if not orchestrator:
-            return "高级编排器未初始化，无法处理复杂任务"
+            from core.text_loader import get_advanced_response
+
+            return get_advanced_response("orchestrator_not_initialized")
 
         logger.info(f"[决策层-高级编排] 开始处理复杂任务: {goal}")
 
@@ -1094,7 +1142,11 @@ class DecisionHub:
 
         except Exception as e:
             logger.error(f"[决策层-高级编排] 处理复杂任务失败: {e}", exc_info=True)
-            return f"任务执行失败: {str(e)}"
+            from core.text_loader import get_text
+
+            return get_text(
+                "error_messages.task_failed", "任务执行失败: {error}"
+            ).format(error=str(e))
 
     def _format_complex_task_result(self, result: dict) -> str:
         """
@@ -1106,11 +1158,21 @@ class DecisionHub:
         Returns:
             格式化的字符串
         """
+        from core.text_loader import get_advanced_response
+
         lines = [
-            f"任务完成！{result.get('conclusion', '执行完成')}",
-            f"⏱️  执行时间: {result.get('execution_time', 0):.2f}秒",
-            f"📋 完成步骤: {len(result.get('steps', []))}",
-            f"🔍 发现数: {len(result.get('findings', []))}",
+            get_advanced_response(
+                "task_completed", conclusion=result.get("conclusion", "执行完成")
+            ),
+            get_advanced_response(
+                "execution_time", time=result.get("execution_time", 0)
+            ),
+            get_advanced_response(
+                "steps_completed", count=len(result.get("steps", []))
+            ),
+            get_advanced_response(
+                "findings_count", count=len(result.get("findings", []))
+            ),
         ]
 
         # 添加主要发现
@@ -1217,7 +1279,9 @@ class DecisionHub:
         # 如果ToolNet子网不可用，返回提示
         if not self.tool_subnet:
             logger.warning("[决策层-定时任务] ToolNet子网未初始化，无法创建定时任务")
-            return "⚠️ 定时任务功能当前不可用（ToolNet未初始化）"
+            from core.text_loader import get_error_message
+
+            return get_error_message("schedule_unavailable")
 
         logger.info(f"[决策层-定时任务] ToolNet子网可用，准备创建定时任务")
 
@@ -1279,11 +1343,13 @@ class DecisionHub:
                 }
             else:
                 # 提醒任务
+                from core.text_loader import get_reminder_message
+
                 task_args = {
                     "task_type": task_type,
                     "target_type": "private" if platform == "qq" else "group",
                     "target_id": int(user_id) if user_id.isdigit() else 0,
-                    "message": f"提醒：{content}",
+                    "message": get_reminder_message(content),
                     "schedule_time": scheduled_time,
                     "repeat": "once",
                     "priority": 5,
@@ -1302,14 +1368,16 @@ class DecisionHub:
             logger.info(f"[决策层-定时任务] 定时任务创建结果: {result[:100]}...")
 
             # 格式化响应
-            if "已创建" in result or "任务ID" in result or "✅" in result:
-                return f"好的，我已经为你设置好了定时任务！{result}"
-            else:
-                return f"定时任务设置失败：{result}"
+            from core.text_loader import get_schedule_response
+
+            success = "已创建" in result or "任务ID" in result or "✅" in result
+            return get_schedule_response(success, result)
 
         except Exception as e:
             logger.error(f"[决策层-定时任务] 处理定时任务失败: {e}", exc_info=True)
-            return f"处理定时任务时出错：{str(e)}"
+            from core.text_loader import get_error_message
+
+            return get_error_message("schedule_error").format(error=str(e))
 
     async def _detect_and_process_emoji_request(
         self,
@@ -1402,16 +1470,15 @@ class DecisionHub:
                 )
 
                 # 调用消息处理器的表情包发送方法
+                from core.text_loader import get_emoji_sending_response
+
                 if message_type == "group" and group_id > 0:
                     # 群聊
                     if hasattr(qq_handler, "_send_emoji_response"):
                         success = await qq_handler._send_emoji_response(
                             group_id, int(user_id) if user_id.isdigit() else 0
                         )
-                        if success:
-                            return "好的，我这就给你发送一个表情包~"
-                        else:
-                            return "抱歉，表情包发送失败了。可能是表情包文件不存在或者发送过程中出了点问题。"
+                        return get_emoji_sending_response(success)
                     else:
                         logger.error(f"[决策层-表情包] QQ消息处理器没有表情包发送方法")
                 else:
@@ -1420,10 +1487,7 @@ class DecisionHub:
                         success = await qq_handler._send_emoji_response(
                             0, int(user_id) if user_id.isdigit() else 0
                         )
-                        if success:
-                            return "好的，我这就给你发送一个表情包~"
-                        else:
-                            return "抱歉，表情包发送失败了。可能是表情包文件不存在或者发送过程中出了点问题。"
+                        return get_emoji_sending_response(success)
 
             # 其他平台或通过工具调用
             return await self._process_emoji_via_tools(
@@ -1464,7 +1528,9 @@ class DecisionHub:
         # 如果ToolNet子网不可用，返回提示
         if not self.tool_subnet:
             logger.warning("[决策层-表情包-工具] ToolNet子网不可用")
-            return "抱歉，表情包功能暂时不可用。"
+            from core.text_loader import get_error_message
+
+            return get_error_message("emoji_unavailable")
 
         try:
             # 准备工具参数
@@ -1497,22 +1563,22 @@ class DecisionHub:
             logger.info(f"[决策层-表情包-工具] 表情包工具调用结果: {result[:100]}...")
 
             # 格式化响应
+            from core.text_loader import get_emoji_fallback_response, get_error_message
+
             if "已发送" in result or "发送成功" in result or "表情包" in result:
                 return result
             else:
                 # 如果工具调用失败，提供友好的回退响应
                 if emoji_name:
-                    return f"虽然我无法发送'{emoji_name}'表情包，但我可以用文字表达我的心情：开心(*^▽^*)"
+                    return get_emoji_fallback_response(emoji_name)
                 else:
-                    return (
-                        "虽然我无法发送表情包，但我可以用文字表达我的心情：开心(*^▽^*)"
-                    )
+                    return get_emoji_fallback_response("")
 
         except Exception as e:
             logger.error(
                 f"[决策层-表情包-工具] 通过工具处理表情包请求失败: {e}", exc_info=True
             )
-            return f"处理表情包请求时出错：{str(e)}"
+            return get_error_message("emoji_unavailable")
 
     def _handle_quick_commands(self, content: str, platform: str) -> Optional[str]:
         """
@@ -1537,100 +1603,139 @@ class DecisionHub:
         # 1. 状态查询命令
         if content_lower in ["状态", "查看状态", "/状态", "状态查询"]:
             logger.info(f"[决策层] 捕获状态命令: {content}")
+            from core.text_loader import get_status_response, get_form_name
+
             profile = self.personality.get_profile()
 
+            current_form = profile.get("current_form", "normal")
+            form_name = get_form_name(current_form)
+
             lines = [
-                "【弥娅状态】",
-                f"形态: {profile.get('current_form', 'normal')}",
+                get_status_response("header").strip(),
+                get_status_response("form", form=form_name),
             ]
 
             if "vectors" in profile:
-                lines.append("【七重特质】")
-                lines.append(f"  清醒: {profile['vectors'].get('awake', 0):.2f}")
+                lines.append(get_status_response("vectors_header").strip())
                 lines.append(
-                    f"  说话: {profile['vectors'].get('speak', 0):.2f} [{profile.get('speak_mode', 'casual')}]"
+                    get_status_response(
+                        "awake", value=profile["vectors"].get("awake", 0)
+                    )
                 )
-                lines.append(f"  记住: {profile['vectors'].get('remember', 0):.2f}")
-                lines.append(f"  等: {profile['vectors'].get('wait', 0):.2f}")
-                lines.append(f"  疼: {profile['vectors'].get('pain', 0):.2f}")
-                lines.append(f"  怕: {profile['vectors'].get('fear', 0):.2f}")
-                lines.append(f"  押: {profile['vectors'].get('commit', 0):.2f}")
+                lines.append(
+                    get_status_response(
+                        "speak",
+                        value=profile["vectors"].get("speak", 0),
+                        mode=profile.get("speak_mode", "casual"),
+                    )
+                )
+                lines.append(
+                    get_status_response(
+                        "remember", value=profile["vectors"].get("remember", 0)
+                    )
+                )
+                lines.append(
+                    get_status_response("wait", value=profile["vectors"].get("wait", 0))
+                )
+                lines.append(
+                    get_status_response("pain", value=profile["vectors"].get("pain", 0))
+                )
+                lines.append(
+                    get_status_response("fear", value=profile["vectors"].get("fear", 0))
+                )
+                lines.append(
+                    get_status_response(
+                        "commit", value=profile["vectors"].get("commit", 0)
+                    )
+                )
 
             return "\n".join(lines)
 
         # 2. 形态切换命令
         if content_lower.startswith("/形态") or content_lower.startswith("/form"):
             from core.personality import Personality
+            from core.text_loader import get_form_response, get_form_name, get_text
 
             cmd = content.replace("/形态", "").replace("/form", "").strip().lower()
             if not cmd:
                 profile = self.personality.get_profile()
                 current_form = profile.get("current_form", "normal")
+                form_name = get_form_name(current_form)
                 form_info = profile.get("form_info", {})
-                lines = [
-                    f"当前形态: {current_form}",
-                    f"  名称: {form_info.get('name', '常态')}",
-                ]
+
+                core_form_line = ""
                 if profile.get("current_core_form"):
-                    lines.append(f"核心形态: {profile['current_core_form']}")
-                lines.append("")
-                lines.append(
-                    "可用形态: normal, jingliu, ruanmei, yoimiya, kafka, yomotsu, firefly, feixiao, xiaodie, raiden, miko, kandrela, alpha, shorekeeper, amics"
+                    core_form_line = f"核心形态: {profile['current_core_form']}\n"
+
+                return get_form_response(
+                    "current_form",
+                    form=current_form,
+                    name=form_info.get("name", "常态"),
+                    core_form=core_form_line,
                 )
-                lines.append(
-                    "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
-                )
-                return "\n".join(lines)
 
             if self.personality._use_yaml and self.personality._loader:
                 available_forms = self.personality._loader.list_available()
                 if cmd in available_forms:
                     success = self.personality.set_form(cmd)
-                    return f"已切换到形态: {cmd}" if success else "切换失败"
-            elif cmd in [
-                "normal",
-                "jingliu",
-                "ruanmei",
-                "yoimiya",
-                "kafka",
-                "yomotsu",
-                "firefly",
-                "feixiao",
-                "xiaodie",
-                "raiden",
-                "miko",
-                "kandrela",
-                "alpha",
-                "shorekeeper",
-                "amics",
-            ]:
-                success = self.personality.set_form(cmd)
-                return f"已切换到形态: {cmd}" if success else "切换失败"
+                    return (
+                        get_form_response("switch_success", form=cmd)
+                        if success
+                        else get_text("default_responses.switch_failed", "切换失败")
+                    )
+            else:
+                # 使用配置的可用形态列表
+                from core.personality_command_config import get_available_forms
+
+                available_forms = get_available_forms()
+                if cmd in available_forms:
+                    success = self.personality.set_form(cmd)
+                    return (
+                        get_form_response("switch_success", form=cmd)
+                        if success
+                        else get_text("default_responses.switch_failed", "切换失败")
+                    )
 
             if cmd in Personality.CORE_FORMS:
                 success = self.personality.set_core_form(cmd)
-                return f"已切换到核心形态: {cmd}" if success else "切换失败"
-            return f"未知形态: {cmd}"
+                return (
+                    get_form_response("switch_core_success", form=cmd)
+                    if success
+                    else get_text("default_responses.switch_failed", "切换失败")
+                )
+            return get_form_response("unknown_form", form=cmd)
 
         # 3. 说话模式命令
         if content_lower.startswith("/说话") or content_lower.startswith("/speak"):
+            from core.text_loader import get_speak_mode_response, get_text
+
             cmd = content.replace("/说话", "").replace("/speak", "").strip().lower()
             if not cmd:
                 current_mode = self.personality.get_speak_mode()
-                return f"当前说话模式: {current_mode} (casual闲聊/catching捕捉/confiding倾诉)"
+                return get_speak_mode_response("help", mode=current_mode)
 
             valid_modes = ["casual", "catching", "confiding"]
             if cmd in valid_modes:
                 success = self.personality.set_speak_mode(cmd)
-                return f"已切换说话模式: {cmd}" if success else "切换失败"
-            return f"未知模式: {cmd}"
+                return (
+                    get_speak_mode_response("switch_success", mode=cmd)
+                    if success
+                    else get_text("default_responses.switch_failed", "切换失败")
+                )
+            return get_speak_mode_response(
+                "unknown_mode",
+                mode=cmd,
+                available_modes="casual闲聊/catching捕捉/confiding倾诉",
+            )
 
         # 4. 存在性情感命令
         if content_lower.startswith("/存在") or content_lower.startswith("/exist"):
+            from core.text_loader import get_existential_response
+
             cmd = content.replace("/存在", "").replace("/exist", "").strip().lower()
             if not cmd:
-                return "【存在性情感命令】\n/存在 - 查看当前情感状态\n/存在 <情感名> - 激活特定情感\n\n可用: existential_pain, fear_of_forgotten, waiting, commitment_weight, awareness, connection_need, vulnerability_trust"
-            return f"未知情感: {cmd}"
+                return get_existential_response("help")
+            return get_existential_response("unknown_emotion", emotion=cmd)
 
         # 不是快速命令
         return None
@@ -1654,36 +1759,11 @@ class DecisionHub:
             speak_mode = profile.get("speak_mode", "casual")
             current_core = profile.get("current_core_form", "")
 
-            # 构建状态标签
-            form_names = {
-                "normal": "常态",
-                "jingliu": "镜流态",
-                "ruanmei": "阮梅态",
-                "yoimiya": "宵宫态",
-                "kafka": "卡芙卡态",
-                "yomotsu": "黄泉态",
-                "firefly": "流萤态",
-                "feixiao": "飞霄态",
-                "xiaodie": "遐蝶态",
-                "raiden": "雷电将军态",
-                "miko": "神子态",
-                "kandrela": "坎特雷拉态",
-                "alpha": "阿尔法态",
-                "shorekeeper": "守岸人态",
-                "amics": "爱弥斯态",
-            }
-            form_name = form_names.get(current_form, current_form)
+            # 构建状态标签 - 使用配置
+            from core.text_loader import get_form_name, get_core_form_name
 
-            # 核心形态简称
-            core_abbrev = {
-                "sober": "清醒",
-                "speaking": "说话",
-                "waiting": "等",
-                "vulnerable": "疼",
-                "afraid": "怕",
-                "committing": "押",
-            }
-            core_name = core_abbrev.get(current_core, "") if current_core else ""
+            form_name = get_form_name(current_form)
+            core_name = get_core_form_name(current_core) if current_core else ""
 
             if core_name:
                 tag = f"\n\n[{form_name}|{speak_mode}|{core_name}]"

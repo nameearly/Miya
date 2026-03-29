@@ -1,385 +1,236 @@
 """
-弥娅 - 语义动力学记忆引擎
-整合VCPToolBox浪潮RAG V3的核心能力
-实现基于语义动力学的记忆检索和推理
+语义动力学引擎
+负责记忆的语义分析和动态调整
 """
 
-import asyncio
 import logging
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass, field
 from datetime import datetime
-import numpy as np
-
-from .context_vector_manager import ContextVectorManager, get_context_manager
-from .meta_thinking_manager import MetaThinkingManager, get_meta_thinking_manager
-from .semantic_group_manager import SemanticGroupManager, get_semantic_group_manager
-from .time_expression_parser import ChineseTimeExpressionParser, parse_time_expressions
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class MemoryRetrievalResult:
-    """记忆检索结果"""
+class SemanticNode:
+    """语义节点"""
+
+    id: str
     content: str
-    score: float
-    metadata: Dict
-    time_ranges: List = None  # 匹配到的时间范围
-
-
-@dataclass
-class SemanticDynamicsResult:
-    """语义动力学结果"""
-    retrieved_memories: List[MemoryRetrievalResult]
-    context_influence: float  # 上下文影响度
-    semantic_groups: List[str]  # 激活的语义组
-    reasoning_chain: Optional[str] = None  # 元思考链内容
-    vcp_debug_info: Dict = None  # VCP调试信息
+    vector: List[float]
+    connections: List[str] = field(default_factory=list)
+    activation: float = 0.0
+    last_accessed: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
 class SemanticDynamicsEngine:
     """
-    语义动力学记忆引擎
+    语义动力学引擎
 
-    核心功能：
-    1. **向量相似度检索**：使用Embedding API生成向量，在Milvus Lite中搜索
-    2. **上下文向量聚合**：融合当前对话上下文
-    3. **语义组增强**：基于关键词的语义分组
-    4. **时域解析**：中文时间表达式解析
-
-    系统架构：
-    - ContextVectorManager: 上下文向量管理
-    - MetaThinkingManager: 元思考递归推理链
-    - SemanticGroupManager: 语义组管理
-    - TimeExpressionParser: 时域解析
-    - RealVectorCache: 真正的向量缓存系统（Milvus Lite）
+    功能：
+    1. 语义向量计算
+    2. 记忆关联发现
+    3. 语义相似度匹配
+    4. 动态记忆激活
     """
 
     def __init__(
         self,
-        config: Optional[Dict] = None,
-        vector_cache: Optional[object] = None
+        config: Optional[Dict[str, Any]] = None,
+        vector_cache=None,
     ):
-        """
-        初始化语义动力学引擎
-
-        Args:
-            config: 配置字典
-            vector_cache: 向量缓存实例（RealVectorCache或VectorCacheManager）
-        """
-        self.config = config or {}
+        self.config = config or {
+            "top_k": 10,
+            "fuzzy_threshold": 0.85,
+            "activation_decay": 0.95,
+            "connection_threshold": 0.7,
+        }
         self.vector_cache = vector_cache
-
-        # Embedding客户端（内部实现）
-        self._embedding_client = None
-
-        # 初始化子模块
-        self.context_manager = get_context_manager(
-            fuzzy_threshold=self.config.get('fuzzy_threshold', 0.85),
-            decay_rate=self.config.get('decay_rate', 0.75),
-            max_context_window=self.config.get('max_context_window', 10)
-        )
-
-        self.meta_thinking = get_meta_thinking_manager()
-
-        self.semantic_groups = get_semantic_group_manager()
-
-        self.time_parser = ChineseTimeExpressionParser(
-            timezone_str=self.config.get('timezone', 'Asia/Shanghai')
-        )
-
-        # Embedding函数（内部实现）
-        self._embedding_client = None
-
-        logger.info("[SemanticDynamicsEngine] 初始化完成")
+        self.embedding_client = None
+        self._semantic_graph: Dict[str, SemanticNode] = {}
+        self._initialized = False
 
     def set_embedding_client(self, client):
-        """设置Embedding客户端"""
-        self._embedding_client = client
-        logger.info("[SemanticDynamicsEngine] Embedding客户端已设置")
+        """设置嵌入客户端"""
+        self.embedding_client = client
 
-    def set_vector_cache(self, vector_cache):
-        """设置向量缓存"""
-        self.vector_cache = vector_cache
-        logger.info("[SemanticDynamicsEngine] 向量缓存已设置")
+    async def initialize(self) -> bool:
+        """初始化语义引擎"""
+        self._initialized = True
+        logger.info("语义动力学引擎初始化成功")
+        return True
 
-    async def initialize(self):
-        """初始化引擎"""
-        await self.semantic_groups.initialize()
-        await self.meta_thinking.load_config()
-        logger.info("[SemanticDynamicsEngine] 初始化成功")
-
-    async def process_conversation(
-        self,
-        messages: List[Dict],
-        enable_meta_thinking: bool = False,
-        enable_semantic_groups: bool = True,
-        meta_chain_name: str = 'default',
-        meta_k_sequence: Optional[List[int]] = None
-    ) -> SemanticDynamicsResult:
-        """
-        处理对话，执行语义动力学检索
-
-        Args:
-            messages: 消息列表
-            enable_meta_thinking: 是否启用元思考链
-            enable_semantic_groups: 是否启用语义组
-            meta_chain_name: 元思考链名称
-            meta_k_sequence: 元思考链K值序列
-
-        Returns:
-            SemanticDynamicsResult: 检索结果
-        """
-        if not messages:
-            return SemanticDynamicsResult(
-                retrieved_memories=[],
-                context_influence=0.0,
-                semantic_groups=[],
-                vcp_debug_info={}
-            )
-
-        # 获取最后一条消息
-        last_message = messages[-1]
-        user_content = last_message.get('content', '')
-
-        if isinstance(user_content, list):
-            user_content = ' '.join([
-                part.get('text', '')
-                for part in user_content
-                if part.get('type') == 'text'
-            ])
-
-        # 1. 更新上下文向量
-        assistant_vectors, user_vectors = self.context_manager.update_context(
-            messages,
-            self._safe_embedding
-        )
-
-        context_influence = len(assistant_vectors + user_vectors) / max(
-            len(messages), 1
-        )
-
-        # 2. 解析时间表达式
-        time_ranges = self.time_parser.parse(user_content)
-
-        # 3. 匹配语义组
-        activated_groups = []
-        if enable_semantic_groups:
-            activated_groups = self.semantic_groups.get_active_groups(
-                user_content,
-                threshold=self.config.get('group_threshold', 1.0),
-                max_groups=self.config.get('max_groups', 3)
-            )
-
-        group_names = [g.name for g in activated_groups]
-
-        # 4. 执行检索
-        retrieved_memories = []
-
-        if self.retrieve_func:
-            try:
-                # 构建查询向量
-                query_vector = None
-                if self.get_embedding_func and user_content:
-                    query_vector = await self._safe_embedding(user_content)
-
-                # 聚合上下文向量
-                context_vector = self.context_manager.aggregate_context_vector(
-                    role='all',
-                    apply_decay=True
-                )
-
-                # 融合上下文和查询向量
-                if context_vector and query_vector:
-                    query_vector = self._fuse_vectors(
-                        context_vector,
-                        query_vector,
-                        context_weight=0.3,
-                        query_weight=0.7
-                    )
-
-                # 执行检索
-                if query_vector:
-                    search_params = {
-                        'time_ranges': time_ranges,
-                        'semantic_groups': group_names
-                    }
-
-                    raw_results = self.retrieve_func(query_vector, **search_params)
-
-                    # 转换为MemoryRetrievalResult
-                    for item in raw_results:
-                        retrieved_memories.append(
-                            MemoryRetrievalResult(
-                                content=item.get('content', ''),
-                                score=item.get('score', 0.0),
-                                metadata=item.get('metadata', {}),
-                                time_ranges=time_ranges
-                            )
-                        )
-
-            except Exception as e:
-                logger.error(f"[SemanticDynamicsEngine] 检索失败: {e}")
-
-        # 5. 执行元思考链（可选）
-        reasoning_chain = None
-        vcp_info = {}
-
-        if enable_meta_thinking and self.get_embedding_func and user_content:
-            try:
-                query_vector = await self._safe_embedding(user_content)
-
-                result = await self.meta_thinking.process_chain(
-                    chain_name=meta_chain_name,
-                    query_vector=query_vector,
-                    user_content=user_content,
-                    ai_content=messages[-2].get('content', '') if len(messages) >= 2 else '',
-                    retrieve_func=self._meta_thinking_retrieve,
-                    k_sequence=meta_k_sequence,
-                    context_vector=self.context_manager.aggregate_context_vector()
-                )
-
-                reasoning_chain = result.final_content
-                vcp_info = result.vcp_info
-
-            except Exception as e:
-                logger.error(f"[SemanticDynamicsEngine] 元思考链执行失败: {e}")
-
-        # 6. AI记忆召回（可选）
-        if self.ai_memo_func:
-            try:
-                ai_memo_content = self.ai_memo_func(
-                    user_content=user_content,
-                    ai_content=messages[-2].get('content', '') if len(messages) >= 2 else ''
-                )
-
-                if ai_memo_content:
-                    retrieved_memories.insert(
-                        0,
-                        MemoryRetrievalResult(
-                            content=ai_memo_content,
-                            score=1.0,
-                            metadata={'type': 'ai_memo'}
-                        )
-                    )
-            except Exception as e:
-                logger.error(f"[SemanticDynamicsEngine] AI记忆处理失败: {e}")
-
-        # 构建结果
-        result = SemanticDynamicsResult(
-            retrieved_memories=retrieved_memories,
-            context_influence=context_influence,
-            semantic_groups=group_names,
-            reasoning_chain=reasoning_chain,
-            vcp_debug_info=vcp_info
-        )
-
-        logger.info(
-            f"[SemanticDynamicsEngine] 检索完成 - "
-            f"记忆数: {len(retrieved_memories)}, "
-            f"上下文影响: {context_influence:.3f}, "
-            f"语义组: {group_names}"
-        )
-
-        return result
-
-    async def _safe_embedding(self, text: str) -> Optional[List[float]]:
-        """安全地获取向量（带异常处理）"""
-        if self._embedding_client:
-            try:
-                return await self._embedding_client.embed(text)
-            except Exception as e:
-                logger.error(f"[SemanticDynamicsEngine] 获取向量失败: {e}")
-                return None
-
-        return None
-
-    def _fuse_vectors(
-        self,
-        vec1: List[float],
-        vec2: List[float],
-        context_weight: float = 0.4,
-        query_weight: float = 0.6
-    ) -> List[float]:
-        """向量融合"""
-        if len(vec1) != len(vec2):
-            min_len = min(len(vec1), len(vec2))
-            vec1 = vec1[:min_len]
-            vec2 = vec2[:min_len]
-
-        return [
-            v1 * context_weight + v2 * query_weight
-            for v1, v2 in zip(vec1, vec2)
-        ]
-
-    def _meta_thinking_retrieve(
-        self,
-        vector: List[float],
-        k: int,
-        cluster_name: str
-    ) -> List[Dict]:
-        """
-        元思考链的检索函数
-
-        Args:
-            vector: 查询向量
-            k: 召回数量
-            cluster_name: 簇名称
-
-        Returns:
-            检索结果列表
-        """
-        # 这里需要根据实际的数据源实现
-        # 示例：从语义组对应的文件中检索
-        if not self.retrieve_func:
-            return []
+    async def compute_embedding(self, text: str) -> Optional[List[float]]:
+        """计算文本嵌入向量"""
+        if self.embedding_client is None:
+            return self._generate_mock_vector(text)
 
         try:
-            return self.retrieve_func(vector, k=k, cluster=cluster_name)
+            if hasattr(self.embedding_client, "encode"):
+                return await self.embedding_client.encode(text)
+            elif hasattr(self.embedding_client, "get_embedding"):
+                return await self.embedding_client.get_embedding(text)
         except Exception as e:
-            logger.error(
-                f"[SemanticDynamicsEngine] 元思考检索失败: "
-                f"cluster={cluster_name}, error={e}"
-            )
+            logger.warning(f"计算嵌入失败: {e}")
+
+        return self._generate_mock_vector(text)
+
+    def _generate_mock_vector(self, text: str) -> List[float]:
+        """生成模拟向量"""
+        import hashlib
+
+        hash_val = int(hashlib.md5(text.encode()).hexdigest(), 16)
+        vector = []
+        for i in range(384):
+            vector.append(((hash_val >> i) & 1) * 2 - 1)
+        norm = sum(x**2 for x in vector) ** 0.5
+        return [x / norm for x in vector]
+
+    async def find_similar(
+        self,
+        query: str,
+        top_k: int = None,
+        threshold: float = None,
+    ) -> List[Dict]:
+        """查找相似记忆"""
+        if not self._initialized:
+            await self.initialize()
+
+        top_k = top_k or self.config.get("top_k", 10)
+        threshold = threshold or self.config.get("fuzzy_threshold", 0.85)
+
+        query_vector = await self.compute_embedding(query)
+        if query_vector is None:
             return []
 
-    def get_context_summary(self) -> Dict:
-        """获取上下文摘要"""
-        return self.context_manager.get_stats()
+        if self.vector_cache and hasattr(self.vector_cache, "search"):
+            try:
+                results = await self.vector_cache.search(
+                    query_vector=query_vector,
+                    top_k=top_k,
+                )
+                return [r for r in results if r.get("distance", 0) >= threshold]
+            except Exception as e:
+                logger.warning(f"向量搜索失败: {e}")
 
-    def get_semantic_group_summary(self) -> Dict:
-        """获取语义组摘要"""
-        groups = self.semantic_groups.get_all_groups()
-        return {
-            'total_groups': len(groups),
-            'group_names': list(groups.keys()),
-            'groups': {
-                name: {
-                    'words': group.words,
-                    'weight': group.weight
-                }
-                for name, group in groups.items()
+        return []
+
+    async def build_connections(self, memory_id: str, content: str) -> List[str]:
+        """构建语义连接"""
+        if not self._initialized:
+            await self.initialize()
+
+        vector = await self.compute_embedding(content)
+        if vector is None:
+            return []
+
+        node = SemanticNode(
+            id=memory_id,
+            content=content,
+            vector=vector,
+        )
+
+        connections = []
+        threshold = self.config.get("connection_threshold", 0.7)
+
+        for other_id, other_node in self._semantic_graph.items():
+            if other_id == memory_id:
+                continue
+
+            similarity = self._cosine_similarity(vector, other_node.vector)
+            if similarity >= threshold:
+                connections.append(other_id)
+                node.connections.append(other_id)
+                other_node.connections.append(memory_id)
+
+        self._semantic_graph[memory_id] = node
+        return connections
+
+    def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
+        """计算余弦相似度"""
+        dot = sum(a * b for a, b in zip(vec1, vec2))
+        norm1 = sum(a * a for a in vec1) ** 0.5
+        norm2 = sum(b * b for b in vec2) ** 0.5
+
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+
+        return dot / (norm1 * norm2)
+
+    async def activate(self, memory_id: str) -> float:
+        """激活记忆"""
+        if memory_id in self._semantic_graph:
+            node = self._semantic_graph[memory_id]
+            node.activation = 1.0
+            node.last_accessed = datetime.now().isoformat()
+            return 1.0
+        return 0.0
+
+    async def decay_activations(self) -> Dict[str, float]:
+        """衰减所有记忆的激活值"""
+        decay = self.config.get("activation_decay", 0.95)
+        activated = {}
+
+        for memory_id, node in self._semantic_graph.items():
+            if node.activation > 0.1:
+                node.activation *= decay
+                activated[memory_id] = node.activation
+
+        return activated
+
+    async def get_hot_memories(self, limit: int = 10) -> List[Dict]:
+        """获取热门记忆"""
+        sorted_nodes = sorted(
+            self._semantic_graph.items(),
+            key=lambda x: x[1].activation,
+            reverse=True,
+        )
+
+        return [
+            {
+                "id": node.id,
+                "content": node.content[:100],
+                "activation": node.activation,
+                "connections": len(node.connections),
             }
+            for _, node in sorted_nodes[:limit]
+            if node.activation > 0.1
+        ]
+
+    async def analyze_memory_flow(
+        self,
+        memory_ids: List[str],
+    ) -> Dict[str, Any]:
+        """分析记忆流动"""
+        if not memory_ids:
+            return {"flow": [], "total_activation": 0}
+
+        total_activation = 0.0
+        flow = []
+
+        for memory_id in memory_ids:
+            if memory_id in self._semantic_graph:
+                node = self._semantic_graph[memory_id]
+                total_activation += node.activation
+                flow.append(
+                    {
+                        "id": memory_id,
+                        "content": node.content[:50],
+                        "activation": node.activation,
+                        "connections": node.connections,
+                    }
+                )
+
+        return {
+            "flow": flow,
+            "total_activation": total_activation,
+            "avg_activation": total_activation / len(memory_ids) if memory_ids else 0,
         }
-
-
-# 全局引擎实例
-_engine_instance = None
 
 
 def get_semantic_dynamics_engine(
     config: Optional[Dict] = None,
-    vector_cache: Optional[object] = None
+    vector_cache=None,
 ) -> SemanticDynamicsEngine:
-    """
-    获取语义动力学引擎单例
-
-    Args:
-        config: 配置字典
-        vector_cache: 向量缓存实例
-    """
-    global _engine_instance
-    if _engine_instance is None:
-        _engine_instance = SemanticDynamicsEngine(config, vector_cache)
-    return _engine_instance
+    """获取语义动力学引擎实例"""
+    return SemanticDynamicsEngine(config=config, vector_cache=vector_cache)

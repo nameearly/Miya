@@ -1,0 +1,161 @@
+{
+    "version": "1.0",
+    "description": "弥娅QQ命令配置 - 所有QQ端命令在此配置",
+    
+    "command_aliases": {
+        "description": "命令别名配置 - 支持中英文别名",
+        "help": ["帮助", "help", "?", "？"],
+        "status": ["状态", "查看状态", "/状态", "状态查询"],
+        "form": ["形态", "/形态", "form"],
+        "speak": ["说话", "/说话", "speak", "speaking"],
+        "exist": ["存在", "/存在", "exist"],
+        "voice": ["voice", "语音", "/voice", "/语音"],
+        "text": ["text", "文本", "/text", "/文本"],
+        "memory": ["记忆", "/记忆"],
+        "memory_stats": ["记忆统计", "统计", "记忆有多少"],
+        "memory_search": ["记忆搜索", "搜索"],
+        "memory_recent": ["记忆最近", "最近"],
+        "memory_tags": ["记忆标签", "标签", "热门标签"],
+        "memory_my": ["我的记忆", "我的"]
+    },
+    
+    "system_commands": {
+        "description": "系统命令配置",
+        "help": {
+            "command": "/help",
+            "aliases": ["帮助", "help", "?", "？"],
+            "description": "显示帮助信息",
+            "response_template": "可用命令: {commands}"
+        },
+        "status": {
+            "command": "/状态",
+            "aliases": ["状态", "查看状态", "/状态", "状态查询"],
+            "description": "查看弥娅当前状态"
+        },
+        "version": {
+            "command": "/版本",
+            "aliases": ["版本", "version", "ver"],
+            "description": "查看弥娅版本信息"
+        }
+    },
+    
+    "personality_commands": {
+        "description": "人格命令配置",
+        "form": {
+            "command": "/形态",
+            "aliases": ["形态", "/形态", "form"],
+            "description": "切换人格形态",
+            "usage": "/形态 [形态名] - 不带参数查看当前形态",
+            "response_success": "已切换到形态: {form_name}",
+            "response_current": "当前形态: {current_form}\n可用形态: {available_forms}"
+        },
+        "speak": {
+            "command": "/说话",
+            "aliases": ["说话", "/说话", "speak"],
+            "description": "切换说话模式",
+            "usage": "/说话 [模式] - 不带参数查看当前模式",
+            "modes": ["casual", "catching", "confiding"],
+            "response_success": "已切换说话模式: {mode}",
+            "response_current": "当前说话模式: {current_mode} ({available_modes})"
+        },
+        "exist": {
+            "command": "/存在",
+            "aliases": ["存在", "/存在", "exist"],
+            "description": "存在性情感命令",
+            "usage": "/存在 [情感名] - 不带参数查看当前状态"
+        }
+    },
+    
+    "mode_commands": {
+        "description": "模式切换命令",
+        "voice": {
+            "command": "/voice",
+            "aliases": ["/voice", "/语音", "voice", "语音"],
+            "description": "切换到语音模式",
+            "response": "[OK] 已切换为语音模式"
+        },
+        "text": {
+            "command": "/text",
+            "aliases": ["/text", "/文本", "text", "文本"],
+            "description": "切换到文本模式",
+            "response": "[OK] 已切换为文本模式"
+        }
+    },
+    
+    "memory_commands": {
+        "description": "记忆命令配置",
+        "enabled": true,
+        "prefix": "/记忆",
+        "commands": {
+            "stats": {
+                "aliases": ["记忆统计", "统计", "记忆有多少"],
+                "description": "查看记忆统计",
+                "response_template": "记忆统计: {total}条 (长期:{longterm}, 对话:{dialogue})"
+            },
+            "search": {
+                "aliases": ["记忆搜索", "搜索"],
+                "description": "搜索记忆",
+                "usage": "/记忆搜索 [关键词]",
+                "response_template": "找到 {count} 条相关记忆:\n{memories}"
+            },
+            "recent": {
+                "aliases": ["记忆最近", "最近"],
+                "description": "查看最近记忆",
+                "response_template": "最近 {count} 条记忆:\n{memories}"
+            },
+            "tags": {
+                "aliases": ["记忆标签", "标签", "热门标签"],
+                "description": "查看热门标签",
+                "response_template": "热门标签: {tags}"
+            },
+            "my": {
+                "aliases": ["我的记忆", "我的"],
+                "description": "查看自己的记忆",
+                "response_template": "你的记忆 ({count}条):\n{memories}"
+            }
+        }
+    },
+    
+    "game_commands": {
+        "description": "游戏命令配置",
+        "trpg": {
+            "command": "/trpg",
+            "aliases": ["trpg", "跑团", "/trpg"],
+            "description": "TRPG游戏模式"
+        },
+        "exit": {
+            "command": "/退出",
+            "aliases": ["退出", "exit", "quit", "/退出"],
+            "description": "退出当前模式"
+        }
+    },
+    
+    "quick_responses": {
+        "description": "快速响应关键词配置",
+        "greeting": {
+            "keywords": ["你好", "hi", "hello", "嗨", "您好", "在吗", "哈喽"],
+            "enabled": true
+        },
+        "farewell": {
+            "keywords": ["再见", "拜拜", "bye", "退出", "晚安"],
+            "enabled": true
+        },
+        "thanks": {
+            "keywords": ["谢谢", "感谢", "谢谢您", "感谢你"],
+            "enabled": true,
+            "responses": ["不客气~", "应该的!", "客气啦"]
+        },
+        "affirmation": {
+            "keywords": ["好的", "可以", "没问题", "我知道了", "明白", "收到"],
+            "enabled": true
+        }
+    },
+    
+    "error_messages": {
+        "description": "错误消息配置",
+        "unknown_command": "抱歉，我不懂这个命令~",
+        "invalid_usage": "命令格式不正确，正确格式: {usage}",
+        "not_found": "未找到相关内容",
+        "permission_denied": "这个我暂时做不到呢..."
+    }
+}

@@ -63,7 +63,7 @@ class MemoryManager:
 
             # 确保初始化
             try:
-                await init_unified_memory("data/memory")
+                init_unified_memory("data/memory")
             except Exception as e:
                 logger.warning(f"[记忆管理器] 统一记忆初始化失败: {e}")
 
@@ -213,7 +213,7 @@ class MemoryManager:
             return
 
         try:
-            await init_unified_memory("data/memory")
+            init_unified_memory("data/memory")
         except Exception as e:
             logger.warning(f"[记忆管理器] 初始化失败: {e}")
 

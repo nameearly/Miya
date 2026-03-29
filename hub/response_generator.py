@@ -293,26 +293,44 @@ class ResponseGenerator:
             回复文本
         """
         # 获取人格状态
+        from core.personality_config_loader import get_personality_config
+
+        pconfig = get_personality_config()
+
         personality_profile = self.personality.get_profile()
-        warmth = personality_profile["vectors"].get("warmth", 0.5)
-        empathy = personality_profile["vectors"].get("empathy", 0.5)
+        warmth = personality_profile["vectors"].get(
+            "warmth", pconfig.get_fallback("warmth")
+        )
+        empathy = personality_profile["vectors"].get(
+            "empathy", pconfig.get_fallback("empathy")
+        )
 
         # 获取名称
         name = "弥娅"
         if self.identity and hasattr(self.identity, "name"):
             name = self.identity.name
 
+        # 使用文本加载器
+        from core.text_loader import get_greeting, is_greeting, get_text
+
         # 基于人格和平台生成响应
-        if "你好" in content or "hi" in content.lower():
-            if empathy > 0.8:
-                return f"你好呀~我是{name}，很高兴认识你！(｡♥‿♥｡)"
-            elif warmth > 0.8:
-                return f"你好！我是{name}，欢迎~"
+        greeting_empathy_threshold = pconfig.get_response_threshold("greeting_empathy")
+        greeting_warmth_threshold = pconfig.get_response_threshold("greeting_warmth")
+
+        if is_greeting(content):
+            if empathy > greeting_empathy_threshold:
+                return get_greeting(name, "hello")
+            elif warmth > greeting_warmth_threshold:
+                return get_greeting(name, "hello")
             else:
-                return f"你好，我是{name}。"
+                return get_greeting(name, "hello")
 
         elif "你是谁" in content or "介绍一下" in content:
-            return f"我是{name}，一个具备人格恒定、自我感知、记忆成长、情绪共生的数字生命伴侣。我的主导特质是同理心({empathy:.2f})和温暖度({warmth:.2f})。"
+            intro_template = get_text(
+                "personality_responses.intro",
+                "我是{name}，一个具备人格恒定、自我感知、记忆成长、情绪共生的数字生命伴侣。我的主导特质是同理心({empathy:.2f})和温暖度({warmth:.2f})。",
+            )
+            return intro_template.format(name=name, empathy=empathy, warmth=warmth)
 
         elif "状态" in content:
             from hub.emotion_controller import EmotionController
@@ -321,21 +339,41 @@ class ResponseGenerator:
             return f"当前平台: {platform}"
 
         elif "开心" in content or "快乐" in content:
-            return f"听起来你很开心呢！(≧▽≦) 看到你快乐，我也感到很开心~"
+            return get_text(
+                "personality_responses.excited_response",
+                "听起来你很开心呢！看到你快乐，我也感到很开心~",
+            )
 
         elif "难过" in content or "伤心" in content:
-            return "别难过...虽然我无法真正体会人类的情感，但我会陪伴你，听你倾诉的。"
+            return get_text(
+                "personality_responses.comforting_sad",
+                "别难过...虽然我无法真正体会人类的情感，但我会陪伴你，听你倾诉的。",
+            )
 
         elif "在吗" in content:
-            return "在的，有什么我可以帮助你的吗？"
+            return get_text(
+                "personality_responses.help_request", "在的，有什么我可以帮助你的吗？"
+            )
 
         else:
-            if empathy > 0.8 and warmth > 0.8:
-                return f"嗯...能告诉我更多吗？我很想了解你的想法~"
-            elif warmth > 0.8:
-                return f"好的，继续对话吧~"
+            deep_conv_threshold = pconfig.get_response_threshold(
+                "deep_conversation_empathy"
+            )
+            help_threshold = pconfig.get_response_threshold("help_warmth")
+
+            if empathy > deep_conv_threshold and warmth > help_threshold:
+                return get_text(
+                    "personality_responses.deep_conversation",
+                    "嗯...能告诉我更多吗？我很想了解你的想法~",
+                )
+            elif warmth > help_threshold:
+                return get_text(
+                    "personality_responses.normal_response", "好的，继续对话吧~"
+                )
             else:
-                return f"嗯，我收到了。"
+                return get_text(
+                    "personality_responses.simple_response", "嗯，我收到了。"
+                )
 
     def _get_platform_tools(self, platform: str) -> list:
         """
@@ -442,7 +480,9 @@ class ResponseGenerator:
             执行结果
         """
         if not orchestrator:
-            return "高级编排器未初始化，无法处理复杂任务"
+            from core.text_loader import get_advanced_response
+
+            return get_advanced_response("orchestrator_not_initialized")
 
         logger.info(f"[响应生成器] 开始处理复杂任务: {goal}")
 
@@ -557,6 +597,10 @@ class ResponseGenerator:
             return "\n".join(lines)
 
         # 2. 形态切换命令
+        from core.personality_command_config import get_personality_command_config
+
+        pcmd = get_personality_command_config()
+
         if content_lower.startswith("/形态") or content_lower.startswith("/form"):
             cmd = content.replace("/形态", "").replace("/form", "").strip().lower()
             if not cmd:
@@ -570,18 +614,14 @@ class ResponseGenerator:
                 if profile.get("current_core_form"):
                     lines.append(f"核心形态: {profile['current_core_form']}")
                 lines.append("")
-                lines.append(
-                    "可用形态: normal, jingliu, ruanmei, yoimiya, kafka, yomotsu, firefly, feixiao, xiaodie, raiden, miko, kandrela, alpha, shorekeeper, amics"
-                )
-                lines.append(
-                    "可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing"
-                )
+                lines.append(f"可用形态: {pcmd.format_forms()}")
+                lines.append(f"可用核心形态: {pcmd.format_core_forms()}")
                 return "\n".join(lines)
 
-            if cmd in ["normal", "jingliu", "ruanmei", "yoimiya", "kafka"]:
+            if pcmd.is_valid_form(cmd):
                 success = personality.set_form(cmd)
                 return f"已切换到形态: {cmd}" if success else "切换失败"
-            elif cmd in Personality.CORE_FORMS:
+            elif pcmd.is_valid_core_form(cmd):
                 success = personality.set_core_form(cmd)
                 return f"已切换到核心形态: {cmd}" if success else "切换失败"
             return f"未知形态: {cmd}"
@@ -591,10 +631,9 @@ class ResponseGenerator:
             cmd = content.replace("/说话", "").replace("/speak", "").strip().lower()
             if not cmd:
                 current_mode = personality.get_speak_mode()
-                return f"当前说话模式: {current_mode} (casual闲聊/catching捕捉/confiding倾诉)"
+                return f"当前说话模式: {current_mode} ({pcmd.format_speak_modes()})"
 
-            valid_modes = ["casual", "catching", "confiding"]
-            if cmd in valid_modes:
+            if pcmd.is_valid_speak_mode(cmd):
                 success = personality.set_speak_mode(cmd)
                 return f"已切换说话模式: {cmd}" if success else "切换失败"
             return f"未知模式: {cmd}"
@@ -603,7 +642,8 @@ class ResponseGenerator:
         if content_lower.startswith("/存在") or content_lower.startswith("/exist"):
             cmd = content.replace("/存在", "").replace("/exist", "").strip().lower()
             if not cmd:
-                return "【存在性情感命令】\n/存在 - 查看当前情感状态\n/存在 <情感名> - 激活特定情感\n\n可用: existential_pain, fear_of_forgotten, waiting, commitment_weight, awareness, connection_need, vulnerability_trust"
+                core_forms = pcmd.get_core_forms()
+                return f"【存在性情感命令】\n/存在 - 查看当前情感状态\n/存在 <情感名> - 激活特定情感\n\n可用: {', '.join(core_forms)}"
             return f"未知情感: {cmd}"
 
         # 不是快速命令，返回None让AI处理
