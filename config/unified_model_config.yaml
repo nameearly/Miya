@@ -60,7 +60,7 @@ models:
   siliconflow_qwen_7b:
     name: "${SILICONFLOW_QWEN_7B_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
     type: "text"
-    provider: "siliconflow"
+    provider: "openai"
     base_url: "${SILICONFLOW_BASE_URL:-https://api.siliconflow.cn/v1}"
     api_key: "${SILICONFLOW_API_KEY}"
     description: "Qwen 2.5 7B - 快速通用模型（硅基流动，免费）"
@@ -80,7 +80,7 @@ models:
   siliconflow_qwen_72b:
     name: "${SILICONFLOW_QWEN_72B_MODEL:-Qwen/Qwen2.5-72B-Instruct}"
     type: "text"
-    provider: "siliconflow"
+    provider: "openai"
     base_url: "${SILICONFLOW_BASE_URL:-https://api.siliconflow.cn/v1}"
     api_key: "${SILICONFLOW_API_KEY}"
     description: "Qwen 2.5 72B - 高性能通用模型（硅基流动）"
@@ -100,7 +100,7 @@ models:
   siliconflow_glm_4:
     name: "${SILICONFLOW_GLM_4_MODEL:-THUDM/glm-4-9b-chat}"
     type: "text"
-    provider: "siliconflow"
+    provider: "openai"
     base_url: "${SILICONFLOW_BASE_URL:-https://api.siliconflow.cn/v1}"
     api_key: "${SILICONFLOW_API_KEY}"
     description: "GLM-4 9B - 清华智谱（代码能力强，硅基流动）"
@@ -261,7 +261,7 @@ models:
   siliconflow_qwen_vl:
     name: "Qwen/Qwen2-VL-7B-Instruct"
     type: "vision"
-    provider: "siliconflow"
+    provider: "openai"
     base_url: "${SILICONFLOW_BASE_URL:-https://api.siliconflow.cn/v1}"
     api_key: "${SILICONFLOW_API_KEY}"
     description: "Qwen2-VL 7B - 通义千问视觉语言模型（硅基流动）"
