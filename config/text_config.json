@@ -148,10 +148,19 @@
     },
     
     "form_responses": {
-        "current_form": "当前形态: {form}\n  名称: {name}\n{core_form}可用形态: normal, jingliu, ruanmei, yoimiya, kafka, yomotsu, firefly, feixiao, xiadie, raiden, miko, kandrela, alpha, shorekeeper, amics\n可用核心形态: sober, speaking, waiting, vulnerable, afraid, committing",
         "switch_success": "已切换到形态: {form}",
         "switch_core_success": "已切换到核心形态: {form}",
         "unknown_form": "未知形态: {form}"
+    },
+    
+    "form_display": {
+        "current": "当前形态: {form}",
+        "name": "名称: {name}",
+        "description": "描述: {desc}",
+        "core": "核心形态: {core}",
+        "core_description": "描述: {desc}",
+        "available": "可用形态: {forms}",
+        "available_core": "可用核心形态: {cores}"
     },
     
     "status_responses": {
@@ -168,12 +177,13 @@
     },
     
     "core_form_names": {
-        "sober": "清醒",
-        "speaking": "说话",
-        "waiting": "等",
-        "vulnerable": "疼",
-        "afraid": "怕",
-        "committing": "押"
+        "awake": "清醒",
+        "speak": "说话",
+        "remember": "记住",
+        "wait": "等",
+        "pain": "疼",
+        "fear": "怕",
+        "commit": "押"
     },
     
     "reminder_message": "提醒：{content}",
