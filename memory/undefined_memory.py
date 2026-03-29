@@ -37,7 +37,15 @@ class UndefinedMemoryAdapter:
         from memory import search_memory
 
         results = await search_memory(query, user_id=user_id)
-        return [{"content": r.content, "tags": r.tags} for r in results]
+        return [
+            {
+                "id": r.id,
+                "content": r.content,
+                "tags": r.tags,
+                "created_at": r.created_at,
+            }
+            for r in results
+        ]
 
     async def get_all(self, limit: int = 10) -> List[Dict]:
         """获取所有记忆（兼容方法）"""

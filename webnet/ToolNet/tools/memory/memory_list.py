@@ -65,12 +65,24 @@ class MemoryList(BaseTool):
 
                 result = f"📚 记忆列表（Undefined轻量记忆）\n共 {len(memories)} 条\n\n"
                 for i, mem in enumerate(memories, 1):
+                    # 支持对象和字典两种格式
+                    if isinstance(mem, dict):
+                        content = mem.get("content", "")
+                        tags = mem.get("tags", [])
+                        mem_id = mem.get("id", mem.get("uuid", "unknown"))
+                        created_at = mem.get("created_at", "未知时间")
+                    else:
+                        content = getattr(mem, "fact", getattr(mem, "content", ""))
+                        tags = getattr(mem, "tags", [])
+                        mem_id = getattr(mem, "uuid", getattr(mem, "id", "unknown"))
+                        created_at = getattr(mem, "created_at", "未知时间")
+
                     content_preview = (
-                        mem.fact[:100] + "..." if len(mem.fact) > 100 else mem.fact
+                        content[:100] + "..." if len(content) > 100 else content
                     )
-                    tags_str = ", ".join(mem.tags) if mem.tags else "无"
-                    result += f"{i}. **{mem.uuid}**\n"
-                    result += f"   时间: {mem.created_at}\n"
+                    tags_str = ", ".join(tags) if tags else "无"
+                    result += f"{i}. **{mem_id}**\n"
+                    result += f"   时间: {created_at}\n"
                     result += f"   内容: {content_preview}\n"
                     result += f"   标签: {tags_str}\n\n"
 
