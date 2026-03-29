@@ -38,6 +38,10 @@ from hub.platform_tools import PlatformToolsManager
 from hub.session_handler import SessionHandler
 from core.personality import Personality
 
+# 导入智能记忆系统
+from memory.cognitive_engine import get_cognitive_engine
+from memory.historian import get_historian
+
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +124,7 @@ class DecisionHub:
 
         # 对话历史上下文配置
         self.enable_conversation_context = True
-        self.conversation_context_max_count = 10
+        self.conversation_context_max_count = 1
         self.conversation_context_max_tokens = 2000
 
         # 终端工具（保留用于 ! 前缀命令）
@@ -499,6 +503,15 @@ class DecisionHub:
             perception["response"] = response
             await self.memory_manager.store_unified_memory(perception, "assistant")
 
+            # 【新增】智能记忆 - 自动提取重要内容记忆
+            try:
+                user_input = perception.get("content", "")
+                historian = get_historian()
+                uid = perception.get("user_id", "unknown")
+                await historian.process_after_response(user_input, response, uid)
+            except Exception as e:
+                logger.debug(f"[决策层] 智能记忆处理失败: {e}")
+
         # 7. 情绪衰减（委托给情绪控制器）
         self.emotion_controller.decay_coloring()
 
@@ -619,6 +632,20 @@ class DecisionHub:
                         knowledge_context = format_knowledge_for_prompt(knowledge)
                         logger.info(f"[决策层] 检索到 {len(knowledge)} 条知识图谱记忆")
 
+            # 【新增】智能记忆检索 - 根据当前对话检索相关记忆
+            cognitive_memory_context = ""
+            try:
+                cognitive_engine = get_cognitive_engine()
+                cognitive_memory_context = await cognitive_engine.build_context(
+                    user_input=content,
+                    conversation_history=conversation_context,
+                    limit=3,
+                )
+                if cognitive_memory_context:
+                    logger.info(f"[决策层] 智能记忆检索到相关记忆")
+            except Exception as e:
+                logger.debug(f"[决策层] 智能记忆检索失败: {e}")
+
             # 构建提示词（统一使用默认提示词，通过上下文传递平台信息）
             # 获取当前形态状态，注入到提示词中
             status_prompt = self.personality.get_status_for_prompt()
@@ -638,6 +665,7 @@ class DecisionHub:
                         user_id, self.onebot_client
                     ),
                     "status_prompt": status_prompt,
+                    "cognitive_memory": cognitive_memory_context,
                 },
             )
 
@@ -827,17 +855,24 @@ class DecisionHub:
         warmth = personality_profile["vectors"].get("warmth", 0.5)
         empathy = personality_profile["vectors"].get("empathy", 0.5)
 
-        # 获取名称（安全处理）
-        name = "弥娅"
+        # 基于人格和平台生成响应
+        from core.text_loader import (
+            get_greeting,
+            is_greeting,
+            get_text,
+            get_emotion_keywords,
+            get_command_keywords,
+        )
+
+        # 获取名称（优先使用identity，否则使用配置中的默认值）
+        name = get_text("personality_responses.name", "弥娅")
         if self.identity and hasattr(self.identity, "name"):
             name = self.identity.name
-
-        # 基于人格和平台生成响应
-        from core.text_loader import get_greeting, is_greeting, get_text
         from core.personality_config_loader import get_personality_config
 
         pconfig = get_personality_config()
         content_lower = content.lower()
+        emotion_keywords = get_emotion_keywords()
 
         if is_greeting(content):
             empathy_threshold = pconfig.get_response_threshold("greeting_empathy")
@@ -850,14 +885,16 @@ class DecisionHub:
             else:
                 return get_greeting(name, "hello")
 
-        elif "你是谁" in content or "介绍一下" in content:
+        who_are_keywords = emotion_keywords.get("who_are_you", [])
+        if any(kw in content for kw in who_are_keywords):
             intro_template = get_text(
                 "personality_responses.intro",
                 "我是{name}，一个具备人格恒定、自我感知、记忆成长、情绪共生的数字生命伴侣。我的主导特质是同理心({empathy:.2f})和温暖度({warmth:.2f})。",
             )
             return intro_template.format(name=name, empathy=empathy, warmth=warmth)
 
-        elif "状态" in content or "查看状态" in content:
+        status_keywords = ["状态", "查看状态"]
+        if any(kw in content for kw in status_keywords):
             emotion_state = self.emotion.get_emotion_state()
             existential_state = (
                 self.emotion.get_existential_state()
@@ -914,34 +951,56 @@ class DecisionHub:
 
             return "\n".join(lines)
 
-        elif "开心" in content or "快乐" in content:
+        happy_keywords = emotion_keywords.get("happy", [])
+        if any(kw in content for kw in happy_keywords):
             self.emotion.apply_coloring("joy", 0.3)
             return get_text(
                 "personality_responses.excited_response",
                 "听起来你很开心呢！看到你快乐，我也感到很开心~",
             )
 
-        elif "难过" in content or "伤心" in content:
+        sad_keywords = emotion_keywords.get("sad", [])
+        if any(kw in content for kw in sad_keywords):
             self.emotion.apply_coloring("sadness", 0.4)
             return get_text(
                 "personality_responses.comforting_sad",
                 "别难过...虽然我无法真正体会人类的情感，但我会陪伴你，听你倾诉的。",
             )
 
-        elif "在吗" in content:
+        at_keywords = (
+            get_greeting(name, "hi").split(",")
+            if "," in get_greeting(name, "hi")
+            else ["在吗"]
+        )
+        if any(kw in content for kw in ["在吗"]):
             return get_text(
                 "personality_responses.help_request", "在的，有什么我可以帮助你的吗？"
             )
 
-        # 【新增】形态切换命令
-        elif content.startswith("/形态") or content.startswith("/form"):
+        command_keywords = get_command_keywords()
+        form_cmds = command_keywords.get("form", ["/形态", "/form"])
+        speak_cmds = command_keywords.get("speak", ["/说话", "/speak"])
+        exist_cmds = command_keywords.get("exist", ["/存在", "/exist"])
+
+        form_prefixes = [cmd for cmd in form_cmds if cmd.startswith("/")]
+        speak_prefixes = [cmd for cmd in speak_cmds if cmd.startswith("/")]
+        exist_prefixes = [cmd for cmd in exist_cmds if cmd.startswith("/")]
+
+        is_form_cmd = any(content.startswith(cmd) for cmd in form_prefixes)
+        is_speak_cmd = any(content.startswith(cmd) for cmd in speak_prefixes)
+        is_exist_cmd = any(content.startswith(cmd) for cmd in exist_prefixes)
+
+        if is_form_cmd:
             from core.text_loader import get_form_display, get_form_name
             from core.personality_command_config import (
                 format_forms_list,
                 format_core_forms_list,
             )
 
-            cmd = content.replace("/形态", "").replace("/form", "").strip().lower()
+            cmd = content
+            for c in form_cmds:
+                cmd = cmd.replace(c, "")
+            cmd = cmd.strip().lower()
             if not cmd:
                 # 显示当前形态
                 profile = self.personality.get_profile()
@@ -974,13 +1033,15 @@ class DecisionHub:
                 lines.append(get_form_display("available_core", cores=available_cores))
                 return "\n".join(lines)
 
-        # 【新增】说话模式切换
-        elif content.startswith("/说话") or content.startswith("/speak"):
+        elif is_speak_cmd:
             from core.personality_command_config import get_personality_command_config
 
             pcmd = get_personality_command_config()
 
-            cmd = content.replace("/说话", "").replace("/speak", "").strip().lower()
+            cmd = content
+            for c in speak_cmds:
+                cmd = cmd.replace(c, "")
+            cmd = cmd.strip().lower()
             if not cmd:
                 current_mode = self.personality.get_speak_mode()
                 from core.text_loader import get_speak_mode_response
@@ -1005,13 +1066,15 @@ class DecisionHub:
                 "unknown_mode", mode=cmd, available_modes=pcmd.format_speak_modes()
             )
 
-        # 【新增】存在性情感激活命令
-        elif content.startswith("/存在") or content.startswith("/exist"):
+        elif is_exist_cmd:
             from core.personality_command_config import get_personality_command_config
 
             pcmd = get_personality_command_config()
 
-            cmd = content.replace("/存在", "").replace("/exist", "").strip().lower()
+            cmd = content
+            for c in exist_cmds:
+                cmd = cmd.replace(c, "")
+            cmd = cmd.strip().lower()
             if not cmd:
                 state = (
                     self.emotion.get_existential_state()
@@ -1600,6 +1663,21 @@ class DecisionHub:
             f"[决策层] 处理命令: {content}, personality: {type(self.personality)}"
         )
 
+        from core.text_loader import get_command_keywords
+
+        command_keywords = get_command_keywords()
+        form_cmds = command_keywords.get("form", ["/形态", "/form"])
+        speak_cmds = command_keywords.get("speak", ["/说话", "/speak"])
+        exist_cmds = command_keywords.get("exist", ["/存在", "/exist"])
+
+        form_prefixes = [cmd for cmd in form_cmds if cmd.startswith("/")]
+        speak_prefixes = [cmd for cmd in speak_cmds if cmd.startswith("/")]
+        exist_prefixes = [cmd for cmd in exist_cmds if cmd.startswith("/")]
+
+        is_form_cmd = any(content_lower.startswith(cmd) for cmd in form_prefixes)
+        is_speak_cmd = any(content_lower.startswith(cmd) for cmd in speak_prefixes)
+        is_exist_cmd = any(content_lower.startswith(cmd) for cmd in exist_prefixes)
+
         # 1. 状态查询命令
         if content_lower in ["状态", "查看状态", "/状态", "状态查询"]:
             logger.info(f"[决策层] 捕获状态命令: {content}")
@@ -1652,27 +1730,52 @@ class DecisionHub:
             return "\n".join(lines)
 
         # 2. 形态切换命令
-        if content_lower.startswith("/形态") or content_lower.startswith("/form"):
+        if is_form_cmd:
             from core.personality import Personality
-            from core.text_loader import get_form_response, get_form_name, get_text
+            from core.text_loader import (
+                get_form_response,
+                get_form_name,
+                get_text,
+                get_form_display,
+            )
+            from core.personality_command_config import (
+                format_forms_list,
+                format_core_forms_list,
+            )
 
-            cmd = content.replace("/形态", "").replace("/form", "").strip().lower()
+            cmd = content
+            for c in form_cmds:
+                cmd = cmd.replace(c, "")
+            cmd = cmd.strip().lower()
             if not cmd:
                 profile = self.personality.get_profile()
                 current_form = profile.get("current_form", "normal")
                 form_name = get_form_name(current_form)
                 form_info = profile.get("form_info", {})
 
-                core_form_line = ""
+                lines = [
+                    get_form_display("current", form=form_name),
+                    get_form_display("name", name=form_info.get("name", "常态")),
+                    get_form_display(
+                        "description", desc=form_info.get("description", "")
+                    ),
+                ]
                 if profile.get("current_core_form"):
-                    core_form_line = f"核心形态: {profile['current_core_form']}\n"
-
-                return get_form_response(
-                    "current_form",
-                    form=current_form,
-                    name=form_info.get("name", "常态"),
-                    core_form=core_form_line,
+                    core_info = profile.get("core_form_info", {})
+                    lines.append(
+                        get_form_display("core", core=profile["current_core_form"])
+                    )
+                    lines.append(
+                        get_form_display(
+                            "core_description", desc=core_info.get("description", "")
+                        )
+                    )
+                lines.append("")
+                lines.append(get_form_display("available", forms=format_forms_list()))
+                lines.append(
+                    get_form_display("available_core", cores=format_core_forms_list())
                 )
+                return "\n".join(lines)
 
             if self.personality._use_yaml and self.personality._loader:
                 available_forms = self.personality._loader.list_available()
@@ -1706,10 +1809,13 @@ class DecisionHub:
             return get_form_response("unknown_form", form=cmd)
 
         # 3. 说话模式命令
-        if content_lower.startswith("/说话") or content_lower.startswith("/speak"):
+        if is_speak_cmd:
             from core.text_loader import get_speak_mode_response, get_text
 
-            cmd = content.replace("/说话", "").replace("/speak", "").strip().lower()
+            cmd = content
+            for c in speak_cmds:
+                cmd = cmd.replace(c, "")
+            cmd = cmd.strip().lower()
             if not cmd:
                 current_mode = self.personality.get_speak_mode()
                 return get_speak_mode_response("help", mode=current_mode)
@@ -1729,10 +1835,13 @@ class DecisionHub:
             )
 
         # 4. 存在性情感命令
-        if content_lower.startswith("/存在") or content_lower.startswith("/exist"):
+        if is_exist_cmd:
             from core.text_loader import get_existential_response
 
-            cmd = content.replace("/存在", "").replace("/exist", "").strip().lower()
+            cmd = content
+            for c in exist_cmds:
+                cmd = cmd.replace(c, "")
+            cmd = cmd.strip().lower()
             if not cmd:
                 return get_existential_response("help")
             return get_existential_response("unknown_emotion", emotion=cmd)

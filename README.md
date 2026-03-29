@@ -7691,6 +7691,163 @@ memories = await unified_memory.get_user_memories(
 
 ---
 
+## v4.3.1 更新与修复 (2026-03-29)
+
+本次更新主要针对QQ端配置系统、多模型配置解析、记忆系统接口以及形态命令响应进行了优化和修复。
+
+### 1. QQ命令配置文件硬编码清理
+
+#### 原理
+QQ命令配置系统原先在 `core/qq_command_config.py` 中硬编码了默认配置。这种设计导致配置不灵活，难以维护。本次更新将默认配置迁移到独立的JSON文件，实现配置外部化。
+
+#### 修改内容
+- **文件**: `core/qq_command_config.py`
+  - 移除了 `_get_default_config()` 函数中的硬编码字典
+  - 修改了 `_load_config()` 函数，按顺序加载配置：
+    1. 主配置文件: `config/qq_command_config.json`
+    2. 默认配置文件: `config/default_qq_command_config.json`
+    3. 空配置（兜底）
+  - 删除了冗余的默认配置函数
+
+- **新文件**: `config/default_qq_command_config.json`
+  - 包含最小化的默认命令配置
+  - 支持 `command_aliases`、`system_commands`、`personality_commands` 等节
+
+#### 教程：自定义QQ命令
+1. **修改主配置**: 编辑 `config/qq_command_config.json`，添加或修改命令别名
+2. **添加新命令类型**: 在配置文件中添加新的命令类别，如 `"game_commands"`
+3. **测试配置**: 重启QQ客户端，发送对应命令测试
+
+#### 代码示例
+```python
+# 加载QQ命令配置
+from core.qq_command_config import get_qq_command_config
+
+config = get_qq_command_config()
+
+# 检查命令
+if config.is_help_command("/help"):
+    print("这是帮助命令")
+
+# 获取命令别名
+aliases = config.get_command_aliases("form")
+print(f"形态命令别名: {aliases}")
+```
+
+#### 模块说明
+- `core.qq_command_config`: QQ命令配置加载器，提供命令匹配、别名获取等功能
+- `config.qq_command_config.json`: 主配置文件，用户可自定义
+- `config.default_qq_command_config.json`: 默认配置，保证系统基本功能
+
+### 2. 修复multi_model_config.json解析错误
+
+#### 原理
+JSON配置文件中的控制字符（如换行符、制表符）会导致解析失败。本次更新修复了 `config/multi_model_config.json` 中的无效控制字符。
+
+#### 问题描述
+日志显示错误：`Invalid control character at: line 121 column 61 (char 3578)`
+原因：描述字符串中的乱码字符（`�`）导致JSON解析器无法处理。
+
+#### 修复方法
+检查并替换所有包含乱码字符的描述字段。涉及以下模型描述：
+- DeepSeek R1 Distill 7B
+- Llama 3.1 8B  
+- Gemma 2 9B
+
+修复后，所有描述字段使用正确的中文括号 `）` 结尾。
+
+#### 教程：验证JSON配置
+```bash
+# 使用Python验证JSON文件
+python -c "import json; json.load(open('config/multi_model_config.json', 'r', encoding='utf-8')); print('JSON有效')"
+```
+
+#### 模块说明
+- `config.multi_model_config.json`: 多模型配置文件，定义可用的AI模型及其参数
+- `core.model_pool`: 模型池管理器，负责加载和切换模型
+
+### 3. 修复UndefinedMemoryAdapter缺失方法
+
+#### 原理
+`memory_list.py` 工具调用了 `UndefinedMemoryAdapter` 的 `get_all()` 和 `get_by_tag()` 方法，但适配器未实现这些接口，导致运行时错误。
+
+#### 修改内容
+- **文件**: `memory/undefined_memory.py`
+  - 添加了 `get_all(limit)` 方法：通过空查询获取所有记忆
+  - 添加了 `get_by_tag(tag, limit)` 方法：通过标签查询记忆
+  - 修复了 `search_memory()` 方法的类型注解，将 `user_id: str = None` 改为 `user_id: Optional[str] = None`
+
+#### 教程：使用记忆工具
+```python
+# 通过工具调用记忆列表
+from webnet.ToolNet.tools.memory.memory_list import MemoryList
+
+tool = MemoryList()
+result = await tool.execute({"limit": 10, "memory_type": "undefined"}, context)
+print(result)
+```
+
+#### 模块说明
+- `memory.undefined_memory`: Undefined记忆适配器，提供兼容旧接口的记忆访问
+- `webnet.ToolNet.tools.memory.memory_list`: 记忆列表工具，支持多记忆系统查询
+
+### 4. 改进/形态命令响应
+
+#### 原理
+原 `/形态` 命令只返回简单信息，用户无法看到详细的人格配置。本次更新优化了命令响应，显示当前形态的详细信息。
+
+#### 修改内容
+- **文件**: `hub/decision_hub.py`
+  - 修改了 `_handle_quick_commands()` 中的形态命令处理逻辑
+  - 使用 `get_form_display()` 函数构建详细响应
+  - 显示内容包括：
+    - 当前形态名称和描述
+    - 核心形态（如果有）
+    - 可用形态列表
+    - 可用核心形态列表
+
+#### 教程：查看形态信息
+1. 在QQ聊天中发送 `/形态`
+2. 弥娅将返回格式化的形态信息，包括：
+   ```
+   当前形态: 常态
+   名称: 常态
+   描述: 十四神格平衡态 - 融合十四位女神的特质
+   
+   可用形态: alpha, amics, feixiao, firefly, jingliu, kafka, kandrela, miko, normal, raiden, ruanmei, yoimiya, yomotsu, shorekeeper
+   可用核心形态: awake, speak, remember, wait, pain, fear, commit
+   ```
+
+#### 代码示例
+```python
+# 手动触发形态命令处理
+from hub.decision_hub import DecisionHub
+
+hub = DecisionHub()
+response = hub._handle_quick_commands("/形态", "qq")
+print(response)
+```
+
+#### 模块说明
+- `hub.decision_hub`: 决策中心，处理用户输入并生成响应
+- `core.text_loader`: 文本加载器，提供格式化的显示文本
+- `core.personality_command_config`: 人格命令配置，管理形态和说话模式
+
+### 兼容性与注意事项
+
+#### 向后兼容性
+- 所有修改保持向后兼容，现有配置文件和代码无需调整
+- 新增的默认配置文件确保系统在缺少主配置时仍能运行
+
+#### 升级建议
+1. 备份原有的 `config/qq_command_config.json`
+2. 检查 `config/multi_model_config.json` 中的描述字段是否正常
+3. 测试QQ命令功能，特别是 `/形态`、`/说话`、`/存在` 等
+
+#### 已知问题
+- 形态列表可能被截断（显示为 `kand...`），这是由于消息长度限制，不影响功能
+- 部分LSP类型错误仍然存在，但不影响运行时行为
+
 ## 许可证
 
 本项目采用 [MIT 许可证](LICENSE)。

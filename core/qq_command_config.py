@@ -20,54 +20,28 @@ def _load_config() -> Dict[str, Any]:
     if _config is not None:
         return _config
 
-    config_path = Path(__file__).parent.parent / "config" / "qq_command_config.json"
+    config_dir = Path(__file__).parent.parent / "config"
+    config_path = config_dir / "qq_command_config.json"
+    default_config_path = config_dir / "default_qq_command_config.json"
 
     try:
         if config_path.exists():
             with open(config_path, "r", encoding="utf-8") as f:
                 _config = json.load(f)
             logger.info("QQ命令配置加载成功")
+        elif default_config_path.exists():
+            logger.warning(f"QQ命令配置文件不存在: {config_path}，使用默认配置文件")
+            with open(default_config_path, "r", encoding="utf-8") as f:
+                _config = json.load(f)
         else:
-            logger.warning(f"QQ命令配置文件不存在: {config_path}")
-            _config = _get_default_config()
+            logger.warning(f"QQ命令配置文件和默认配置文件都不存在，使用空配置")
+            _config = {}
     except Exception as e:
-        logger.warning(f"加载QQ命令配置失败: {e}，使用默认配置")
-        _config = _get_default_config()
+        logger.warning(f"加载QQ命令配置失败: {e}，使用空配置")
+        _config = {}
 
+    assert _config is not None
     return _config
-
-
-def _get_default_config() -> Dict[str, Any]:
-    """获取默认配置"""
-    return {
-        "command_aliases": {
-            "help": ["帮助", "help", "?", "？"],
-            "status": ["状态", "查看状态", "/状态", "状态查询"],
-            "form": ["形态", "/形态", "form"],
-            "speak": ["说话", "/说话", "speak"],
-            "exist": ["存在", "/存在", "exist"],
-            "voice": ["voice", "语音", "/voice", "/语音"],
-            "text": ["text", "文本", "/text", "/文本"],
-        },
-        "system_commands": {
-            "help": {"command": "/help", "aliases": ["帮助", "help"]},
-            "status": {"command": "/状态", "aliases": ["状态", "查看状态"]},
-        },
-        "personality_commands": {
-            "form": {
-                "command": "/形态",
-                "aliases": ["形态", "/形态", "form"],
-            },
-            "speak": {
-                "command": "/说话",
-                "aliases": ["说话", "/说话", "speak"],
-            },
-            "exist": {
-                "command": "/存在",
-                "aliases": ["存在", "/存在", "exist"],
-            },
-        },
-    }
 
 
 def reload_config():
