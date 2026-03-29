@@ -348,6 +348,18 @@ class MiyaQQ:
                         message
                     )
 
+                    # 显示模型调用信息
+                    last_model = getattr(
+                        self.miya.decision_hub, "_last_selected_model", ""
+                    )
+                    last_task_type = getattr(
+                        self.miya.decision_hub, "_last_task_type", ""
+                    )
+                    if last_model:
+                        self.logger.info(
+                            f"[模型调用] 使用模型: {last_model} | 任务类型: {last_task_type}"
+                        )
+
                     # 记录处理耗时
                     process_time = time.time() - start_time
                     self.logger.info(f"处理完成 -> 耗时: {process_time:.3f}秒")

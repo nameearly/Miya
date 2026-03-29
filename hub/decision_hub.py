@@ -119,6 +119,10 @@ class DecisionHub:
         self.multi_model_manager = multi_model_manager
         self.miya_instance = miya_instance
 
+        # 当前使用的模型信息（用于日志显示）
+        self._last_selected_model: str = ""
+        self._last_task_type: str = ""
+
         # FIX: AdvancedOrchestrator 的工具执行包装器会读取 self.tool_context；此处必须初始化，避免首次使用抛 AttributeError。
         self.tool_context = None
 
@@ -723,6 +727,8 @@ class DecisionHub:
                     if selected_client:
                         ai_client_to_use = selected_client
                         selected_client.set_tool_context(tool_context)
+                        self._last_selected_model = model_key
+                        self._last_task_type = task_type.value
                         logger.info(
                             f"[决策层-跨平台] 使用模型 {model_key} 处理任务类型 {task_type.value}"
                         )
@@ -749,6 +755,8 @@ class DecisionHub:
 
                 # 记录模型信息
                 model_name = getattr(ai_client_to_use, "model", "unknown")
+                if not self._last_selected_model:
+                    self._last_selected_model = model_name
                 logger.info(f"[决策层-跨平台] 使用模型: {model_name}")
                 logger.info(f"[决策层-跨平台] 用户输入: {content[:100]}")
 
@@ -798,6 +806,8 @@ class DecisionHub:
 
                     if selected_client:
                         ai_client_to_use = selected_client
+                        self._last_selected_model = model_key
+                        self._last_task_type = task_type.value
                         logger.info(
                             f"[决策层-跨平台] 使用模型 {model_key} 处理任务类型 {task_type.value}"
                         )
