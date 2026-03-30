@@ -85,10 +85,115 @@ MIYA 具备：
 | **Knowledge Graph** | 图谱 | Neo4j 知识图谱，五元组表示 |
 | **Session Memory** | 会话 | 多会话管理 |
 
-### 🔗 多平台支持
+#### 统一记忆系统 (v4.3.0 新增)
 
-| 平台 | 协议/技术 | 状态 |
-|------|-----------|------|
+弥娅的记忆系统在 v4.3.0 版本中进行了全面统一和优化，实现了真正的"单一入口 - 100%统一"设计原则。
+
+##### 统一前的问题
+- 存在多个并行的记忆存储系统：旧的 `miya_memory_storage` (JSON文件)、统一记忆兼容层、以及各种测试/临时存储
+- 记忆存储逻辑分散在 Historian、CognitiveEngine 等多个模块中
+- 缺乏统一的记忆数据模型和存储接口
+- 测试和冗余的记忆目录占用空间且易造成混淆
+
+##### 统一后的架构
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    统一记忆系统 (MiyaMemoryCore V3.1)               │
+├─────────────────────────────────────────────────────────────────────┤
+│  MemoryLevel.DIALOGUE     - 对话历史 (会话级)                       │
+│  MemoryLevel.SHORT_TERM   - 短期记忆 (TTL自动过期)                 │
+│  MemoryLevel.LONG_TERM    - 长期记忆 (持久化)                       │
+│  MemoryLevel.SEMANTIC     - 语义记忆 (向量搜索)                    │
+│  MemoryLevel.KNOWLEDGE    - 知识图谱 (实体关系)                     │
+├─────────────────────────────────────────────────────────────────────┤
+│  存储后端：JSON文件 (主存储) + Redis (缓存) + Milvus (向量) +       │
+│           Neo4j (知识图谱)                                            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+##### 核心特性
+1. **单一数据结构**：所有记忆都统一为 `MemoryItem` 格式，没有任何例外
+2. **分层存储**：基于重要性、情感强度和事件类型自动分类到五个记忆层级
+3. **数据一致性**：单一数据结构确保跨模块记忆操作的一致性
+4. **自动生命周期管理**：基于TTL的短期记忆过期、旧对话归档等
+5. **企业级可靠性**：支持Redis缓存、向量检索、知识图谱等企业级特性
+
+##### 关键改动
+1. **迁移核心模块**：
+   - `memory/historian.py`：从 `miya_memory_storage` 迁移到 `MiyaMemoryCore`
+   - `memory/cognitive_engine.py`：从 `miya_memory_storage` 迁移到 `MiyaMemoryCore`
+   
+2. **清理冗余存储**：
+   - 备份并有效禁用旧的 `data/miya_memories.json` 文件
+   - 删除所有测试和冗余的内存目录：
+     - `data/test_enhanced_memory`
+     - `data/test_memory`
+     - `data/test_memory_cross`
+     - `data/test_memory_full`
+     - `data/test_memory_quick`
+     - `data/test_memory_v31`
+     - `data/memory_test`
+     - `data/memory_test2`
+
+3. **统一接口**：
+   - 所有记忆操作现在通过 `MiyaMemoryCore` 类进行
+   - 提供统一的存储(`store`)、检索(`retrieve`)、更新(`update`)、删除(`delete`)方法
+   - 保持与现有代码的向后兼容性通过统一记忆兼容层
+
+##### 使用示例
+```python
+from memory import get_memory_core, MemoryLevel, MemorySource
+
+# 获取统一记忆核心实例
+async def example():
+    core = await get_memory_core()
+    await core.initialize()
+    
+    # 存储记忆（自动分类）
+    memory_id = await core.store(
+        content="我叫张三，喜欢打篮球",
+        importance=0.8,
+        tags=["个人信息", "爱好"],
+        source=MemorySource.MANUAL
+    )
+    
+    # 检索记忆
+    from memory import MemoryQuery
+    query = MemoryQuery(
+        query="篮球",
+        tags=["爱好"],
+        limit=10
+    )
+    memories = await core.retrieve(query)
+    
+    # 按ID获取特定记忆
+    memory = await core.get_by_id(memory_id)
+    
+    return memories
+```
+
+##### 原理说明
+统一记忆系统基于以下核心原则设计：
+
+1. **重要性驱动分类**：
+   - 高重要性（≥0.8）→ 长期记忆
+   - 强烈情感 + 中等重要性(≥0.6)→ 长期记忆
+   - 特定事件类型（生日、纪念日等）→ 长期记忆
+   - 个人信息（姓名、生日、联系方式等）→ 长期记忆
+
+2. **自动生命周期**：
+   - 短期记忆默认TTL为1小时（可配置）
+   - 自动清理过期记忆
+   - 旧对话（>90天）自动归档
+
+3. **多存储后端**：
+   - 主存储：JSON文件系统（持久化）
+   - 缓存层：Redis（短期记忆加速）
+   - 向量检索：Milvus（语义相似度搜索）
+   - 知识图谱：Neo4j（实体关系存储）
+
+这个统一系统确保了弥娅的记忆操作既高效又一致，为后续的记忆功能扩展提供了坚实的基础。
+
 | **QQ** | OneBot WebSocket | 活跃 |
 | **Web** | FastAPI + WebSocket | 活跃 |
 | **Desktop** | Tauri (React + Rust) | 活跃 |
