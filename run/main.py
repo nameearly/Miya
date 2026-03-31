@@ -120,15 +120,10 @@ from webnet.ToolNet.tools.terminal import TerminalTool
 from core.system_detector import get_system_detector
 from core.autonomy_with_personality import get_autonomy_with_personality
 
-# 导入多终端管理器
-from core.terminal_orchestrator import IntelligentTerminalOrchestrator
+# 导入终端管理器
+from core.terminal_ultra import get_terminal_ultra
 from core.terminal_types import TerminalType
-from core.terminal_manager import (
-    MasterTerminalController,
-    ChildTerminalManager,
-    ChildTerminalConfig,
-    MiyaTakeoverMode,
-)
+from core.local_terminal_manager import LocalTerminalManager
 from core.ssh_terminal_manager import SSHTerminalManager
 
 
@@ -290,32 +285,10 @@ class Miya:
         # 初始化平台适配器
         self.terminal_adapter = get_adapter("terminal")
 
-        # 【多终端】初始化多终端编排器
-        self.terminal_orchestrator = IntelligentTerminalOrchestrator()
-        self.logger.info("[多终端] 终端编排器初始化成功")
-
-        # 【主终端控制器】初始化主终端控制器（主-子终端协作架构）
+        # 【终端】初始化弥娅终端系统
+        self.terminal_ultra = get_terminal_ultra()
         self.ssh_manager = SSHTerminalManager()
-        self.master_terminal_controller = MasterTerminalController(
-            local_manager=self.terminal_orchestrator.terminal_manager,
-            ssh_manager=self.ssh_manager,
-            show_thinking=True,
-            auto_monitor=True,
-            monitor_interval=1.0,
-        )
-        self.child_terminal_manager = ChildTerminalManager(
-            local_manager=self.terminal_orchestrator.terminal_manager,
-            ssh_manager=self.ssh_manager,
-        )
-        self.miya_takeover_mode = MiyaTakeoverMode(
-            master_controller=self.master_terminal_controller,
-            child_manager=self.child_terminal_manager,
-        )
-        self.logger.info("[多终端] 主-子终端协作架构初始化完成")
-
-        # 【弥娅回调】设置弥娅AI回调
-        self.miya_takeover_mode.set_miya_callback(self._miya_ai_callback)
-        self.logger.info("[多终端] 弥娅AI回调已设置")
+        self.logger.info("[终端] 弥娅终端系统初始化完成")
 
         # 【自主能力】初始化带人设的自主能力
         self.autonomy_with_personality = get_autonomy_with_personality(

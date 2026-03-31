@@ -124,7 +124,7 @@ class Settings:
             "chatbot_keywords": {
                 "auto_respond_keywords": os.getenv(
                     "CHATBOT_AUTO_RESPOND_KEYWORDS",
-                    "弥娅,miya,Miya,亲爱的,亲爱,老婆,老公,宝贝,贝贝,小可爱,小宝贝,小姐姐,小哥哥",
+                    "弥娅,miya,Miya,亲爱的,亲爱,老婆,宝贝,小可爱,小宝贝,小姐姐,小哥哥",
                 ).split(","),
                 "pat_pat_trigger": os.getenv("CHATBOT_PAT_PAT_TRIGGER", "拍了拍你"),
             },

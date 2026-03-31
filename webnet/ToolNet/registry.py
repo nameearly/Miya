@@ -268,150 +268,32 @@ class ToolRegistry:
 
     def _load_terminal_tools(self):
         """加载终端命令工具"""
+        # 使用新的 TerminalUltra 工具
         try:
-            from webnet.ToolNet.tools.terminal.miya_terminal import (
-                MiyaTerminalTool,
-                get_terminal_tool,
-            )
-            from webnet.ToolNet.tools.terminal.system_info_tool import (
-                SystemInfoTool,
-                get_system_info_tool,
-            )
+            from core.terminal_ultra import get_terminal_ultra
+            from webnet.ToolNet.tools.terminal import TerminalTool
 
-            self.register(get_terminal_tool())
-            self.register(get_system_info_tool())
-            self.logger.info("已加载终端工具: MiyaTerminalTool + SystemInfoTool")
+            self.register(TerminalTool())
+            self.logger.info("已加载终端工具: TerminalTool (TerminalUltra)")
         except Exception as e:
             self.logger.warning(f"加载终端工具失败: {e}")
 
-        # 【修复】加载 terminal_net 目录的工具（multi_terminal, terminal_command, wsl_manager等）
-        self._load_terminal_net_tools()
-
-        # 加载超级终端工具 (Terminal Ultra)
+        # 使用 terminal_ultra，旧的 terminal_net 已废弃
         self._load_ultra_terminal_tools()
 
     def _load_terminal_net_tools(self):
-        """加载 terminal_net 目录的工具（多终端管理、终端命令等）"""
-        try:
-            # 加载 multi_terminal 多终端管理工具
-            from webnet.ToolNet.tools.terminal_net.multi_terminal import (
-                MultiTerminalTool,
-            )
-
-            self.register(MultiTerminalTool())
-            self.logger.info("已加载 terminal_net 工具: MultiTerminalTool")
-
-            # 加载 terminal_command 终端命令执行工具
-            from webnet.ToolNet.tools.terminal_net.terminal_command import (
-                TerminalCommandTool,
-            )
-
-            self.register(TerminalCommandTool())
-            self.logger.info("已加载 terminal_net 工具: TerminalCommandTool")
-
-            # 加载 wsl_manager WSL管理工具
-            from webnet.ToolNet.tools.terminal_net.wsl_manager import WSLManagerTool
-
-            self.register(WSLManagerTool())
-            self.logger.info("已加载 terminal_net 工具: WSLManagerTool")
-
-            # 加载 environment_detector 环境检测工具
-            from webnet.ToolNet.tools.terminal_net.environment_detector import (
-                EnvironmentDetectorTool,
-            )
-
-            self.register(EnvironmentDetectorTool())
-            self.logger.info("已加载 terminal_net 工具: EnvironmentDetectorTool")
-
-            # 加载 system_info 系统信息工具
-            from webnet.ToolNet.tools.terminal_net.system_info import (
-                SystemInfoTool,
-            )
-
-            self.register(SystemInfoTool())
-            self.logger.info("已加载 terminal_net 工具: SystemInfoTool")
-
-            self.logger.info("已加载 terminal_net 工具集 (5 tools)")
-        except Exception as e:
-            self.logger.warning(f"加载 terminal_net 工具失败: {e}")
+        """加载 terminal_net 目录的工具 - 已废弃，使用 TerminalUltra"""
+        self.logger.info("terminal_net 工具已废弃，使用 TerminalUltra")
 
     def _load_ultra_terminal_tools(self):
-        """加载超级终端工具 (Terminal Ultra)"""
+        """加载超级终端工具 (Terminal Ultra) - 使用新的集成系统"""
         try:
-            from webnet.ToolNet.tools.terminal.ultra_terminal_tools import (
-                # 基础工具 (8个)
-                TerminalExecTool,
-                FileReadTool,
-                FileWriteTool,
-                FileEditTool,
-                FileDeleteTool,
-                DirectoryTreeTool,
-                CodeExecuteTool,
-                ProjectAnalyzeTool,
-                # Git 工具 (12个)
-                GitStatusTool,
-                GitDiffTool,
-                GitLogTool,
-                GitBranchTool,
-                GitCommitTool,
-                GitAddTool,
-                GitPushTool,
-                GitPullTool,
-                GitCheckoutTool,
-                GitStashTool,
-                # 搜索工具 (2个)
-                FileGrepTool,
-                FileGlobTool,
-                # 代码理解工具 (2个)
-                CodeExplainTool,
-                CodeSearchSymbolTool,
-                # 智能工具 (3个)
-                ProjectContextTool,
-                TaskPlanTool,
-                SuggestionsTool,
-                # Agent 工具 (4个)
-                CodeExplorerAgentTool,
-                CodeReviewerAgentTool,
-                CodeArchitectAgentTool,
-                TerminalAgentTool,
-                # Skills 工具 (1个)
-                ListSkillsTool,
-            )
+            from core.terminal_ultra import get_terminal_ultra
 
-            # 注册所有超级终端基础工具 (8个)
-            self.register(TerminalExecTool())
-            self.register(FileReadTool())
-            self.register(FileWriteTool())
-            self.register(FileEditTool())
-            self.register(FileDeleteTool())
-            self.register(DirectoryTreeTool())
-            self.register(CodeExecuteTool())
-            self.register(ProjectAnalyzeTool())
-
-            # 注册 Git 工具 (12个)
-            self.register(GitStatusTool())
-            self.register(GitDiffTool())
-            self.register(GitLogTool())
-            self.register(GitBranchTool())
-            self.register(GitCommitTool())
-            self.register(GitAddTool())
-            self.register(GitPushTool())
-            self.register(GitPullTool())
-            self.register(GitCheckoutTool())
-            self.register(GitStashTool())
-
-            # 注册搜索工具 (2个)
-            self.register(FileGrepTool())
-            self.register(FileGlobTool())
-
-            # 注册代码理解工具 (2个)
-            self.register(CodeExplainTool())
-            self.register(CodeSearchSymbolTool())
-
-            # 注册智能工具 (3个)
-            self.register(ProjectContextTool())
-            self.register(TaskPlanTool())
-            self.register(SuggestionsTool())
+            ultra = get_terminal_ultra()
+            self.logger.info(f"已加载 TerminalUltra 工具: {ultra.get_tools_list()}")
+        except Exception as e:
+            self.logger.warning(f"加载 TerminalUltra 失败: {e}")
 
             # 注册 Agent 工具 (4个)
             self.register(CodeExplorerAgentTool())
@@ -437,52 +319,16 @@ class ToolRegistry:
             self.logger.warning(f"加载模型管理工具失败: {e}")
 
     def _load_cross_terminal_tools(self):
-        """加载跨端工具"""
-        from webnet.ToolNet.tools.cross_terminal.cross_terminal import CrossTerminalTool
+        """加载跨端工具 - 使用简化版"""
+        try:
+            from webnet.ToolNet.tools.cross_terminal import CrossTerminalTool
 
-        # 注册基础跨端工具
-        self.register(CrossTerminalTool())
+            self.register(CrossTerminalTool())
+            self.logger.info("已加载跨端工具: CrossTerminalTool")
+        except Exception as e:
+            self.logger.warning(f"加载跨端工具失败: {e}")
 
-        # 注册具体的跨端工具
-        tool_names = [
-            "send_to_desktop",
-            "execute_on_desktop",
-            "sync_state",
-            "send_to_terminal",
-            "send_to_qq",
-            "send_to_web",
-        ]
-
-        for tool_name in tool_names:
-            # 创建简单的包装器函数，实际调用 TerminalUltra 执行命令
-            def make_wrapper(name):
-                async def wrapper(context, params):
-                    # 导入 TerminalUltra
-                    try:
-                        from core.terminal_ultra import get_terminal_ultra
-
-                        terminal = get_terminal_ultra()
-
-                        # 提取命令参数
-                        command = params.get("command", "")
-                        if not command:
-                            return f"缺少 command 参数"
-
-                        # 使用 await 直接执行（不是 asyncio.run）
-                        result = await terminal.terminal_exec(command, timeout=30)
-
-                        if result.success:
-                            return result.output or "命令执行成功（无输出）"
-                        else:
-                            return f"命令执行失败: {result.error or '未知错误'}"
-                    except Exception as e:
-                        return f"执行失败: {str(e)}"
-
-                return wrapper
-
-            self._register_cross_terminal_tool(tool_name, make_wrapper(tool_name))
-
-        self.logger.info("已加载跨端工具: CrossTerminalTool 及 6 个具体工具")
+        # 跨端工具已简化，不再加载具体工具
 
     def _register_cross_terminal_tool(self, name: str, func):
         """注册跨端工具"""

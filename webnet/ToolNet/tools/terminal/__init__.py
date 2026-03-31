@@ -1,73 +1,46 @@
+#!/usr/bin/env python3
 """
-弥娅终端工具模块
-
-提供完整的终端命令执行能力：
-- MiyaTerminalTool: 主终端工具（集成平台适配、安全检查）
-- SystemInfoTool: 系统信息管理工具
-- CommandExecutor: 命令执行器
-- CommandChain: 命令链管理
-- NLPParser: 自然语言解析
-- PlatformAdapter: 平台适配器
+弥娅终端工具 - 兼容旧API
 """
 
-from .miya_terminal import (
-    MiyaTerminalTool,
-    get_terminal_tool,
-    CommandResult,
-    CommandSafetyChecker,
-)
-from .system_info_tool import SystemInfoTool, get_system_info_tool
-from .command_executor import CommandExecutor
-from .command_chain import CommandChain
-from .nlp_parser import NLPParser
-from .platform_adapter import (
-    PlatformAdapter,
-    WindowsAdapter,
-    LinuxAdapter,
-    MacOSAdapter,
-    get_platform_adapter,
-)
-from .platform_detector import Platform, detect_platform
-from .ultra_terminal_tools import (
-    TerminalExecTool,
-    FileReadTool,
-    FileWriteTool,
-    FileEditTool,
-    FileDeleteTool,
-    DirectoryTreeTool,
-    CodeExecuteTool,
-    ProjectAnalyzeTool,
-)
+from core.terminal_ultra import TerminalUltra, get_terminal_ultra
 
-TerminalTool = MiyaTerminalTool
 
-__all__ = [
-    # 主工具
-    "MiyaTerminalTool",
-    "get_terminal_tool",
-    "TerminalTool",
-    "SystemInfoTool",
-    "get_system_info_tool",
-    "CommandResult",
-    "CommandSafetyChecker",
-    # 辅助工具
-    "CommandExecutor",
-    "CommandChain",
-    "NLPParser",
-    "PlatformAdapter",
-    "WindowsAdapter",
-    "LinuxAdapter",
-    "MacOSAdapter",
-    "get_platform_adapter",
-    "Platform",
-    "detect_platform",
-    # 超级终端工具
-    "TerminalExecTool",
-    "FileReadTool",
-    "FileWriteTool",
-    "FileEditTool",
-    "FileDeleteTool",
-    "DirectoryTreeTool",
-    "CodeExecuteTool",
-    "ProjectAnalyzeTool",
-]
+class TerminalTool:
+    """终端工具 - 兼容旧API"""
+
+    config = {"name": "terminal", "description": "弥娅终端工具"}
+
+    def __init__(self):
+        self.ultra = get_terminal_ultra()
+
+    async def execute_command(self, command: str, timeout: int = 60):
+        """执行命令"""
+        return await self.ultra.terminal_exec(command, timeout=timeout)
+
+    async def read_file(self, file_path: str, offset: int = 0, limit: int = None):
+        """读取文件"""
+        return await self.ultra.file_read(file_path, offset=offset, limit=limit)
+
+    async def write_file(self, file_path: str, content: str):
+        """写入文件"""
+        return await self.ultra.file_write(file_path, content)
+
+    async def edit_file(self, file_path: str, old_string: str, new_string: str):
+        """编辑文件"""
+        return await self.ultra.file_edit(file_path, old_string, new_string)
+
+    async def glob(self, pattern: str, path: str = "."):
+        """查找文件"""
+        return await self.ultra.file_glob(pattern, path)
+
+    async def grep(self, pattern: str, path: str = "."):
+        """搜索内容"""
+        return await self.ultra.file_grep(pattern, path)
+
+    async def get_system_info(self):
+        """获取系统信息"""
+        return await self.ultra.get_tools_list()
+
+
+__all__ = ["TerminalTool", "get_terminal_ultra"]
