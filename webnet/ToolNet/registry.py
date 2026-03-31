@@ -252,6 +252,9 @@ class ToolRegistry:
         self._load_model_management_tools()
         self._load_cross_terminal_tools()
         self._load_visualization_tools()
+        self._load_network_tools()
+        self._load_core_tools()
+        self._load_social_tools()
 
     def _load_basic_tools(self):
         """加载基础工具"""
@@ -788,16 +791,14 @@ class ToolRegistry:
             from webnet.ToolNet.tools.qq.qq_emoji import QQEmojiTool
             from webnet.ToolNet.tools.qq.qq_file_reader import QQFileReaderTool
             from webnet.ToolNet.tools.qq.qq_image_analyzer import QQImageAnalyzerTool
-            from webnet.ToolNet.tools.qq.qq_active_chat import QQActiveChatTool
 
             self.register(QQImageTool())
             self.register(QQFileTool())
             self.register(QQEmojiTool())
             self.register(QQFileReaderTool())
             self.register(QQImageAnalyzerTool())
-            self.register(QQActiveChatTool())
             self.logger.info(
-                "已加载QQ多媒体工具: QQImageTool, QQFileTool, QQEmojiTool, QQFileReaderTool, QQImageAnalyzerTool, QQActiveChatTool"
+                "已加载QQ多媒体工具: QQImageTool, QQFileTool, QQEmojiTool, QQFileReaderTool, QQImageAnalyzerTool"
             )
         except Exception as e:
             self.logger.warning(f"加载QQ多媒体工具失败: {e}")
@@ -855,6 +856,49 @@ class ToolRegistry:
             self.logger.info("已加载 LifeNet 记忆管理工具")
         except Exception as e:
             self.logger.warning(f"加载 LifeNet 工具失败: {e}")
+
+    def _load_network_tools(self):
+        """加载网络工具"""
+        try:
+            from webnet.ToolNet.tools.network.grok_search import GrokSearchTool
+            from webnet.ToolNet.tools.network.crawl_webpage import CrawlWebpageTool
+            from webnet.ToolNet.tools.network.whois_query import WhoisQueryTool
+            from webnet.ToolNet.tools.network.tcping import TCPingTool
+            from webnet.ToolNet.tools.network.speed_test import SpeedTestTool
+
+            self.register(GrokSearchTool())
+            self.register(CrawlWebpageTool())
+            self.register(WhoisQueryTool())
+            self.register(TCPingTool())
+            self.register(SpeedTestTool())
+
+            self.logger.info(
+                "已加载网络工具: GrokSearch, CrawlWebpage, WhoisQuery, TCPing, SpeedTest"
+            )
+        except Exception as e:
+            self.logger.warning(f"加载网络工具失败: {e}")
+
+    def _load_core_tools(self):
+        """加载核心工具（新增）"""
+        try:
+            from webnet.ToolNet.tools.core.changelog import ChangelogTool
+
+            self.register(ChangelogTool())
+
+            self.logger.info("已加载核心工具: Changelog")
+        except Exception as e:
+            self.logger.warning(f"加载核心工具失败: {e}")
+
+    def _load_social_tools(self):
+        """加载社交工具（新增）"""
+        try:
+            from webnet.ToolNet.tools.social.qq_level import QQLevelTool
+
+            self.register(QQLevelTool())
+
+            self.logger.info("已加载社交工具: QQLevel")
+        except Exception as e:
+            self.logger.warning(f"加载社交工具失败: {e}")
 
 
 class BaseTool:

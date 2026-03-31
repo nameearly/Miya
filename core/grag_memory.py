@@ -192,20 +192,14 @@ class GRAGMemoryManager:
         # 示例：从文本中提取实体和关系
         # 实际应用中可以使用 LLM 或正则表达式
         try:
-            # 尝试使用 LLM 提取（如果可用）
-            from core.ai_client import AIClientFactory
+            # 从模型池获取客户端（优先使用成本低的模型）
+            from core.model_pool import get_model_pool
 
-            # FIX: AIClientFactory.create_client 需要显式传入 api_key；否则会 TypeError。
-            # 这里从环境变量读取，若缺失则抛错并走 except 回退到规则提取。
-            api_key = os.getenv("OPENAI_API_KEY", "")
-            if not api_key:
-                raise ValueError("OPENAI_API_KEY is not set")
+            pool = get_model_pool()
+            client = pool.create_ai_client(task_type="simple_chat", endpoint="qq")
 
-            client = AIClientFactory.create_client(
-                provider="openai",
-                api_key=api_key,
-                model="gpt-4o-mini",
-            )
+            if not client:
+                raise ValueError("无法从模型池创建客户端")
 
             prompt = f"""从以下对话中提取知识五元组（主体, 关系, 客体, 属性, 上下文）。
 返回JSON数组格式。

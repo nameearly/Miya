@@ -473,6 +473,124 @@ class GitDiffTool(BaseTool):
         return result.output if result.success else f"❌ {result.error}"
 
 
+class FileCopyTool(BaseTool):
+    """文件复制工具"""
+
+    @property
+    def config(self) -> Dict[str, Any]:
+        return {
+            "name": "file_copy",
+            "description": """复制文件或目录。
+
+当用户请求复制文件或目录时使用此工具。
+
+示例:
+- 复制文件: 复制 src/main.py 到 backup/main.py
+- 复制目录: 复制 project_folder 到 project_backup""",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source": {"type": "string", "description": "源文件或目录路径"},
+                    "destination": {
+                        "type": "string",
+                        "description": "目标文件或目录路径",
+                    },
+                    "overwrite": {
+                        "type": "boolean",
+                        "description": "是否覆盖已存在的目标，默认false",
+                        "default": False,
+                    },
+                },
+                "required": ["source", "destination"],
+            },
+        }
+
+    async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
+        """
+        复制文件或目录
+
+        Args:
+            args: {source, destination, overwrite}
+            context: 执行上下文
+
+        Returns:
+            复制结果
+        """
+        from core.terminal_ultra import get_terminal_ultra
+
+        terminal = get_terminal_ultra()
+        source = args.get("source", "")
+        destination = args.get("destination", "")
+        overwrite = args.get("overwrite", False)
+
+        if not source:
+            return "❌ 源路径不能为空"
+        if not destination:
+            return "❌ 目标路径不能为空"
+
+        result = await terminal.file_copy(source, destination, overwrite)
+        return result
+
+
+class FileMoveTool(BaseTool):
+    """文件移动工具"""
+
+    @property
+    def config(self) -> Dict[str, Any]:
+        return {
+            "name": "file_move",
+            "description": """移动或重命名文件或目录。
+
+当用户请求移动文件或目录时使用此工具。
+
+示例:
+- 移动文件: 移动 src/old.py 到 src/new.py
+- 重命名文件: 移动 document.txt 到 document_final.txt""",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source": {"type": "string", "description": "源文件或目录路径"},
+                    "destination": {
+                        "type": "string",
+                        "description": "目标文件或目录路径",
+                    },
+                    "overwrite": {
+                        "type": "boolean",
+                        "description": "是否覆盖已存在的目标，默认false",
+                        "default": False,
+                    },
+                },
+                "required": ["source", "destination"],
+            },
+        }
+
+    async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
+        """
+        移动文件或目录
+
+        Args:
+            args: {source, destination, overwrite}
+            context: 执行上下文
+
+        Returns:
+            移动结果
+        """
+        from core.terminal_ultra import get_terminal_ultra
+
+        terminal = get_terminal_ultra()
+        source = args.get("source", "")
+        destination = args.get("destination", "")
+        overwrite = args.get("overwrite", False)
+
+        if not source:
+            return "❌ 源路径不能为空"
+        if not destination:
+            return "❌ 目标路径不能为空"
+
+        result = await terminal.file_move(source, destination, overwrite)
+        return result
+
+
 class GitLogTool(BaseTool):
     @property
     def config(self) -> Dict[str, Any]:
@@ -1005,6 +1123,9 @@ __all__ = [
     "DirectoryTreeTool",
     "CodeExecuteTool",
     "ProjectAnalyzeTool",
+    # 文件操作工具
+    "FileCopyTool",
+    "FileMoveTool",
     # Git 工具
     "GitStatusTool",
     "GitDiffTool",

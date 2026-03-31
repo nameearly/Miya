@@ -494,23 +494,31 @@ class Miya:
     def _init_unified_memory(self):
         """初始化统一记忆系统"""
         try:
-            from memory.unified_memory import get_unified_memory
-            from memory.unified_memory_adapter import create_memory_adapter
+            from memory import get_memory_core, get_memory_adapter
+            import asyncio
 
-            config = {
-                "embedding": {"provider": "local"},
-                "historian_enabled": True,
-                "max_short_term": 50,
-                "max_cognitive": 200,
-            }
+            try:
+                loop = asyncio.get_running_loop()
+                # 如果有运行中的loop，在后台任务中初始化
+                import concurrent.futures
 
-            self.unified_memory = get_unified_memory("data/memory", config)
-            self.unified_memory_adapter = create_memory_adapter(self.unified_memory)
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    self.unified_memory_core = pool.submit(
+                        asyncio.run, get_memory_core("data/memory")
+                    ).result()
+                    self.unified_memory_adapter = pool.submit(
+                        asyncio.run, get_memory_adapter()
+                    ).result()
+            except RuntimeError:
+                # 没有运行中的loop，可以直接使用asyncio.run
+                self.unified_memory_core = asyncio.run(get_memory_core("data/memory"))
+                self.unified_memory_adapter = asyncio.run(get_memory_adapter())
+
             self.logger.info("[记忆] 统一记忆系统初始化成功")
 
         except Exception as e:
             self.logger.error(f"[记忆] 统一记忆系统初始化失败: {e}")
-            self.unified_memory = None
+            self.unified_memory_core = None
             self.unified_memory_adapter = None
 
     async def _initialize_memory_net_async(self):
@@ -535,10 +543,9 @@ class Miya:
                 self.logger.error(f"MemoryNet 初始化失败: {e}")
 
         # 初始化统一记忆系统
-        if hasattr(self, "unified_memory") and self.unified_memory:
+        if hasattr(self, "unified_memory_core") and self.unified_memory_core:
             try:
-                await self.unified_memory.initialize()
-                self.logger.info("[记忆] 统一记忆系统初始化完成")
+                self.logger.info("[记忆] 统一记忆系统已就绪")
             except Exception as e:
                 self.logger.error(f"[记忆] 统一记忆系统初始化失败: {e}")
 
@@ -553,39 +560,24 @@ class Miya:
             # 尝试初始化多模型管理器
             try:
                 from core.multi_model_manager import MultiModelManager
-                from core.ai_client import AIClientFactory
+                from core.model_pool import get_model_pool
 
-                # 加载多模型配置
-                config_path = (
-                    Path(__file__).parent.parent / "config" / "multi_model_config.json"
-                )
+                # 从模型池获取所有有有效API密钥的模型配置
+                pool = get_model_pool()
+                model_configs = pool.get_model_configs_for_manager()
 
-                if config_path.exists():
-                    import json
-
-                    with open(config_path, "r", encoding="utf-8") as f:
-                        multi_model_config = json.load(f)
-
+                if model_configs:
                     # 创建模型客户端
                     model_clients = {}
-                    models_config = multi_model_config.get("models", {})
+                    from core.ai_client import AIClientFactory
 
-                    for model_key, model_info in models_config.items():
-                        provider = model_info.get("provider", "openai")
-                        api_key = model_info.get("api_key", "")
-                        model_name = model_info.get("name", "")
-                        base_url = model_info.get("base_url", "")
-
-                        # 跳过未配置API密钥的模型
-                        if not api_key or not model_name:
-                            continue
-
+                    for model_key, model_config in model_configs.items():
                         try:
                             client = AIClientFactory.create_client(
-                                provider=provider,
-                                api_key=api_key,
-                                model=model_name,
-                                base_url=base_url,
+                                provider=model_config.provider.value,
+                                api_key=model_config.api_key,
+                                model=model_config.name,
+                                base_url=model_config.base_url,
                                 temperature=float(os.getenv("AI_TEMPERATURE", "0.7")),
                                 max_tokens=int(os.getenv("AI_MAX_TOKENS", "2000")),
                             )
@@ -597,7 +589,7 @@ class Miya:
                             ):
                                 model_clients[model_key] = client
                                 self.logger.info(
-                                    f"  [多模型] {model_key}: {model_name} ({base_url})"
+                                    f"  [多模型] {model_key}: {model_config.name} ({model_config.base_url})"
                                 )
                         except Exception as e:
                             self.logger.warning(
@@ -607,7 +599,7 @@ class Miya:
                     # 如果成功创建了多个模型，使用多模型管理器
                     if model_clients:
                         self.multi_model_manager = MultiModelManager(
-                            model_clients=model_clients, config_path=str(config_path)
+                            model_clients=model_clients
                         )
                         self.logger.info(
                             f"多模型管理器初始化成功，已加载 {len(model_clients)} 个模型"
@@ -811,8 +803,6 @@ class Miya:
     def _init_neo4j_system(self):
         """初始化Neo4j知识图谱系统"""
         try:
-            from memory.grag_memory import GRAGMemoryManager
-
             # 使用已初始化的neo4j客户端（在第81行已初始化）
             self.neo4j_client = self.neo4j
 
@@ -820,12 +810,10 @@ class Miya:
             if self.neo4j_client and not self.neo4j_client.is_mock_mode():
                 self.logger.info("Neo4j知识图谱连接成功")
 
-                # 初始化GRAG记忆管理器
-                self.grag_memory = GRAGMemoryManager(
-                    config={"enabled": True, "auto_extract": True},
-                    neo4j_client=self.neo4j_client,
-                )
-                self.logger.info("GRAG知识图谱记忆管理器初始化成功")
+                # 使用统一的记忆系统处理知识图谱
+                # Neo4j功能已整合到MiyaMemoryCore中
+                self.grag_memory = None
+                self.logger.info("知识图谱功能已整合到统一记忆系统")
             else:
                 self.logger.warning("Neo4j连接失败或为模拟模式，将不使用知识图谱功能")
                 self.grag_memory = None
@@ -1067,8 +1055,11 @@ def main():
                     # 同步获取用户输入（支持中文）
                     user_input = chinese_input("佳: ").strip()
 
-                    if user_input.lower() in ["exit", "quit", "退出", "再见"]:
-                        print(f"{miya.identity.name}: 再见！")
+                    # 使用文本加载器
+                    from core.text_loader import get_farewell, is_farewell
+
+                    if is_farewell(user_input):
+                        print(f"{miya.identity.name}: {get_farewell()}")
                         # 保存对话历史到 Lifebook
                         if miya.decision_hub:
                             try:

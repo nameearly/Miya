@@ -56,7 +56,10 @@ class QQOneBotClient:
         if self.token:
             extra_headers["Authorization"] = f"Bearer {self.token}"
 
-        logger.info(f"[QQ] 正在连接到 {self.ws_url}...")
+        logger.info("正在建立WebSocket连接...")
+        logger.info(f"  地址: {self.ws_url}")
+        logger.info(f"  Token: {'已配置' if self.token else '未配置'}")
+        logger.info(f"  超时: {NetworkTimeout.WEBSOCKET_PING_TIMEOUT}秒")
 
         try:
             self.ws = await websockets.connect(
@@ -66,9 +69,11 @@ class QQOneBotClient:
                 max_size=100 * 1024 * 1024,
                 additional_headers=extra_headers if extra_headers else None,
             )
-            logger.info("[QQ] WebSocket连接成功")
+            logger.info("WebSocket连接已建立")
+            logger.info("")
+
         except Exception as e:
-            logger.error(f"[QQ] WebSocket连接失败: {e}")
+            logger.error(f"WebSocket连接失败: {e}")
             raise
 
     async def disconnect(self) -> None:
@@ -77,7 +82,7 @@ class QQOneBotClient:
         if self.ws:
             await self.ws.close()
             self.ws = None
-            logger.info("[QQ] WebSocket连接已断开")
+            logger.info("[🔌] WebSocket连接已断开")
 
     async def _call_api(
         self,
@@ -188,7 +193,9 @@ class QQOneBotClient:
             logger.error(f"[QQ] 获取群信息失败: {e}")
             return None
 
-    async def get_stranger_info(self, user_id: int, no_cache: bool = False) -> Optional[Dict]:
+    async def get_stranger_info(
+        self, user_id: int, no_cache: bool = False
+    ) -> Optional[Dict]:
         """获取陌生人信息"""
         try:
             params = {"user_id": user_id}
@@ -243,9 +250,7 @@ class QQOneBotClient:
             logger.error(f"[QQ] 获取群列表失败: {e}")
             return []
 
-    async def send_group_poke(
-        self, group_id: int, user_id: int
-    ) -> Dict[str, Any]:
+    async def send_group_poke(self, group_id: int, user_id: int) -> Dict[str, Any]:
         """群聊拍一拍"""
         try:
             return await self._call_api(
@@ -313,7 +318,8 @@ class QQOneBotClient:
             raise RuntimeError("WebSocket未连接")
 
         self._running = True
-        logger.info("[QQ] 消息接收循环已启动")
+        logger.info("[🚀] 消息接收循环已启动")
+        logger.info("[👂] 正在监听QQ消息...")
 
         try:
             while self._running:
@@ -325,17 +331,17 @@ class QQOneBotClient:
                     data = json.loads(message_data)
                     await self._dispatch_message(data)
                 except json.JSONDecodeError as e:
-                    logger.error(f"[QQ] JSON解析失败: {e}")
+                    logger.error(f"JSON解析失败: {e}")
                 except websockets.ConnectionClosed:
-                    logger.warning("[QQ] 连接已关闭")
+                    logger.warning("连接已关闭")
                     break
                 except Exception as e:
-                    logger.exception(f"[QQ] 接收消息异常: {e}")
+                    logger.exception(f"接收消息异常: {e}")
         finally:
             self._running = False
             if self._tasks:
                 await asyncio.gather(*self._tasks, return_exceptions=True)
-            logger.info("[QQ] 消息接收循环已停止")
+            logger.info("[🛑] 消息接收循环已停止")
 
     async def _dispatch_message(self, data: Dict) -> None:
         """分发消息"""
@@ -348,10 +354,33 @@ class QQOneBotClient:
 
         post_type = data.get("post_type")
         if post_type == "message":
+            msg_type = data.get("message_type", "unknown")
+            sender_info = data.get("sender", {})
+            sender_id = sender_info.get("user_id", "unknown")
+            sender_name = sender_info.get("nickname", "unknown")
+
+            # 获取原始消息内容用于日志
+            raw_message = data.get("raw_message", "")
+            if isinstance(raw_message, list):
+                # 处理数组格式的消息
+                msg_parts = []
+                for seg in raw_message[:3]:  # 只取前3段
+                    if seg.get("type") == "text":
+                        msg_parts.append(seg.get("data", {}).get("text", ""))
+                    elif seg.get("type") == "image":
+                        msg_parts.append("[图片]")
+                    elif seg.get("type") == "at":
+                        msg_parts.append(f"@{seg.get('data', {}).get('qq', 'unknown')}")
+                    else:
+                        msg_parts.append(f"[{seg.get('type')}]")
+                msg_preview = "".join(msg_parts)[:50]
+            else:
+                msg_preview = str(raw_message)[:50] if raw_message else "无文本内容"
+
             logger.info(
-                f"[QQ] 收到消息 type={data.get('message_type')} "
-                f"sender={data.get('sender', {}).get('user_id')}"
+                f"收到消息: {msg_type} - {sender_id} ({sender_name}) - {msg_preview}..."
             )
+
             if self._message_handler:
                 task = asyncio.create_task(self._safe_handle_message(data))
                 self._tasks.add(task)
@@ -359,6 +388,13 @@ class QQOneBotClient:
 
         elif post_type == "notice":
             self._handle_notice(data)
+
+        elif post_type == "meta_event":
+            # 心跳事件，不输出详细日志避免刷屏
+            pass
+
+        else:
+            logger.debug(f"[?] 未知post_type: {post_type}, data: {data}")
 
     def _handle_notice(self, data: Dict) -> None:
         """处理通知事件"""
@@ -369,8 +405,9 @@ class QQOneBotClient:
             target_id = data.get("target_id", 0)
             sender_id = data.get("user_id", 0)
             group_id = data.get("group_id", 0)
+
             logger.info(
-                f"[QQ] 收到拍一拍 sender={sender_id} target={target_id} group={group_id}"
+                f"收到拍一拍通知: 发送者={sender_id}, 被拍者={target_id}, 群号={group_id if group_id else '私聊'}"
             )
 
             if self._message_handler:
@@ -387,13 +424,35 @@ class QQOneBotClient:
                 self._tasks.add(task)
                 task.add_done_callback(self._tasks.discard)
 
+        elif notice_type == "group_increase":
+            # 成员入群通知
+            user_id = data.get("user_id", 0)
+            group_id = data.get("group_id", 0)
+            logger.info(f"新成员入群: 用户={user_id}, 群号={group_id}")
+
+        elif notice_type == "group_decrease":
+            # 成员退群通知
+            user_id = data.get("user_id", 0)
+            group_id = data.get("group_id", 0)
+            leave_type = data.get("sub_type", "leave")
+            logger.info(
+                f"成员{'退群' if leave_type == 'leave' else '被移除'}: 用户={user_id}, 群号={group_id}"
+            )
+
+        elif notice_type == "friend":
+            # 好友通知
+            logger.info(f"[👥 好友通知] {sub_type}")
+
+        else:
+            logger.debug(f"[📢 通知类型] {notice_type}.{sub_type}")
+
     async def _safe_handle_message(self, data: Dict) -> None:
         """安全处理消息"""
         try:
             if self._message_handler:
                 await self._message_handler(data)
         except Exception as e:
-            logger.exception(f"[QQ] 处理消息出错: {e}")
+            logger.exception(f"处理消息出错: {type(e).__name__}: {e}")
 
     async def run_with_reconnect(self, reconnect_interval: float = 5.0) -> None:
         """带自动重连运行"""
@@ -425,101 +484,98 @@ class QQOneBotClient:
         self._running = False
 
     # ========== 多媒体API扩展 ==========
-    
+
     async def upload_image(self, file_path: str) -> Optional[str]:
         """
         上传图片到OneBot服务，返回file_id
-        
+
         Args:
             file_path: 本地文件路径
-            
+
         Returns:
             file_id字符串，用于后续发送图片消息
         """
         try:
             import os
+
             # 检查文件是否存在
             if not os.path.exists(file_path):
                 logger.error(f"[QQ] 图片文件不存在: {file_path}")
                 return None
-                
+
             # 上传图片
             result = await self._call_api(
-                "upload_image",
-                {"file": f"file:///{file_path.replace(os.sep, '/')}"}
+                "upload_image", {"file": f"file:///{file_path.replace(os.sep, '/')}"}
             )
-            
+
             data = result.get("data", {})
             file_id = data.get("file_id")
-            
+
             if file_id:
                 logger.info(f"[QQ] 图片上传成功: {file_path} -> {file_id}")
                 return file_id
             else:
                 logger.error(f"[QQ] 图片上传失败，未返回file_id: {result}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"[QQ] 图片上传失败: {e}")
             return None
-    
+
     async def upload_file(self, file_path: str) -> Optional[str]:
         """
         上传文件到OneBot服务，返回file_id
-        
+
         Args:
             file_path: 本地文件路径
-            
+
         Returns:
             file_id字符串，用于后续发送文件消息
         """
         try:
             import os
+
             # 检查文件是否存在
             if not os.path.exists(file_path):
                 logger.error(f"[QQ] 文件不存在: {file_path}")
                 return None
-            
+
             # 检查文件大小（限制50MB）
             file_size = os.path.getsize(file_path)
             if file_size > 50 * 1024 * 1024:  # 50MB
                 logger.error(f"[QQ] 文件过大: {file_path} ({file_size} bytes)")
                 return None
-                
+
             # 上传文件
             result = await self._call_api(
-                "upload_file", 
-                {"file": f"file:///{file_path.replace(os.sep, '/')}"}
+                "upload_file", {"file": f"file:///{file_path.replace(os.sep, '/')}"}
             )
-            
+
             data = result.get("data", {})
             file_id = data.get("file_id")
-            
+
             if file_id:
                 logger.info(f"[QQ] 文件上传成功: {file_path} -> {file_id}")
                 return file_id
             else:
                 logger.error(f"[QQ] 文件上传失败，未返回file_id: {result}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"[QQ] 文件上传失败: {e}")
             return None
-    
+
     async def send_group_image(
-        self,
-        group_id: int,
-        image_path: str,
-        caption: str = ""
+        self, group_id: int, image_path: str, caption: str = ""
     ) -> Dict[str, Any]:
         """
         发送群图片消息
-        
+
         Args:
             group_id: 群号
             image_path: 图片文件路径
             caption: 图片说明文字
-            
+
         Returns:
             API调用结果
         """
@@ -527,40 +583,37 @@ class QQOneBotClient:
         file_id = await self.upload_image(image_path)
         if not file_id:
             raise RuntimeError(f"图片上传失败: {image_path}")
-        
+
         # 构建图片消息
         from .utils import create_image_message, QQMessageBuilder
         import os
-        
+
         # 提取文件名
         filename = os.path.basename(image_path)
-        
+
         # 使用消息构建器
         builder = QQMessageBuilder()
         if caption:
             builder.add_text(f"{caption}\n")
         builder.add_image(f"file:///{file_id}")
-        
+
         # 发送消息
         return await self.send_group_message(
             group_id,
-            builder.build_list() if self._supports_array_format() else builder.build()
+            builder.build_list() if self._supports_array_format() else builder.build(),
         )
-    
+
     async def send_private_image(
-        self,
-        user_id: int,
-        image_path: str,
-        caption: str = ""
+        self, user_id: int, image_path: str, caption: str = ""
     ) -> Dict[str, Any]:
         """
         发送私聊图片消息
-        
+
         Args:
             user_id: 用户QQ号
             image_path: 图片文件路径
             caption: 图片说明文字
-            
+
         Returns:
             API调用结果
         """
@@ -568,35 +621,32 @@ class QQOneBotClient:
         file_id = await self.upload_image(image_path)
         if not file_id:
             raise RuntimeError(f"图片上传失败: {image_path}")
-        
+
         # 构建图片消息
         from .utils import create_image_message, QQMessageBuilder
-        
+
         builder = QQMessageBuilder()
         if caption:
             builder.add_text(f"{caption}\n")
         builder.add_image(f"file:///{file_id}")
-        
+
         # 发送消息
         return await self.send_private_message(
             user_id,
-            builder.build_list() if self._supports_array_format() else builder.build()
+            builder.build_list() if self._supports_array_format() else builder.build(),
         )
-    
+
     async def send_group_file(
-        self,
-        group_id: int,
-        file_path: str,
-        caption: str = ""
+        self, group_id: int, file_path: str, caption: str = ""
     ) -> Dict[str, Any]:
         """
         发送群文件消息
-        
+
         Args:
             group_id: 群号
             file_path: 文件路径
             caption: 文件说明文字
-            
+
         Returns:
             API调用结果
         """
@@ -604,35 +654,32 @@ class QQOneBotClient:
         file_id = await self.upload_file(file_path)
         if not file_id:
             raise RuntimeError(f"文件上传失败: {file_path}")
-        
+
         # 构建文件消息
         from .utils import QQMessageBuilder
-        
+
         builder = QQMessageBuilder()
         if caption:
             builder.add_text(f"{caption}\n")
         builder.add_text(f"[CQ:file,file=file:///{file_id}]")
-        
+
         # 发送消息
         return await self.send_group_message(
             group_id,
-            builder.build_list() if self._supports_array_format() else builder.build()
+            builder.build_list() if self._supports_array_format() else builder.build(),
         )
-    
+
     async def send_private_file(
-        self,
-        user_id: int,
-        file_path: str,
-        caption: str = ""
+        self, user_id: int, file_path: str, caption: str = ""
     ) -> Dict[str, Any]:
         """
         发送私聊文件消息
-        
+
         Args:
             user_id: 用户QQ号
             file_path: 文件路径
             caption: 文件说明文字
-            
+
         Returns:
             API调用结果
         """
@@ -640,58 +687,59 @@ class QQOneBotClient:
         file_id = await self.upload_file(file_path)
         if not file_id:
             raise RuntimeError(f"文件上传失败: {file_path}")
-        
+
         # 构建文件消息
         from .utils import QQMessageBuilder
-        
+
         builder = QQMessageBuilder()
         if caption:
             builder.add_text(f"{caption}\n")
         builder.add_text(f"[CQ:file,file=file:///{file_id}]")
-        
+
         # 发送消息
         return await self.send_private_message(
             user_id,
-            builder.build_list() if self._supports_array_format() else builder.build()
+            builder.build_list() if self._supports_array_format() else builder.build(),
         )
-    
+
     async def send_face_message(
-        self,
-        target_type: str,
-        target_id: int,
-        face_id: int
+        self, target_type: str, target_id: int, face_id: int
     ) -> Dict[str, Any]:
         """
         发送表情消息
-        
+
         Args:
             target_type: 目标类型，'group' 或 'private'
             target_id: 目标ID（群号或用户QQ号）
             face_id: 表情ID
-            
+
         Returns:
             API调用结果
         """
         from .utils import QQMessageBuilder
-        
+
         builder = QQMessageBuilder()
         builder.add_text(f"[CQ:face,id={face_id}]")
-        
+
         if target_type == "group":
             return await self.send_group_message(
                 target_id,
-                builder.build_list() if self._supports_array_format() else builder.build()
+                builder.build_list()
+                if self._supports_array_format()
+                else builder.build(),
             )
         else:
             return await self.send_private_message(
                 target_id,
-                builder.build_list() if self._supports_array_format() else builder.build()
+                builder.build_list()
+                if self._supports_array_format()
+                else builder.build(),
             )
-    
+
     def _supports_array_format(self) -> bool:
         """
         检查OneBot实现是否支持数组格式消息
-        
+
         Returns:
             True如果支持数组格式，False如果只支持字符串格式
         """

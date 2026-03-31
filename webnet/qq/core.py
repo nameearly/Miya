@@ -14,11 +14,8 @@ from .models import QQMessage, QQNotice
 from .client import QQOneBotClient
 from .message_handler import QQMessageHandler
 from .tts_handler import QQTTsHandler
-from .active_chat_manager import (
-    IntelligentActiveChatManager,
-    TriggerType,
-    MessagePriority,
-)
+
+# 注意：IntelligentActiveChatManager 已废弃，使用 core.proactive_chat.ProactiveChatSystem
 from .unified_config import get_qq_config, get_connection_config, get_multimedia_config
 
 logger = logging.getLogger(__name__)
@@ -84,9 +81,10 @@ class QQNet:
         self.message_handler = QQMessageHandler(self)
         self.tts_handler = QQTTsHandler(self)
         self.image_handler = QQImageHandler(self)
-        # 使用智能主动聊天管理器（支持上下文感知）
-        self.active_chat_manager = IntelligentActiveChatManager(self)
-        logger.info("[QQNet] 智能主动聊天管理器已集成")
+        # 主动聊天功能现在使用 core.proactive_chat.ProactiveChatSystem
+        # 旧系统已废弃，不再初始化
+        self.active_chat_manager = None
+        logger.info("[QQNet] 主动聊天系统使用 v2.1 (core.proactive_chat)")
 
         # 访问控制
         self.group_whitelist: Set[int] = set()
@@ -190,16 +188,21 @@ class QQNet:
             # 音频播放器
             self.audio_player = None
 
-            logger.info(
-                f"[QQNet] 统一配置加载成功，WebSocket地址: {self.onebot_ws_url}"
-            )
+            logger.info(f"QQNet 统一配置加载成功，WebSocket地址: {self.onebot_ws_url}")
 
             # 记录关键配置
-            logger.info(f"[QQNet] 配置摘要:")
-            logger.info(f"  - Bot QQ: {self.bot_qq}")
-            logger.info(f"  - 重连间隔: {self.reconnect_interval}s")
-            logger.info(f"  - OCR启用: {self.ocr_config.get('enabled')}")
-            logger.info(f"  - 主动聊天启用: {self.active_chat_enabled}")
+            logger.info(f"Bot QQ: {self.bot_qq}")
+            logger.info(f"Super Admin: {self.superadmin_qq}")
+            logger.info(f"WebSocket: {self.onebot_ws_url}")
+            logger.info(f"重连间隔: {self.reconnect_interval}秒")
+            logger.info(f"心跳间隔: {self.ping_interval}秒")
+            logger.info(
+                f"OCR识别: {'启用' if self.ocr_config.get('enabled') else '禁用'}"
+            )
+            logger.info(f"主动聊天: {'启用' if self.active_chat_enabled else '禁用'}")
+            logger.info(
+                f"任务调度: {'启用' if self.task_scheduler_enabled else '禁用'}"
+            )
 
         except Exception as e:
             logger.error(f"[QQNet] 加载统一配置失败，使用默认配置: {e}")
@@ -296,9 +299,10 @@ class QQNet:
             user_whitelist=self.user_whitelist,
             user_blacklist=self.user_blacklist,
             bot_qq=self.bot_qq,
-            enable_image_ocr=False,  # 禁用OCR，仅使用视觉模型
-            enable_ai_image_analysis=True,  # 启用AI图片分析
-            image_handler=self.image_handler,  # 传递图片处理器实例
+            enable_image_ocr=False,
+            enable_ai_image_analysis=True,
+            image_handler=self.image_handler,
+            onebot_client=self.onebot_client,
         )
 
         # 配置图片处理器 - 仅使用视觉模型
@@ -339,6 +343,10 @@ class QQNet:
         self.onebot_client = QQOneBotClient(self.onebot_ws_url, self.onebot_token)
         self.onebot_client.set_message_handler(self._handle_qq_message)
 
+        # 连接后更新消息处理器的 client
+        self.message_handler.message_parser.set_client(self.onebot_client)
+        logger.info("[QQNet] 已更新消息解析器的 onebot_client")
+
         await self.onebot_client.connect()
         logger.info("[QQNet] 已连接到QQ")
 
@@ -347,17 +355,11 @@ class QQNet:
         if not self.onebot_client:
             await self.connect()
 
-        # 启动主动聊天管理器
-        await self.active_chat_manager.start()
-
         # 启动消息接收循环
         await self.onebot_client.run_with_reconnect()
 
     async def stop(self) -> None:
         """停止QQ子网"""
-        # 停止主动聊天管理器
-        await self.active_chat_manager.stop()
-
         # 停止QQ客户端
         if self.onebot_client:
             self.onebot_client.stop()
@@ -365,33 +367,22 @@ class QQNet:
 
     async def _handle_qq_message(self, event: Dict) -> None:
         """处理QQ消息事件"""
+        # 记录接收到的原始事件
+        post_type = event.get("post_type", "unknown")
+        logger.debug(f"[QQNet] 收到事件: post_type={post_type}")
+
         # 委托给消息处理器
         qq_message = await self.message_handler.handle_event(event)
 
-        # 【新增】提取上下文用于智能主动聊天
-        if qq_message and hasattr(
-            self.active_chat_manager, "extract_context_from_message"
-        ):
-            try:
-                # 从用户消息中提取上下文
-                user_id = qq_message.user_id or qq_message.sender_id
-                group_id = qq_message.group_id
-                message_text = qq_message.message
+        if qq_message:
+            logger.debug(
+                f"[QQNet] 消息解析完成: type={qq_message.message_type}, from={qq_message.sender_id}"
+            )
 
-                # 提取上下文
-                context = self.active_chat_manager.extract_context_from_message(
-                    user_id=user_id, message=message_text, group_id=group_id
-                )
-
-                if context:
-                    self.active_chat_manager.add_context(context)
-                    logger.info(f"[QQNet] 提取到上下文: {context.content[:30]}...")
-
-            except Exception as e:
-                logger.warning(f"[QQNet] 提取上下文失败: {e}")
-
-        if qq_message and self.on_message_callback:
-            await self.on_message_callback(qq_message)
+            if self.on_message_callback:
+                await self.on_message_callback(qq_message)
+        else:
+            logger.debug("[QQNet] 消息被过滤或解析失败")
 
     async def send_group_message(
         self, group_id: int, message: str | List[Dict], use_tts: bool = None
@@ -483,112 +474,54 @@ class QQNet:
         target_id: int,
         content: str,
         trigger_type: str = "time",
-        trigger_config: Optional[Dict] = None,
-        priority: int = 2,
-        metadata: Optional[Dict] = None,
+        trigger_config: Dict = None,
+        priority: str = "normal",
+        metadata: Dict = None,
     ) -> str:
         """
-        安排主动消息
-
-        Args:
-            target_type: 目标类型，"group" 或 "private"
-            target_id: 目标ID（群号或用户QQ号）
-            content: 消息内容
-            trigger_type: 触发类型，"time", "event", "condition", "manual"
-            trigger_config: 触发器配置
-            priority: 优先级，1-4（低-紧急）
-            metadata: 额外元数据
-
-        Returns:
-            消息ID
+        安排主动消息（已废弃，使用 core.proactive_chat）
         """
-        try:
-            # 转换枚举类型
-            trigger_enum = TriggerType(trigger_type)
-            priority_enum = MessagePriority(priority)
-
-            message_id = await self.active_chat_manager.schedule_message(
-                target_type=target_type,
-                target_id=target_id,
-                content=content,
-                trigger_type=trigger_enum,
-                trigger_config=trigger_config or {},
-                priority=priority_enum,
-                metadata=metadata or {},
-            )
-
-            return message_id
-
-        except Exception as e:
-            logger.error(f"[QQNet] 安排主动消息失败: {e}")
-            raise
+        logger.warning(
+            "[QQNet] schedule_active_message 已废弃，请使用 core.proactive_chat"
+        )
+        return ""
 
     def set_user_preference(self, user_id: int, preferences: Dict[str, Any]):
         """
-        设置用户偏好
-
-        Args:
-            user_id: 用户QQ号
-            preferences: 偏好设置字典
+        设置用户偏好（已废弃）
         """
-        self.active_chat_manager.set_user_preference(user_id, preferences)
+        logger.warning("[QQNet] set_user_preference 已废弃")
 
     def get_user_preference(self, user_id: int) -> Dict[str, Any]:
         """
-        获取用户偏好
-
-        Args:
-            user_id: 用户QQ号
-
-        Returns:
-            用户偏好字典
+        获取用户偏好（已废弃）
         """
-        return self.active_chat_manager.get_user_preference(user_id)
+        return {}
 
     def get_active_chat_stats(self) -> Dict[str, Any]:
         """
-        获取主动聊天统计
-
-        Returns:
-            统计数据字典
+        获取主动聊天统计（已废弃）
         """
-        return self.active_chat_manager.get_stats()
+        return {"status": "deprecated", "message": "使用 core.proactive_chat"}
 
     def get_pending_messages(self) -> List[Dict[str, Any]]:
         """
-        获取待发消息列表
-
-        Returns:
-            待发消息列表
+        获取待发消息列表（已废弃）
         """
-        messages = self.active_chat_manager.get_pending_messages()
-        return [msg.to_dict() for msg in messages]
+        return []
 
     def get_sent_messages(self, limit: int = 100) -> List[Dict[str, Any]]:
         """
-        获取已发消息列表
-
-        Args:
-            limit: 限制数量
-
-        Returns:
-            已发消息列表
+        获取已发消息列表（已废弃）
         """
-        messages = self.active_chat_manager.get_sent_messages(limit)
-        return [msg.to_dict() for msg in messages]
+        return []
 
     def cancel_active_message(self, message_id: str) -> bool:
         """
-        取消主动消息
-
-        Args:
-            message_id: 消息ID
-
-        Returns:
-            是否成功取消
+        取消主动消息（已废弃）
         """
-        return self.active_chat_manager.cancel_message(message_id)
+        return False
 
     def cleanup_expired_messages(self):
-        """清理过期消息"""
-        self.active_chat_manager.cleanup_expired_messages()
+        """清理过期消息（已废弃）"""
+        pass

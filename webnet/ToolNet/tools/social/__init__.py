@@ -11,7 +11,6 @@ from .qq_tools import (
     QQEmojiTool,
     QQFileReaderTool,
     QQImageAnalyzerTool,
-    QQActiveChatTool,
 )
 from .wechat_tools import WeChatTools
 from .discord_tools import DiscordTools
@@ -24,7 +23,6 @@ __all__ = [
     "QQEmojiTool",
     "QQFileReaderTool",
     "QQImageAnalyzerTool",
-    "QQActiveChatTool",
     "WeChatTools",
     "DiscordTools",
 ]

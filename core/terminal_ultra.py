@@ -927,6 +927,46 @@ class TerminalUltra:
 
         return result
 
+    # ==================== 文件操作 ====================
+
+    async def file_copy(
+        self, source: str, destination: str, overwrite: bool = False
+    ) -> ExecutionResult:
+        """复制文件或目录"""
+        if os.name == "nt":  # Windows
+            if overwrite:
+                cmd = f'Copy-Item -Path "{source}" -Destination "{destination}" -Force -Recurse'
+            else:
+                cmd = (
+                    f'Copy-Item -Path "{source}" -Destination "{destination}" -Recurse'
+                )
+        else:  # Linux/MacOS
+            if overwrite:
+                cmd = f'cp -rf "{source}" "{destination}"'
+            else:
+                cmd = f'cp -r "{source}" "{destination}"'
+
+        result = await self.terminal_exec(cmd)
+        return result
+
+    async def file_move(
+        self, source: str, destination: str, overwrite: bool = False
+    ) -> ExecutionResult:
+        """移动或重命名文件或目录"""
+        if os.name == "nt":  # Windows
+            if overwrite:
+                cmd = f'Move-Item -Path "{source}" -Destination "{destination}" -Force'
+            else:
+                cmd = f'Move-Item -Path "{source}" -Destination "{destination}"'
+        else:  # Linux/MacOS
+            if overwrite:
+                cmd = f'mv -f "{source}" "{destination}"'
+            else:
+                cmd = f'mv "{source}" "{destination}"'
+
+        result = await self.terminal_exec(cmd)
+        return result
+
     # ==================== 代码理解 ====================
 
     async def code_search_symbol(

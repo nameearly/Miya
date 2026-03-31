@@ -12,15 +12,13 @@ from webnet.ToolNet.tools.qq import (
     QQEmojiTool,
     QQFileReaderTool,
     QQImageAnalyzerTool,
-    QQActiveChatTool
 )
 
 # 导出相同的接口
 __all__ = [
-    'QQImageTool',
-    'QQFileTool',
-    'QQEmojiTool',
-    'QQFileReaderTool',
-    'QQImageAnalyzerTool',
-    'QQActiveChatTool'
+    "QQImageTool",
+    "QQFileTool",
+    "QQEmojiTool",
+    "QQFileReaderTool",
+    "QQImageAnalyzerTool",
 ]

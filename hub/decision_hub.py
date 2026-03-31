@@ -203,13 +203,109 @@ class DecisionHub:
             "决策层 Hub 初始化完成（门面模式：感知/情绪/记忆/响应处理器 + 辅助模块）"
         )
 
+        # 9. 安全服务（防注入）
+        self._init_security()
+
+    def _init_security(self):
+        """初始化安全服务"""
+        try:
+            from core.security_service import SecurityService
+
+            self.security_service = SecurityService()
+            logger.info("[决策层] 安全服务已初始化（技术性防注入）")
+        except Exception as e:
+            logger.warning(f"[决策层] 安全服务初始化失败: {e}")
+            self.security_service = None
+
+        # 10. AI注入检测器（角色扮演诱导检测）
+        try:
+            from core.ai_injection_detector import get_injection_detector
+
+            self.ai_injection_detector = get_injection_detector()
+            logger.info("[决策层] AI注入检测器已初始化（角色扮演诱导检测）")
+        except Exception as e:
+            logger.warning(f"[决策层] AI注入检测器初始化失败: {e}")
+            self.ai_injection_detector = None
+
+        # 12. 主动聊天系统 v2.0
+        try:
+            from core.proactive_chat import get_proactive_chat_system
+
+            self.proactive_chat = get_proactive_chat_system()
+            self.proactive_chat.set_ai_client(self.ai_client)
+            self.proactive_chat.set_personality(self.personality)
+            logger.info("[决策层] 主动聊天系统 v2.0 已初始化")
+        except Exception as e:
+            logger.warning(f"[决策层] 主动聊天系统初始化失败: {e}")
+            self.proactive_chat = None
+
+    async def _check_injection(
+        self, perception: dict, content: str
+    ) -> tuple[str | None, str | None]:
+        """
+        检查注入攻击
+
+        Returns:
+            (拦截消息, 防护提示) - 拦截消息非None时直接返回，防护提示非None时附加到AI请求
+        """
+
+        # 1. 先检查技术性注入
+        if self.security_service:
+            try:
+                platform = perception.get("source", "")
+                if platform in ["qq", "web"]:
+                    user_id = str(
+                        perception.get("user_id", perception.get("user_id", "unknown"))
+                    )
+                    result = self.security_service.check(content, user_id)
+                    # 检查是否是危险级别
+                    if result.level.value in ["dangerous", "blocked"]:
+                        logger.warning(
+                            f"[决策层-防注入] 技术性注入: level={result.level}, reason={result.reason}"
+                        )
+                        return "抱歉，我不太明白你的意思呢～", None
+            except Exception as e:
+                logger.warning(f"[决策层-防注入] 技术检测失败: {e}")
+
+        # 2. 检查AI角色扮演诱导
+        if self.ai_injection_detector:
+            try:
+                # 检查是否启用
+                if not self.ai_injection_detector.is_enabled():
+                    return None, None
+
+                platform = perception.get("source", "")
+                if platform in ["qq", "web"]:
+                    is_injection, reason = await self.ai_injection_detector.detect(
+                        content
+                    )
+                    if is_injection:
+                        logger.warning(
+                            f"[决策层-AI防注入] 检测到角色扮演诱导: {reason}"
+                        )
+                        # 根据配置决定是阻止还是使用防护提示
+                        if self.ai_injection_detector.should_block():
+                            return (
+                                self.ai_injection_detector.get_fallback_response(),
+                                None,
+                            )
+                        else:
+                            # 软防护：允许回复但附加防护提示
+                            protection_prompt = (
+                                self.ai_injection_detector.get_protection_prompt()
+                            )
+                            return None, protection_prompt
+            except Exception as e:
+                logger.warning(f"[决策层-AI防注入] 检测失败: {e}")
+
+        return None, None
+
     def _init_knowledge_graph(self):
         """初始化知识图谱管理器"""
         try:
             from core.knowledge_graph import KnowledgeGraphManager
             from core.grag_memory import GRAGMemoryManager
 
-            # 从 GRAG 获取 Neo4j driver
             if hasattr(self.memory_net, "grag_memory") and self.memory_net.grag_memory:
                 driver = self.memory_net.grag_memory.neo4j_driver
                 if driver:
@@ -217,6 +313,75 @@ class DecisionHub:
                     logger.info("[决策层] 知识图谱管理器已初始化")
         except Exception as e:
             logger.warning(f"[决策层] 知识图谱初始化失败: {e}")
+
+    async def _handle_proactive_chat(self, perception: dict, user_message: str):
+        """处理主动聊天"""
+        if not self.proactive_chat:
+            return
+
+        try:
+            from core.proactive_chat import ChatContext
+
+            user_id = perception.get("user_id", 0)
+            group_id = perception.get("group_id", 0)
+            group_name = perception.get("group_name", "")
+            message_type = perception.get("message_type", "unknown")
+
+            if not user_id:
+                return
+
+            # 确定目标ID
+            if message_type == "group" or (group_id and group_id != 0):
+                target_id = group_id if group_id else 0
+                chat_type = "group"
+            else:
+                target_id = user_id
+                chat_type = "private"
+
+            if target_id == 0:
+                return
+
+            # 更新上下文
+            context = ChatContext(
+                chat_type=chat_type,
+                target_id=target_id,
+                group_name=group_name or None,
+                member_count=perception.get("member_count", 0),
+            )
+
+            self.proactive_chat.update_context(target_id, context)
+            self.proactive_chat.record_message(target_id, chat_type, user_message)
+
+            # 检查是否需要主动发言
+            result = await self.proactive_chat.check_and_respond(
+                target_id=target_id, user_message=user_message
+            )
+
+            if result and result.should_respond and result.message:
+                # 发送主动消息
+                if result.context and result.context.chat_type == "group":
+                    group_id_to_send = result.context.target_id
+                    logger.info(
+                        f"[决策层] [主动聊天] 发送到群 {group_id_to_send}: {result.message}"
+                    )
+                    if self.onebot_client:
+                        await self.onebot_client.send_group_msg(
+                            group_id_to_send, result.message
+                        )
+                else:
+                    user_id_to_send = (
+                        result.context.target_id if result.context else target_id
+                    )
+                    logger.info(
+                        f"[决策层] [主动聊天] 发送到用户 {user_id_to_send}: {result.message}"
+                    )
+                    if self.onebot_client:
+                        await self.onebot_client.send_private_msg(
+                            user_id_to_send, result.message
+                        )
+
+        except Exception as e:
+            logger.warning(f"[决策层] 主动聊天处理失败: {e}")
 
     def _extract_keywords_from_input(self, text: str) -> List[str]:
         """从用户输入中提取关键词用于知识图谱检索"""
@@ -391,6 +556,29 @@ class DecisionHub:
 
         logger.info(f"[决策层] 收到感知数据: {sender_name} - {content[:50]}")
 
+        # 【新增】更新用户/群聊侧写（从消息中学习用户特征）
+        user_id = perception.get("user_id", perception.get("sender_id", 0))
+        group_id = perception.get("group_id", 0)
+        group_name = perception.get("group_name", "")
+
+        if platform == "qq" and user_id:
+            try:
+                from core.user_persona import get_user_persona_manager
+
+                persona_manager = get_user_persona_manager()
+                persona_manager.update_from_message(
+                    user_id=str(user_id),
+                    user_name=sender_name,
+                    group_id=str(group_id) if group_id else None,
+                    group_name=group_name,
+                    message=content,
+                )
+                logger.debug(
+                    f"[决策层] 用户侧写已更新: user_id={user_id}, group_id={group_id}"
+                )
+            except Exception as e:
+                logger.debug(f"[决策层] 用户侧写更新失败: {e}")
+
         # 【新增】在最开始拦截快捷命令
         logger.warning(
             f"[决策层] ========== 命令检测 START ========== content={content[:30]}, personality={type(self.personality) if self.personality else None}"
@@ -401,6 +589,19 @@ class DecisionHub:
                 f"[决策层] ========== 快捷命令拦截成功 ========== {content[:20]} -> {quick_response[:50]}"
             )
             return quick_response
+
+        # 【安全检查】防注入检测
+        injection_result, protection_prompt = await self._check_injection(
+            perception, content
+        )
+        if injection_result:
+            logger.warning(f"[决策层] 检测到注入攻击: {injection_result}")
+            return injection_result
+
+        # 如果有防护提示，附加到perception中传递给AI
+        if protection_prompt:
+            perception["_protection_prompt"] = protection_prompt
+            logger.info("[决策层] 已添加防护提示到AI请求")
 
         # 【新增】群聊关键词触发检测（不@也能回复）
         group_id = perception.get("group_id", 0)
@@ -479,6 +680,10 @@ class DecisionHub:
         response = await self._generate_response_cross_platform(
             content, platform, perception
         )
+
+        # 7. 主动聊天系统 v2.0 - 检查是否需要主动发言
+        if platform == "qq" and response:
+            await self._handle_proactive_chat(perception, content)
 
         # 【新增】QQ端状态标签（仅日志，不添加到响应中）
         if platform == "qq" and response and self.personality:
@@ -636,23 +841,94 @@ class DecisionHub:
                         knowledge_context = format_knowledge_for_prompt(knowledge)
                         logger.info(f"[决策层] 检索到 {len(knowledge)} 条知识图谱记忆")
 
-            # 【新增】智能记忆检索 - 根据当前对话检索相关记忆
+            # 【新增】智能记忆检索 - 根据当前对话检索相关记忆（支持用户/群聊过滤）
             cognitive_memory_context = ""
             try:
                 cognitive_engine = get_cognitive_engine()
+                # 从context中获取user_id和group_id
+                query_user_id = (
+                    str(context.get("user_id", "")) if context.get("user_id") else None
+                )
+                query_group_id = (
+                    str(context.get("group_id", ""))
+                    if context.get("group_id")
+                    else None
+                )
                 cognitive_memory_context = await cognitive_engine.build_context(
                     user_input=content,
                     conversation_history=conversation_context,
                     limit=3,
+                    user_id=query_user_id,
+                    group_id=query_group_id,
                 )
                 if cognitive_memory_context:
-                    logger.info(f"[决策层] 智能记忆检索到相关记忆")
+                    logger.info(
+                        f"[决策层] 智能记忆检索到相关记忆 (user_id={query_user_id}, group_id={query_group_id})"
+                    )
             except Exception as e:
                 logger.debug(f"[决策层] 智能记忆检索失败: {e}")
+
+            # 【新增】用户/群聊侧写检索 - 提供个性化上下文
+            user_persona_context = ""
+            group_persona_context = ""
+            query_user_id_for_persona = context.get("user_id")
+            query_group_id_for_persona = context.get("group_id")
+            try:
+                from core.user_persona import get_user_persona_manager
+
+                persona_manager = get_user_persona_manager()
+
+                # 获取用户侧写
+                if query_user_id_for_persona:
+                    user_persona_context = persona_manager.build_user_context(
+                        user_id=str(query_user_id_for_persona),
+                        group_id=str(query_group_id_for_persona)
+                        if query_group_id_for_persona
+                        else None,
+                    )
+                    if user_persona_context:
+                        logger.info(
+                            f"[决策层] 检索到用户侧写: {user_persona_context[:50]}..."
+                        )
+
+                # 获取群聊侧写
+                if query_group_id_for_persona:
+                    group_persona_context = persona_manager.build_group_context(
+                        group_id=str(query_group_id_for_persona)
+                    )
+                    if group_persona_context:
+                        logger.info(
+                            f"[决策层] 检索到群聊侧写: {group_persona_context[:50]}..."
+                        )
+            except Exception as e:
+                logger.debug(f"[决策层] 用户侧写检索失败: {e}")
 
             # 构建提示词（统一使用默认提示词，通过上下文传递平台信息）
             # 获取当前形态状态，注入到提示词中
             status_prompt = self.personality.get_status_for_prompt()
+
+            # 获取防护提示（如果有注入风险）
+            protection_prompt = context.get("_protection_prompt", "")
+
+            # 获取消息类型（群聊/私聊）
+            message_type = context.get("message_type", "unknown")
+
+            # 获取引用消息信息
+            reply_info = context.get("reply")
+            reply_context = ""
+            if reply_info:
+                reply_context = f"\n[引用消息] 来自: {reply_info.get('sender_name', '未知')}\n内容: {reply_info.get('content', '')[:100]}"
+
+            # 获取文件信息
+            files_info = context.get("files", [])
+            files_context = ""
+            if files_info:
+                file_list = ", ".join([f.get("name", "文件") for f in files_info])
+                files_context = f"\n[附加文件] {file_list}"
+
+            # 获取是否有媒体
+            has_media = context.get("has_media", False)
+            media_context = "\n[图片消息]" if has_media else ""
 
             prompt_info = self.prompt_manager.build_full_prompt(
                 user_input=content,
@@ -660,6 +936,9 @@ class DecisionHub:
                 knowledge_context=knowledge_context,
                 additional_context={
                     "platform": platform,
+                    "message_type": message_type,
+                    "group_id": context.get("group_id", 0),
+                    "group_name": context.get("group_name", ""),
                     "user_id": user_id,
                     "sender_name": sender_name,
                     "available_tools": available_tools,
@@ -670,6 +949,14 @@ class DecisionHub:
                     ),
                     "status_prompt": status_prompt,
                     "cognitive_memory": cognitive_memory_context,
+                    "protection_prompt": protection_prompt,
+                    # 【新增】用户/群聊侧写上下文
+                    "user_persona": user_persona_context,
+                    "group_persona": group_persona_context,
+                    # 【新增】引用消息和文件上下文
+                    "reply_context": reply_context,
+                    "files_context": files_context,
+                    "media_context": media_context,
                 },
             )
 
@@ -695,6 +982,7 @@ class DecisionHub:
                     "message_type": context.get("message_type"),
                     "sender_name": sender_name,
                     "at_list": context.get("at_list", []),
+                    "bot_qq": context.get("bot_qq"),
                     "memory_engine": self.memory_engine,
                     "emotion": self.emotion,
                     "personality": self.personality,

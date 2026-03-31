@@ -1,6 +1,7 @@
 """
 QQ点赞工具
 """
+
 from typing import Dict, Any
 import logging
 from webnet.ToolNet.base import BaseTool, ToolContext
@@ -23,18 +24,18 @@ class QQLike(BaseTool):
                 "properties": {
                     "target_user_id": {
                         "type": "integer",
-                        "description": "要点赞的QQ号（纯数字，如123456789）。如果用户说'给我点赞'，必须传递context.user_id的整数值（不是字符串，是纯数字QQ号）。如果用户通过@提及他人，从context.at_list获取QQ号（纯数字）。"
+                        "description": "要点赞的QQ号（纯数字，如123456789）。如果用户说'给我点赞'，必须传递context.user_id的整数值（不是字符串，是纯数字QQ号）。如果用户通过@提及他人，从context.at_list获取QQ号（纯数字）。",
                     },
                     "times": {
                         "type": "integer",
                         "description": "点赞次数（1-10），默认1次，用户说'十次'、'十个'、'一人点十个'等时转换为数字10",
                         "default": 1,
                         "minimum": 1,
-                        "maximum": 10
-                    }
+                        "maximum": 10,
+                    },
                 },
-                "required": ["target_user_id"]
-            }
+                "required": ["target_user_id"],
+            },
         }
 
     async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
@@ -48,10 +49,17 @@ class QQLike(BaseTool):
             # 这样可以避免AI传递错误QQ号的问题
             target_user_id = context.user_id
             logger.info(f"[qq_like] 使用当前用户ID: {target_user_id}")
-        
+
         times = args.get("times", 1)
 
-        logger.info(f"[qq_like] 工具被调用: args={args}, context.user_id={context.user_id}, context.at_list={context.at_list}, times={times}")
+        logger.info(
+            f"[qq_like] 工具被调用: args={args}, context.user_id={context.user_id}, context.at_list={context.at_list}, times={times}"
+        )
+
+        # 检查是否给自己点赞
+        bot_qq = getattr(context, "bot_qq", None)
+        if bot_qq and target_user_id == bot_qq:
+            return "❌ 不能给自己点赞哦~"
 
         if target_user_id is None:
             return "请提供要点赞的目标QQ号，或@要点赞的用户"
@@ -84,20 +92,20 @@ class QQLike(BaseTool):
         except Exception as e:
             logger.error(f"点赞失败: {e}", exc_info=True)
             error_msg = str(e)
-            
+
             # 如果是网络连接异常，尝试备选方案
             if "网络连接异常" in error_msg or "retcode=1200" in error_msg:
                 logger.info(f"尝试点赞备选方案: {error_msg}")
-                
+
                 # 备选方案：发送表情代替点赞
                 try:
                     # 获取client实例（从context中）
-                    client = getattr(context, 'onebot_client', None)
+                    client = getattr(context, "onebot_client", None)
                     if client:
                         emoji_message = "👍" * min(times, 10)
                         await client.send_private_msg(
                             user_id=target_user_id,
-                            message=f"（点赞备选）{emoji_message}"
+                            message=f"（点赞备选）{emoji_message}",
                         )
                         return f"✅ 已发送表情代替点赞: {emoji_message}"
                     else:

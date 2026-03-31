@@ -135,7 +135,6 @@ from .knowledge import *
 from .cognitive import *
 from .bilibili import *
 from .cross_terminal import *
-from .web_search import *
 
 __all__ = [
     # 核心服务

@@ -9,13 +9,11 @@ from .qq_file import QQFileTool
 from .qq_emoji import QQEmojiTool
 from .qq_file_reader import QQFileReaderTool
 from .qq_image_analyzer import QQImageAnalyzerTool
-from .qq_active_chat import QQActiveChatTool
 
 __all__ = [
-    'QQImageTool',
-    'QQFileTool', 
-    'QQEmojiTool',
-    'QQFileReaderTool',
-    'QQImageAnalyzerTool',
-    'QQActiveChatTool'
+    "QQImageTool",
+    "QQFileTool",
+    "QQEmojiTool",
+    "QQFileReaderTool",
+    "QQImageAnalyzerTool",
 ]

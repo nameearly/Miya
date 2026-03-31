@@ -1,0 +1,492 @@
+"""
+弥娅认知检索引擎 (CognitiveEngine)
+
+实现智能记忆检索：
+- 根据当前对话动态检索相关记忆
+- 多策略融合：关键词 + 向量 + 时间衰减
+- 只返回最相关的记忆，减少干扰
+"""
+
+import logging
+import re
+from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
+
+from memory import get_memory_core, MemoryItem, MemoryQuery, MemoryLevel
+
+logger = logging.getLogger(__name__)
+
+
+# 话题关键词映射
+TOPIC_KEYWORDS = {
+    "学习": [
+        "上课",
+        "学习",
+        "考试",
+        "作业",
+        "学校",
+        "老师",
+        "同学",
+        "补课",
+        "自习",
+        "复习",
+        "预习",
+        "考试",
+        "成绩",
+        "大学",
+        "专业",
+    ],
+    "吃饭": [
+        "吃饭",
+        "饿",
+        "饱",
+        "零食",
+        "外卖",
+        "餐厅",
+        "食堂",
+        "菜",
+        "口味",
+        "厨师",
+        "做饭",
+        "洗澡",
+        "澡堂",
+    ],
+    "休息": [
+        "睡觉",
+        "困",
+        "累",
+        "休息",
+        "放假",
+        "周末",
+        "假期",
+        "娱乐",
+        "游戏",
+        "动漫",
+        "电影",
+        "音乐",
+    ],
+    "情绪": [
+        "难过",
+        "开心",
+        "生气",
+        "害怕",
+        "担心",
+        "焦虑",
+        "压力",
+        "烦恼",
+        "郁闷",
+        "高兴",
+        "兴奋",
+        "失落",
+    ],
+    "健康": [
+        "身体",
+        "健康",
+        "病",
+        "医院",
+        "药",
+        "体检",
+        "心脏",
+        "手术",
+        "感冒",
+        "发烧",
+        "咳嗽",
+    ],
+    "社交": ["朋友", "同学", "家人", "聊天", "聚会", "社交", "联系人", "室友"],
+    "爱好": [
+        "喜欢",
+        "爱好",
+        "兴趣",
+        "二游",
+        "游戏",
+        "原神",
+        "鸣潮",
+        "星穹铁道",
+        "角色",
+        "手办",
+    ],
+    "行程": [
+        "出门",
+        "回家",
+        "去学校",
+        "回来",
+        "旅游",
+        "旅行",
+        "出行",
+        "坐车",
+        "高铁",
+        "飞机",
+    ],
+}
+
+
+# 记忆提取触发词
+MEMORY_TRIGGERS = {
+    "important_info": [
+        "我最喜欢",
+        "我喜欢",
+        "我讨厌",
+        "我有",
+        "我有",
+        "我是",
+        "我今年",
+        "我身高",
+        "我体重",
+    ],
+    "commitment": ["答应你", "会记住", "下次", "承诺", "一定", "保证"],
+    "emotion_change": ["今天", "刚才", "突然", "现在", "感觉", "心情"],
+    "habit": ["习惯", "经常", "通常", "一般", "平时"],
+}
+
+
+# 需要忽略的无意义内容
+IGNORE_PATTERNS = [
+    r"^[嗯哦啊哈嘿诶]{1,3}[。.]?$",  # 简单语气词
+    r"^[好是知道]{1,2}[。.]?$",  # 简单回复
+    r"^[干嘛怎么了啥事]+[?]?$",  # 简单问题
+    r"^[恭喜祝贺]+[。!]*$",  # 简单客套
+]
+
+
+class CognitiveEngine:
+    """认知检索引擎
+
+    职责：
+    - 分析当前对话主题
+    - 智能检索相关记忆
+    - 融合多种检索策略
+    - 生成记忆上下文
+    """
+
+    def __init__(self, memory_core=None):
+        """初始化认知引擎
+
+        Args:
+            memory_core: 记忆核心实例
+        """
+        import asyncio
+
+        self.memory_core = memory_core
+        self._memory_core_initialized = False
+
+    async def _ensure_memory_core_initialized(self):
+        """确保内存核心已初始化"""
+        if not self._memory_core_initialized:
+            if self.memory_core is None:
+                self.memory_core = await get_memory_core()
+            await self.memory_core.initialize()
+            self._memory_core_initialized = True
+
+    def _extract_topics(self, text: str) -> List[str]:
+        """提取对话主题
+
+        Args:
+            text: 用户输入
+
+        Returns:
+            匹配的主题列表
+        """
+        text = text.lower()
+        topics = []
+
+        for topic, keywords in TOPIC_KEYWORDS.items():
+            for keyword in keywords:
+                if keyword in text:
+                    topics.append(topic)
+                    break
+
+        return topics
+
+    def _extract_keywords(self, text: str) -> List[str]:
+        """提取关键词
+
+        Args:
+            text: 用户输入
+
+        Returns:
+            关键词列表
+        """
+        # 简单分词
+        keywords = []
+
+        # 提取长度大于2的词
+        for topic, topic_keywords in TOPIC_KEYWORDS.items():
+            for keyword in topic_keywords:
+                if keyword in text:
+                    keywords.append(keyword)
+
+        # 添加触发词
+        for category, triggers in MEMORY_TRIGGERS.items():
+            for trigger in triggers:
+                if trigger in text:
+                    keywords.append(trigger)
+
+        return list(set(keywords))
+
+    def _is_meaningful(self, text: str) -> bool:
+        """判断内容是否有意义（值得记忆）
+
+        Args:
+            text: 对话内容
+
+        Returns:
+            是否有意义
+        """
+        text = text.strip()
+
+        # 检查忽略模式
+        for pattern in IGNORE_PATTERNS:
+            if re.match(pattern, text):
+                return False
+
+        # 太短的内容忽略
+        if len(text) < 4:
+            return False
+
+        return True
+
+    def _calculate_relevance(
+        self, memory: MemoryItem, current_topics: List[str], keywords: List[str]
+    ) -> float:
+        """计算记忆与当前对话的相关度
+
+        Args:
+            memory: 记忆
+            current_topics: 当前话题
+            keywords: 关键词
+
+        Returns:
+            相关度分数 0-1
+        """
+        score = 0.0
+
+        # 1. 重要性权重
+        score += memory.priority * 0.3
+
+        # 2. 关键词匹配
+        for keyword in keywords:
+            if keyword.lower() in memory.content.lower():
+                score += 0.2
+                break
+
+        # 3. 话题匹配
+        for topic in current_topics:
+            if topic in memory.tags:
+                score += 0.3
+                break
+
+        # 4. 时间衰减（新记忆权重更高）
+        try:
+            memory_time = datetime.fromisoformat(memory.created_at)
+            hours_ago = (datetime.now() - memory_time).total_seconds() / 3600
+            time_weight = max(0.1, 1 - hours_ago / (24 * 30))  # 30天内衰减
+            score += time_weight * 0.2
+        except:
+            score += 0.1
+
+        return min(1.0, score)
+
+    async def retrieve(
+        self,
+        user_input: str,
+        conversation_history: Optional[List[Dict[str, Any]]] = None,
+        limit: int = 5,
+        user_id: Optional[str] = None,
+        group_id: Optional[str] = None,
+    ) -> List[MemoryItem]:
+        """检索相关记忆
+
+        Args:
+            user_input: 用户当前输入
+            conversation_history: 对话历史（最近几条）
+            limit: 返回数量限制
+            user_id: 用户ID（用于过滤特定用户的记忆）
+            group_id: 群ID（用于过滤特定群聊的记忆）
+
+        Returns:
+            相关记忆列表
+        """
+        if not user_input:
+            return []
+
+        # 确保内存核心已初始化
+        await self._ensure_memory_core_initialized()
+
+        # 1. 提取当前话题和关键词
+        current_topics = self._extract_topics(user_input)
+        keywords = self._extract_keywords(user_input)
+
+        logger.info(f"[认知引擎] 当前话题: {current_topics}, 关键词: {keywords[:5]}")
+
+        # 2. 查询记忆（支持用户/群聊过滤）
+        query = MemoryQuery(
+            query="",
+            tags=current_topics + keywords,
+            limit=limit * 3,  # 获取更多记忆以便后续过滤
+            user_id=user_id,  # 传入user_id过滤
+            group_id=group_id,  # 传入group_id过滤
+        )
+
+        all_memories = await self.memory_core.retrieve(query)
+
+        if not all_memories:
+            return []
+
+        # 3. 计算相关度并排序
+        scored_memories = []
+        for memory in all_memories:
+            relevance = self._calculate_relevance(memory, current_topics, keywords)
+            if relevance > 0.1:  # 过滤低相关度
+                scored_memories.append((memory, relevance))
+
+        # 按相关度排序
+        scored_memories.sort(key=lambda x: x[1], reverse=True)
+
+        # 4. 返回 top N
+        results = [m for m, _ in scored_memories[:limit]]
+
+        logger.info(f"[认知引擎] 检索到 {len(results)} 条相关记忆")
+
+        return results
+
+    async def build_context(
+        self,
+        user_input: str,
+        conversation_history: List[Dict] = None,
+        limit: int = 5,
+        user_id: Optional[str] = None,
+        group_id: Optional[str] = None,
+    ) -> str:
+        """构建记忆上下文文本
+
+        Args:
+            user_input: 用户当前输入
+            conversation_history: 对话历史
+            limit: 记忆数量限制
+            user_id: 用户ID（用于过滤特定用户的记忆）
+            group_id: 群ID（用于过滤特定群聊的记忆）
+
+        Returns:
+            格式化的记忆上下文文本
+        """
+        # 确保内存核心已初始化
+        await self._ensure_memory_core_initialized()
+
+        memories = await self.retrieve(
+            user_input, conversation_history, limit, user_id, group_id
+        )
+
+        if not memories:
+            return ""
+
+        lines = ["【弥娅记住的事情】"]
+        lines.append("")
+
+        for memory in memories:
+            # 显示时间和重要性
+            time_str = memory.created_at.split()[0]  # 只取日期
+            lines.append(f"- {memory.content}")
+
+        lines.append("")
+        lines.append("（这些都是之前对话中记住的重要事情，与当前对话可能相关）")
+
+        return "\n".join(lines)
+
+    async def should_remember(
+        self, user_input: str, ai_response: str
+    ) -> tuple[bool, str, float]:
+        """判断是否应该记忆这段对话
+
+        Args:
+            user_input: 用户输入
+            ai_response: AI回复
+
+        Returns:
+            (是否记忆, 记忆内容, 重要程度)
+        """
+        combined = user_input + " " + ai_response
+
+        # 1. 检查是否有意义
+        if not self._is_meaningful(user_input):
+            return False, "", 0.0
+
+        # 2. 检查是否包含触发词
+        importance = 0.3  # 基础重要性
+
+        for category, triggers in MEMORY_TRIGGERS.items():
+            for trigger in triggers:
+                if trigger in combined:
+                    if category == "important_info":
+                        importance = 0.9
+                    elif category == "commitment":
+                        importance = 0.8
+                    elif category == "emotion_change":
+                        importance = 0.7
+                    elif category == "habit":
+                        importance = 0.6
+                    break
+
+        # 3. 如果有关键词匹配，提高重要性
+        keywords = self._extract_keywords(user_input)
+        if len(keywords) >= 2:
+            importance = min(1.0, importance + 0.2)
+
+        # 4. 提取需要记忆的内容
+        memory_content = self._extract_memory_fact(user_input, ai_response)
+
+        if not memory_content:
+            return False, "", 0.0
+
+        return True, memory_content, importance
+
+    def _extract_memory_fact(self, user_input: str, ai_response: str) -> str:
+        """提取需要记忆的事实
+
+        Args:
+            user_input: 用户输入
+            ai_response: AI回复
+
+        Returns:
+            记忆内容
+        """
+        # 提取用户陈述的事实
+        for trigger in MEMORY_TRIGGERS["important_info"]:
+            if trigger in user_input:
+                # 提取触发词后的内容
+                idx = user_input.find(trigger)
+                fact = user_input[idx:].strip()
+                # 截取到句号或问号
+                for end in ["。", "？", "！", "\n"]:
+                    if end in fact:
+                        fact = fact[: fact.find(end)]
+                if len(fact) > 3:
+                    return fact
+
+        # 提取习惯
+        for trigger in MEMORY_TRIGGERS["habit"]:
+            if trigger in user_input:
+                idx = user_input.find(trigger)
+                fact = user_input[idx:].strip()
+                for end in ["。", "？", "！", "\n"]:
+                    if end in fact:
+                        fact = fact[: fact.find(end)]
+                if len(fact) > 3:
+                    return fact
+
+        # 如果没有匹配，返回用户输入作为潜在记忆内容
+        if len(user_input) > 5:
+            return user_input[:100]  # 限制长度
+
+        return ""
+
+
+# 单例实例
+_cognitive_engine: Optional[CognitiveEngine] = None
+
+
+def get_cognitive_engine() -> CognitiveEngine:
+    """获取认知引擎单例实例"""
+    global _cognitive_engine
+    if _cognitive_engine is None:
+        _cognitive_engine = CognitiveEngine()
+    return _cognitive_engine

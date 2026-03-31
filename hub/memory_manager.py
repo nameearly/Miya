@@ -76,19 +76,26 @@ class MemoryManager:
 
             logger.info(f"[记忆管理器] 收到消息: {content[:50]}...")
 
-            # 存储到 MemoryNet 对话历史
+            # 存储到 MemoryNet 对话历史（用metadata标签区分群聊/私聊）
             if self.memory_net and self.memory_net.conversation_history:
                 session_id = f"qq_{user_id}"
+
+                # 在metadata中添加标签，不影响内容识别
+                metadata = {
+                    "user_id": user_id,
+                    "group_id": group_id,
+                    "message_type": message_type,
+                    "sender": sender_name,
+                    "chat_label": f"群聊_{group_id}"
+                    if message_type == "group" and group_id
+                    else "私聊",
+                }
+
                 await self.memory_net.conversation_history.add_message(
                     session_id=session_id,
                     role="user",
                     content=content,
-                    metadata={
-                        "user_id": user_id,
-                        "group_id": group_id,
-                        "message_type": message_type,
-                        "sender": sender_name,
-                    },
+                    metadata=metadata,
                 )
 
             # 自动检测并存储重要信息
@@ -287,18 +294,27 @@ class MemoryManager:
         """
         try:
             if self.memory_net and self.memory_net.conversation_history:
-                session_id = f"qq_{perception.get('user_id', 'unknown')}"
+                # 存储AI响应（带标签）
+                user_id = perception.get("user_id", "unknown")
+                group_id = perception.get("group_id", "")
+                message_type = perception.get("message_type", "")
+                session_id = f"qq_{user_id}"
+
+                metadata = {
+                    "user_id": perception.get("user_id"),
+                    "group_id": group_id,
+                    "message_type": message_type,
+                    "sender": "弥娅",
+                    "chat_label": f"群聊_{group_id}"
+                    if message_type == "group" and group_id
+                    else "私聊",
+                }
 
                 await self.memory_net.conversation_history.add_message(
                     session_id=session_id,
                     role="assistant",
                     content=response,
-                    metadata={
-                        "user_id": perception.get("user_id"),
-                        "group_id": perception.get("group_id"),
-                        "message_type": perception.get("message_type"),
-                        "sender": "弥娅",
-                    },
+                    metadata=metadata,
                 )
 
                 logger.debug("[记忆管理器] AI 响应已存储到对话历史")

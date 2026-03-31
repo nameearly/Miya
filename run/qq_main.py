@@ -247,10 +247,19 @@ class MiyaQQ:
                 self.logger.info(f"    @弥娅: 是")
             self.logger.info(f"    内容: {msg_preview}")
 
-            # 构建感知数据
+            # 构建感知数据（修复：poke等消息也要根据group_id判断群聊/私聊）
+            msg_type = qq_message.message_type
+            # 如果是poke或其他特殊消息，根据group_id判断
+            if msg_type not in ["group", "private"]:
+                if qq_message.group_id and qq_message.group_id > 0:
+                    msg_type = "group"
+                else:
+                    msg_type = "private"
+
             perception = {
                 "source": "qq",
-                "message_type": qq_message.message_type,
+                "message_type": msg_type,
+                "raw_message_type": qq_message.message_type,
                 "user_id": qq_message.sender_id,
                 "sender_id": qq_message.sender_id,
                 "sender_name": qq_message.sender_name,
@@ -261,6 +270,26 @@ class MiyaQQ:
                 "at_list": qq_message.at_list,
                 "bot_qq": self.qq_net.bot_qq if self.qq_net else 0,
                 "timestamp": datetime.now().isoformat(),
+                "message_id": qq_message.message_id,
+                "reply": {
+                    "message_id": qq_message.reply.message_id,
+                    "sender_name": qq_message.reply.sender_name,
+                    "content": qq_message.reply.content,
+                }
+                if qq_message.reply
+                else None,
+                "files": [
+                    {
+                        "file_id": f.file_id,
+                        "name": f.name,
+                        "size": f.size,
+                        "file_type": f.file_type,
+                    }
+                    for f in qq_message.files
+                ]
+                if qq_message.files
+                else [],
+                "has_media": qq_message.has_media,
             }
 
             # 检查用户输入是否是TTS切换指令
@@ -441,15 +470,7 @@ class MiyaQQ:
                     self.miya.decision_hub.onebot_client = self.qq_net.onebot_client
                     self.logger.info("DecisionHub onebot_client 已设置")
 
-                # 2. 启动主动聊天管理器
-                self.logger.info("启动主动聊天管理器...")
-                if hasattr(self.qq_net, "active_chat_manager"):
-                    await self.qq_net.active_chat_manager.start()
-                    self.logger.info(
-                        f"主动聊天管理器已启动 (检查间隔: {self.qq_net.active_chat_manager.check_interval}s)"
-                    )
-                else:
-                    self.logger.warning("主动聊天管理器未初始化")
+                # 2. 主动聊天系统通过 DecisionHub 管理 (core/proactive_chat)
 
                 # 3. 跨端终端注册
                 self.logger.info("注册跨端终端...")
@@ -457,9 +478,6 @@ class MiyaQQ:
 
                 # 4. 加载定时任务
                 self.logger.info("加载定时任务...")
-                self.logger.info(
-                    f"已加载 {len(self.qq_net.active_chat_manager.get_pending_messages())} 个待发消息"
-                )
 
                 # 5. 启动消息接收循环
                 self.logger.info("启动消息接收循环...")

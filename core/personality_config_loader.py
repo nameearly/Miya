@@ -38,68 +38,12 @@ def _load_config() -> Dict[str, Any]:
 
 
 def _get_default_config() -> Dict[str, Any]:
-    """获取默认配置"""
+    """获取最小默认配置 - 实际配置从 config/personality_config.json 加载"""
     return {
-        "thresholds": {
-            "high_empathy": 0.8,
-            "high_warmth": 0.8,
-            "high_resilience": 0.8,
-            "high_logic": 0.7,
-            "high_creativity": 0.7,
-            "very_high": 0.9,
-            "very_low": 0.2,
-            "low": 0.3,
-            "medium": 0.5,
-        },
-        "response_thresholds": {
-            "greeting_empathy": 0.8,
-            "greeting_warmth": 0.8,
-            "deep_conversation_empathy": 0.85,
-            "help_warmth": 0.85,
-            "comforting_warmth": 0.7,
-        },
-        "trait_weights": {
-            "casual_chat": {
-                "warmth": 0.4,
-                "empathy": 0.3,
-                "creativity": 0.2,
-                "logic": 0.1,
-            },
-            "deep_conversation": {
-                "empathy": 0.4,
-                "warmth": 0.3,
-                "resilience": 0.2,
-                "logic": 0.1,
-            },
-            "creative_task": {
-                "creativity": 0.5,
-                "logic": 0.2,
-                "warmth": 0.2,
-                "empathy": 0.1,
-            },
-            "analytical_task": {
-                "logic": 0.5,
-                "creativity": 0.2,
-                "resilience": 0.2,
-                "empathy": 0.1,
-            },
-            "comforting": {"warmth": 0.5, "empathy": 0.4, "resilience": 0.1},
-        },
-        "learning_rates": {
-            "positive_interaction": {
-                "warmth": 0.02,
-                "empathy": 0.01,
-                "resilience": 0.01,
-            },
-            "negative_interaction": {
-                "warmth": -0.02,
-                "empathy": 0.01,
-                "resilience": -0.01,
-            },
-            "creative_task": {"creativity": 0.02, "logic": 0.01, "warmth": -0.01},
-            "analytical_task": {"logic": 0.02, "creativity": 0.01, "warmth": -0.01},
-            "crisis_situation": {"resilience": 0.02, "empathy": 0.01, "warmth": 0.01},
-        },
+        "thresholds": {},
+        "response_thresholds": {},
+        "trait_weights": {},
+        "learning_rates": {},
         "fallback_values": {
             "warmth": 0.5,
             "empathy": 0.5,

@@ -197,7 +197,25 @@ class PromptManager:
                         "- 查询示例：用户说'你记得我都聊过什么吗' → 调用 memory_list() 查看所有长期记忆"
                     )
                 elif platform == "qq":
-                    context_parts.append("【当前环境：QQ平台】")
+                    message_type = context.get("message_type", "unknown")
+                    if message_type == "group":
+                        group_id = context.get("group_id", "")
+                        group_name = context.get("group_name", "")
+                        context_parts.append("【当前环境：QQ群聊】")
+                        if group_name:
+                            context_parts.append(
+                                f"当前所在群聊：{group_name} (群号: {group_id})"
+                            )
+                        else:
+                            context_parts.append(f"当前所在群号: {group_id}")
+                        context_parts.append(
+                            "注意：这是群聊环境，如果有其他用户，不要称呼'你'，应该使用他们的昵称或群名片。"
+                        )
+                    elif message_type == "private":
+                        context_parts.append("【当前环境：QQ私聊】")
+                        context_parts.append("注意：这是私聊环境，只有你和用户两人。")
+                    else:
+                        context_parts.append("【当前环境：QQ平台】")
                     context_parts.append(
                         "你现在在QQ平台上，可以发送消息、点赞等，但不能执行系统命令。"
                     )
@@ -207,7 +225,22 @@ class PromptManager:
 
             # 优先添加发送者信息（最重要）
             if context.get("sender_name"):
-                context_parts.append(f"当前与您对话的用户：{context['sender_name']}")
+                user_display = context["sender_name"]
+
+                # 如果有用户ID，也显示出来帮助识别
+                if context.get("user_id"):
+                    user_display = f"{user_display} (QQ: {context['user_id']})"
+
+                # 如果是群聊，显示群信息
+                if context.get("message_type") == "group" and context.get("group_id"):
+                    group_info = f"群: {context.get('group_name', '')} (群号: {context.get('group_id')})"
+                    context_parts.append(f"【群聊】{group_info}")
+
+                context_parts.append(f"当前与您对话的用户：{user_display}")
+
+                # 如果有用户侧写信息，添加进去
+                if context.get("user_persona"):
+                    context_parts.append(context["user_persona"])
 
             # 【新增】添加可用工具信息
             if context.get("available_tools"):
@@ -343,6 +376,12 @@ class PromptManager:
                             f"[PromptManager] 替换占位符 {placeholder} = {value}"
                         )
 
+        # 添加防护提示（如果有注入风险）
+        if additional_context and additional_context.get("protection_prompt"):
+            protection = additional_context["protection_prompt"]
+            system_prompt = system_prompt + protection
+            logger.info("[PromptManager] 已添加防护提示到系统提示词")
+
         # 构建用户提示词
         user_prompt = self.generate_user_prompt(user_input, additional_context)
 
@@ -363,6 +402,45 @@ class PromptManager:
         if knowledge_context:
             user_prompt = knowledge_context + "\n\n" + user_prompt
             logger.info("[PromptManager] 已添加知识图谱上下文")
+
+        # 添加智能记忆上下文（在知识图谱之后）
+        cognitive_memory = ""
+        if additional_context:
+            cognitive_memory = additional_context.get("cognitive_memory", "")
+        if cognitive_memory:
+            user_prompt = cognitive_memory + "\n\n" + user_prompt
+            logger.info("[PromptManager] 已添加智能记忆上下文")
+
+        # 添加用户/群聊侧写上下文（在智能记忆之后）
+        if additional_context:
+            user_persona = additional_context.get("user_persona", "")
+            group_persona = additional_context.get("group_persona", "")
+
+            # 优先显示用户侧写，再显示群聊侧写
+            if user_persona:
+                user_prompt = user_persona + "\n\n" + user_prompt
+                logger.info("[PromptManager] 已添加用户侧写上下文")
+            if group_persona:
+                user_prompt = group_persona + "\n\n" + user_prompt
+                logger.info("[PromptManager] 已添加群聊侧写上下文")
+
+        # 添加引用消息和文件上下文
+        if additional_context:
+            reply_context = additional_context.get("reply_context", "")
+            files_context = additional_context.get("files_context", "")
+            media_context = additional_context.get("media_context", "")
+
+            extra_context = ""
+            if reply_context:
+                extra_context += reply_context + "\n"
+            if files_context:
+                extra_context += files_context + "\n"
+            if media_context:
+                extra_context += media_context + "\n"
+
+            if extra_context:
+                user_prompt = extra_context + user_prompt
+                logger.info("[PromptManager] 已添加消息上下文（引用/文件/媒体）")
 
         return {"system": system_prompt, "user": user_prompt}
 

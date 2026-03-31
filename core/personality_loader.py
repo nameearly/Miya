@@ -123,6 +123,10 @@ class PersonalityLoader:
         if name in self._cache:
             return self._cache[name]
 
+        # normal 是系统内部使用的默认形态名，映射到 _default.yaml
+        if name == "normal":
+            name = "_default"
+
         path = self.config_dir / f"{name}.yaml"
         load_default = False
         if not path.exists():

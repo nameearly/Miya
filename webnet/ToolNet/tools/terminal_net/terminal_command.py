@@ -13,6 +13,7 @@
 - 可维修：代码清晰，易于扩展
 - 故障隔离：执行失败不影响系统
 """
+
 import logging
 import subprocess
 import asyncio
@@ -33,9 +34,8 @@ def get_terminal_tool() -> Optional[Any]:
     if _terminal_tool_instance is None:
         try:
             from webnet.ToolNet.tools.terminal import TerminalTool
-            project_root = Path(__file__).parent.parent.parent.parent
-            config_path = project_root / 'config' / 'terminal_config.json'
-            _terminal_tool_instance = TerminalTool(str(config_path))
+
+            _terminal_tool_instance = TerminalTool()
         except Exception as e:
             logging.error(f"初始化 TerminalTool 失败: {e}")
     return _terminal_tool_instance
@@ -66,15 +66,16 @@ class TerminalCommandTool(BaseTool):
         # 获取平台信息
         platform_info = "Linux/BSD/Unix"
         shell_info = "Bash"
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             platform_info = "Windows"
             shell_info = "PowerShell"
-        elif sys.platform == 'darwin':
+        elif sys.platform == "darwin":
             platform_info = "macOS"
             shell_info = "Zsh"
 
         # 获取当前工作目录
         import os
+
         cwd = os.getcwd()
 
         return {
@@ -122,11 +123,11 @@ Linux:
                 "properties": {
                     "command": {
                         "type": "string",
-                        "description": "系统命令字符串，如：netstat -ano、tasklist、start firefox、taskkill /IM firefox.exe /F"
+                        "description": "系统命令字符串，如：netstat -ano、tasklist、start firefox、taskkill /IM firefox.exe /F",
                     }
                 },
-                "required": ["command"]
-            }
+                "required": ["command"],
+            },
         }
 
     async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
@@ -180,12 +181,14 @@ Linux:
         """
         try:
             # 使用平台适配器进行命令翻译和路径展开
-            from webnet.ToolNet.tools.terminal.platform_adapter import get_platform_adapter
+            from webnet.ToolNet.tools.terminal.platform_adapter import (
+                get_platform_adapter,
+            )
 
             adapter = get_platform_adapter()
 
             # 展开路径（如果有 ~ 符号）
-            if hasattr(adapter, '_expand_home_directory'):
+            if hasattr(adapter, "_expand_home_directory"):
                 command = adapter._expand_home_directory(command)
 
             # 翻译命令（Windows -> PowerShell）
@@ -198,14 +201,14 @@ Linux:
                 translated_command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                shell=True
+                shell=True,
             )
 
             stdout, stderr = await process.communicate()
 
             # 解码输出
-            stdout_text = stdout.decode('utf-8', errors='ignore')
-            stderr_text = stderr.decode('utf-8', errors='ignore')
+            stdout_text = stdout.decode("utf-8", errors="ignore")
+            stderr_text = stderr.decode("utf-8", errors="ignore")
 
             # 组合结果
             if stderr_text and process.returncode != 0:

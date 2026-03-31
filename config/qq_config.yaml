@@ -94,37 +94,7 @@ qq:
       dir: "./temp/image_cache"
       max_size: 1073741824         # 1GB
       expire_hours: 24
-  
-  # 主动聊天功能
-  active_chat:
-    enabled: true
-    
-    # 触发设置
-    triggers:
-      time:
-        enabled: true              # 定时触发
-        check_interval: 60         # 检查间隔（秒）
-      
-      event:
-        enabled: true              # 事件触发
-        events: ["birthday", "holiday", "anniversary"]
-      
-      condition:
-        enabled: true              # 条件触发
-        check_interval: 300        # 条件检查间隔（秒）
-    
-    # 消息限制
-    limits:
-      max_daily_messages: 10       # 每天最多主动消息数
-      min_interval: 300            # 消息最小间隔（秒）
-      quiet_hours: [23, 0, 1, 2, 3, 4, 5, 6]  # 静默时段（小时）
-    
-    # 用户偏好
-    user_preferences:
-      learn_preferences: true      # 学习用户偏好
-      default_allow: true          # 默认允许主动消息
-      ask_permission: false        # 首次发送前询问
-  
+   
   # 任务调度系统
   task_scheduler:
     enabled: true

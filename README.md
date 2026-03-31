@@ -7953,6 +7953,296 @@ print(response)
 - 形态列表可能被截断（显示为 `kand...`），这是由于消息长度限制，不影响功能
 - 部分LSP类型错误仍然存在，但不影响运行时行为
 
+---
+
+## v4.3.1 更新日志 (2026-03-31)
+
+### 1. 工具系统优化与清理
+
+#### 问题背景
+弥娅的工具系统存在以下问题：
+- 存在重复/空目录（如 `web_search/`、`info/`）
+- 工具分类标准不统一
+- 部分工具注册逻辑冗余
+
+#### 已完成的优化
+
+##### 1.1 删除冗余目录
+```bash
+# 已删除的目录
+- config/proactive_chat/          # 旧插件系统
+- config/proactive_chat.yaml       # 冗余配置
+- webnet/ToolNet/tools/web_search/  # 空目录
+- webnet/ToolNet/tools/info/       # 合并到network
+- webnet/ToolNet/tools/qq/qq_active_chat.py  # 废弃工具
+```
+
+##### 1.2 工具目录结构（当前）
+```
+webnet/ToolNet/tools/
+├── auth/          # 认证授权
+├── basic/         # 基础功能（时间/用户）
+├── bilibili/      # B站
+├── cognitive/     # 认知档案
+├── core/          # 核心服务
+├── cross_terminal/ # 跨终端
+├── entertainment/ # 娱乐
+├── game/          # 游戏存档
+├── group/         # 群管理
+├── knowledge/     # 知识库
+├── life/          # 生活记忆
+├── memory/        # 记忆管理
+├── message/       # 消息工具
+├── network/       # 网络工具（搜索/爬虫/天气等）
+├── office/        # 办公文档
+├── qq/            # QQ多媒体
+├── reporting/     # 报表
+├── scheduler/     # 定时任务
+├── social/        # 社交平台（微信/Discord）
+├── terminal/       # 终端工具（主）
+├── terminal_net/   # 终端网络（辅助）
+└── visualization/ # 可视化
+```
+
+##### 1.3 工具注册测试
+```python
+from webnet.ToolNet.registry import ToolRegistry
+
+registry = ToolRegistry()
+registry.load_all_tools()
+print(f"已注册工具数量: {len(registry.tools)}")
+# 输出: 已注册工具数量: 102
+```
+
+#### 原理说明
+工具系统优化遵循以下原则：
+1. **按功能域分类**：而非按平台分类
+2. **删除空目录**：减少代码库复杂度
+3. **统一配置**：主动聊天配置统一在 `config/personalities/_base.yaml`
+
+---
+
+### 2. QQ消息解析器升级
+
+#### 问题背景
+弥娅在处理QQ消息时存在以下问题：
+- 无法识别引用消息（reply）
+- 无法识别文件/语音消息
+- 图片分析API调用失败
+
+#### 解决方案
+
+##### 2.1 新增模块：QQMessageParser
+```python
+# webnet/qq/message_parser.py
+from webnet.qq.message_parser import QQMessageParser
+
+parser = QQMessageParser()
+parser.set_client(onebot_client)  # 设置QQ客户端
+
+# 解析消息段
+segments = parser.normalize_message(raw_message)
+
+# 获取引用ID
+reply_id = parser.get_reply_id(segments)
+
+# 获取文件信息
+files = parser.get_files(segments)
+
+# 检测多媒体
+has_media = parser.has_media(segments)
+```
+
+##### 2.2 扩展QQMessage模型
+```python
+# webnet/qq/models.py
+@dataclass
+class ReplySegment:
+    """引用消息段"""
+    message_id: int = 0
+    sender_name: str = ""
+    content: str = ""
+
+@dataclass
+class FileSegment:
+    """文件消息段"""
+    file_id: str = ""
+    name: str = ""
+    size: int = 0
+    file_type: str = ""
+
+@dataclass
+class QQMessage:
+    # ... 原有字段 ...
+    reply: Optional[ReplySegment] = None      # 新增：引用消息
+    files: List[FileSegment] = field(default_factory=list)  # 新增：文件列表
+    has_media: bool = False                   # 新增：是否有媒体
+```
+
+##### 2.3 引用消息处理流程
+```python
+# 处理流程
+1. 用户发送带引用的消息
+2. QQMessageHandler.handle_event() 接收事件
+3. message_parser.normalize_message() 解析消息段
+4. message_parser.get_reply_id() 获取引用ID
+5. _get_reply_info() 调用 get_msg API 获取原消息
+6. QQMessage.reply 填充引用信息
+7. 传递到 perception（run/qq_main.py）
+8. 注入到 AI 提示词（decision_hub.py + prompt_manager.py）
+9. AI 能够看到引用消息内容
+```
+
+##### 2.4 配置新增：qq_features.yaml
+```yaml
+# config/qq_features.yaml
+message_parsing:
+  enable_reply_parsing: true    # 启用引用解析
+  enable_file_parsing: true    # 启用文件解析
+  enable_media_detection: true # 启用多媒体检测
+
+image:
+  enable_analysis: true        # 图片AI分析
+  enable_ocr: true             # OCR文字识别
+  cache_enabled: true
+  cache_expire_hours: 24
+
+features:
+  poke_reply: true             # 戳一戳回复
+  emoji_request: true         # 表情包请求
+  active_chat: true           # 主动聊天
+```
+
+---
+
+### 3. 图片分析修复
+
+#### 问题背景
+图片分析时出现以下错误：
+- "模型池无可用视觉模型"
+- API调用返回 HTTP 400 错误
+
+#### 解决方案
+
+##### 3.1 添加视觉模型路由
+```python
+# core/model_pool.py
+default_routes = {
+    # ... 原有路由 ...
+    "image_description": ModelRoute(
+        task_type="image_description",
+        primary="zhipu_glm_46v_flash",
+        secondary="siliconflow_qwen_vl",
+        fallback="minicpm_v",
+    ),
+}
+
+# QQ端配置
+default_endpoints = {
+    "qq": EndpointConfig(
+        endpoint_id="qq",
+        enabled_models=[
+            "deepseek_v3",
+            "paddleocr",
+            "zhipu_glm_46v_flash",    # 视觉模型
+            "siliconflow_qwen_vl",    # 视觉模型
+            "minicpm_v",              # 视觉模型
+        ],
+        default_models={
+            "chat": "deepseek_v3",
+            "ocr": "paddleocr",
+            "vision": "zhipu_glm_46v_flash",
+        },
+    )
+}
+```
+
+##### 3.2 测试视觉模型路由
+```python
+from core.model_pool import get_model_pool
+
+pool = get_model_pool()
+model = pool.select_model_for_task("image_description", "qq")
+print(f"选择的视觉模型: {model.id}")
+# 输出: zhipu_glm_46v_flash
+```
+
+---
+
+### 4. 核心代码修改清单
+
+| 文件 | 修改内容 |
+|------|----------|
+| `core/model_pool.py` | 添加 image_description 路由 |
+| `webnet/qq/message_parser.py` | 新增：统一消息解析器 |
+| `webnet/qq/models.py` | 新增：ReplySegment、FileSegment |
+| `webnet/qq/message_handler.py` | 集成解析器到消息处理 |
+| `webnet/qq/core.py` | 连接时更新parser的client |
+| `run/qq_main.py` | 添加reply/files/has_media到perception |
+| `hub/decision_hub.py` | 添加引用/文件上下文到提示词 |
+| `core/prompt_manager.py` | 添加消息上下文到user_prompt |
+| `config/qq_features.yaml` | 新增：QQ功能配置 |
+
+---
+
+### 5. 功能验证
+
+#### 5.1 工具注册验证
+```bash
+$ python -c "from webnet.ToolNet.registry import ToolRegistry; r=ToolRegistry(); r.load_all_tools(); print(len(r.tools))"
+102
+```
+
+#### 5.2 消息解析验证
+```python
+# 测试引用消息解析
+parser = QQMessageParser()
+segments = [
+    {'type': 'text', 'data': {'text': '你好'}},
+    {'type': 'reply', 'data': {'id': '12345'}},
+]
+reply_id = parser.get_reply_id(segments)
+print(f"Reply ID: {reply_id}")  # 输出: 12345
+```
+
+#### 5.3 视觉模型路由验证
+```python
+model = pool.select_model_for_task("image_description", "qq")
+print(f"视觉模型: {model.id}")  # 输出: zhipu_glm_46v_flash
+```
+
+---
+
+### 6. 升级指南
+
+#### 6.1 从旧版本升级
+```bash
+# 拉取最新代码
+git pull origin main
+
+# 重新安装依赖（如果需要）
+pip install -r requirements.txt
+
+# 启动测试
+python run/qq_main.py
+```
+
+#### 6.2 新功能测试
+1. **测试引用消息**：
+   - 在QQ群聊中发送一条消息
+   - 引用该消息并回复
+   - 观察AI是否能识别引用内容
+
+2. **测试图片分析**：
+   - 发送图片给弥娅
+   - 观察是否能正常分析（注意：API可能限流）
+
+3. **测试工具系统**：
+   - 使用各种工具命令
+   - 确认102个工具都能正常加载
+
+---
+
 ## 许可证
 
 本项目采用 [MIT 许可证](LICENSE)。

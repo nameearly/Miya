@@ -23,6 +23,7 @@ from core.constants import HTTPStatus
 try:
     import aiohttp
     from aiohttp import web, ClientSession, ClientTimeout, WSMsgType
+
     AIOHTTP_AVAILABLE = True
 except ImportError:
     aiohttp = None
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EndpointStatus:
     """交互端状态"""
+
     id: str
     name: str
     type: str
@@ -48,7 +50,7 @@ class EndpointStatus:
 class RuntimeAPIServer:
     """
     运行时API服务器
-    
+
     提供：
     - RESTful API
     - WebUI支持
@@ -56,7 +58,7 @@ class RuntimeAPIServer:
     - 交互端管理
     - 记忆查询
     """
-    
+
     def __init__(
         self,
         host: str = "127.0.0.1",
@@ -102,43 +104,47 @@ class RuntimeAPIServer:
         # Web服务器
         self.runner: Optional[web.AppRunner] = None
         self.site: Optional[web.TCPSite] = None
-    
+
     def _setup_routes(self):
         """设置路由"""
         # 系统状态
         self.app.router.add_get("/api/probe", self.handle_probe)
         self.app.router.add_get("/api/status", self.handle_status)
-        
+
         # 交互端管理
         self.app.router.add_get("/api/endpoints", self.handle_list_endpoints)
-        self.app.router.add_post("/api/endpoints/{id}/start", self.handle_start_endpoint)
+        self.app.router.add_post(
+            "/api/endpoints/{id}/start", self.handle_start_endpoint
+        )
         self.app.router.add_post("/api/endpoints/{id}/stop", self.handle_stop_endpoint)
         self.app.router.add_get("/api/endpoints/{id}", self.handle_get_endpoint)
-        
+
         # 认知记忆
         self.app.router.add_get("/api/cognitive/events", self.handle_cognitive_events)
-        self.app.router.add_get("/api/cognitive/profiles", self.handle_cognitive_profiles)
-        
+        self.app.router.add_get(
+            "/api/cognitive/profiles", self.handle_cognitive_profiles
+        )
+
         # Agent管理
         self.app.router.add_get("/api/agents", self.handle_list_agents)
         self.app.router.add_get("/api/agents/stats", self.handle_agent_stats)
-        
+
         # 配置管理
         self.app.router.add_get("/api/config", self.handle_get_config)
         self.app.router.add_post("/api/config", self.handle_update_config)
-        
+
         # 统计数据
         self.app.router.add_get("/api/stats", self.handle_stats)
-        
+
         # WebUI支持
         self.app.router.add_get("/api/chat", self.handle_chat)
-        
+
         # 健康检查
         self.app.router.add_get("/health", self.handle_health)
-        
+
         # 静态文件（WebUI）
         self.app.router.add_static("/static", "pc_ui", name="static")
-    
+
     def set_cognitive_memory(self, cognitive_memory):
         """设置认知记忆系统"""
         self.cognitive_memory = cognitive_memory
@@ -150,36 +156,34 @@ class RuntimeAPIServer:
     def set_decision_hub(self, decision_hub):
         """设置决策中心"""
         self.decision_hub = decision_hub
-    
+
     async def start(self):
         """启动API服务器"""
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
         self.site = web.TCPSite(self.runner, self.host, self.port)
         await self.site.start()
-        
-        logger.info(
-            f"[Runtime API] 服务器已启动: http://{self.host}:{self.port}"
-        )
-    
+
+        logger.info(f"[Runtime API] 服务器已启动: http://{self.host}:{self.port}")
+
     async def stop(self):
         """停止API服务器"""
         if self.site:
             await self.site.stop()
-        
+
         if self.runner:
             await self.runner.cleanup()
-        
+
         logger.info("[Runtime API] 服务器已停止")
-    
+
     def _check_auth(self, request: web.Request) -> bool:
         """检查认证"""
         if not self.auth_key:
             return True
-        
+
         auth_header = request.headers.get("X-Miya-API-Key", "")
         return auth_header == self.auth_key
-    
+
     async def _json_response(self, data: Any, status: int = HTTPStatus.OK):
         """返回JSON响应"""
         return web.json_response(data, status=status)
@@ -187,17 +191,19 @@ class RuntimeAPIServer:
     async def _error_response(self, message: str, status: int = HTTPStatus.BAD_REQUEST):
         """返回错误响应"""
         return web.json_response({"error": message}, status=status)
-    
+
     # ========== 系统状态 ==========
-    
+
     async def handle_probe(self, request: web.Request):
         """探针接口"""
-        return await self._json_response({
-            "status": "ok",
-            "version": "1.0.0",
-            "timestamp": datetime.now().isoformat(),
-        })
-    
+        return await self._json_response(
+            {
+                "status": "ok",
+                "version": "1.0.0",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+
     async def handle_status(self, request: web.Request):
         """系统状态"""
         status = {
@@ -208,21 +214,19 @@ class RuntimeAPIServer:
             "endpoints": {
                 "total": len(self.endpoints),
                 "running": sum(
-                    1 for ep in self.endpoints.values()
-                    if ep.status == "running"
+                    1 for ep in self.endpoints.values() if ep.status == "running"
                 ),
                 "stopped": sum(
-                    1 for ep in self.endpoints.values()
-                    if ep.status == "stopped"
+                    1 for ep in self.endpoints.values() if ep.status == "stopped"
                 ),
             },
             "timestamp": datetime.now().isoformat(),
         }
-        
+
         return await self._json_response(status)
-    
+
     # ========== 交互端管理 ==========
-    
+
     async def handle_list_endpoints(self, request: web.Request):
         """获取所有交互端"""
         async with self.endpoints_lock:
@@ -239,9 +243,9 @@ class RuntimeAPIServer:
                 }
                 for ep in self.endpoints.values()
             ]
-        
+
         return await self._json_response({"endpoints": endpoints})
-    
+
     async def handle_get_endpoint(self, request: web.Request):
         """获取单个交互端"""
         endpoint_id = request.match_info["id"]
@@ -252,16 +256,18 @@ class RuntimeAPIServer:
         if not endpoint:
             return await self._error_response("交互端不存在", HTTPStatus.NOT_FOUND)
 
-        return await self._json_response({
-            "id": endpoint.id,
-            "name": endpoint.name,
-            "type": endpoint.type,
-            "status": endpoint.status,
-            "config": endpoint.config,
-            "stats": endpoint.stats,
-            "started_at": endpoint.started_at,
-            "last_error": endpoint.last_error,
-        })
+        return await self._json_response(
+            {
+                "id": endpoint.id,
+                "name": endpoint.name,
+                "type": endpoint.type,
+                "status": endpoint.status,
+                "config": endpoint.config,
+                "stats": endpoint.stats,
+                "started_at": endpoint.started_at,
+                "last_error": endpoint.last_error,
+            }
+        )
 
     async def handle_start_endpoint(self, request: web.Request):
         """启动交互端"""
@@ -286,8 +292,7 @@ class RuntimeAPIServer:
                 success = await self._start_desktop_endpoint(endpoint)
             else:
                 return await self._error_response(
-                    f"不支持的端点类型: {endpoint.type}",
-                    HTTPStatus.BAD_REQUEST
+                    f"不支持的端点类型: {endpoint.type}", HTTPStatus.BAD_REQUEST
                 )
 
             if success:
@@ -300,9 +305,13 @@ class RuntimeAPIServer:
                 return await self._error_response("启动失败", HTTPStatus.INTERNAL_ERROR)
 
         except Exception as e:
-            logger.error(f"[Runtime API] 启动交互端失败 {endpoint_id}: {e}", exc_info=True)
+            logger.error(
+                f"[Runtime API] 启动交互端失败 {endpoint_id}: {e}", exc_info=True
+            )
             endpoint.last_error = str(e)
-            return await self._error_response(f"启动失败: {str(e)}", HTTPStatus.INTERNAL_ERROR)
+            return await self._error_response(
+                f"启动失败: {str(e)}", HTTPStatus.INTERNAL_ERROR
+            )
 
     async def handle_stop_endpoint(self, request: web.Request):
         """停止交互端"""
@@ -337,10 +346,14 @@ class RuntimeAPIServer:
                 return await self._error_response("停止失败", HTTPStatus.INTERNAL_ERROR)
 
         except Exception as e:
-            logger.error(f"[Runtime API] 停止交互端失败 {endpoint_id}: {e}", exc_info=True)
+            logger.error(
+                f"[Runtime API] 停止交互端失败 {endpoint_id}: {e}", exc_info=True
+            )
             endpoint.last_error = str(e)
-            return await self._error_response(f"停止失败: {str(e)}", HTTPStatus.INTERNAL_ERROR)
-    
+            return await self._error_response(
+                f"停止失败: {str(e)}", HTTPStatus.INTERNAL_ERROR
+            )
+
     # ========== 认知记忆 ==========
 
     async def handle_cognitive_events(self, request: web.Request):
@@ -351,7 +364,9 @@ class RuntimeAPIServer:
         top_k = int(request.query.get("top_k", 10))
 
         if not self.cognitive_memory:
-            return await self._error_response("认知记忆系统未初始化", HTTPStatus.INTERNAL_ERROR)
+            return await self._error_response(
+                "认知记忆系统未初始化", HTTPStatus.INTERNAL_ERROR
+            )
 
         events = await self.cognitive_memory.search_cognitive_events(
             query=query,
@@ -360,25 +375,29 @@ class RuntimeAPIServer:
             top_k=top_k,
         )
 
-        return await self._json_response({
-            "events": [
-                {
-                    "content": event.content,
-                    "user_id": event.user_id,
-                    "group_id": event.group_id,
-                    "timestamp_utc": event.timestamp_utc,
-                }
-                for event in events
-            ]
-        })
-    
+        return await self._json_response(
+            {
+                "events": [
+                    {
+                        "content": event.content,
+                        "user_id": event.user_id,
+                        "group_id": event.group_id,
+                        "timestamp_utc": event.timestamp_utc,
+                    }
+                    for event in events
+                ]
+            }
+        )
+
     async def handle_cognitive_profiles(self, request: web.Request):
         """获取侧写"""
         user_id = request.query.get("user_id", "")
         group_id = request.query.get("group_id", "")
 
         if not self.cognitive_memory:
-            return await self._error_response("认知记忆系统未初始化", HTTPStatus.INTERNAL_ERROR)
+            return await self._error_response(
+                "认知记忆系统未初始化", HTTPStatus.INTERNAL_ERROR
+            )
 
         result = {}
 
@@ -393,41 +412,44 @@ class RuntimeAPIServer:
                 result["group"] = {"id": group_id, "profile": profile}
 
         return await self._json_response(result)
-    
+
     # ========== Agent管理 ==========
 
     async def handle_list_agents(self, request: web.Request):
         """获取所有Agent"""
         if not self.skills_registry:
-            return await self._error_response("Skills注册表未初始化", HTTPStatus.INTERNAL_ERROR)
+            return await self._error_response(
+                "Skills注册表未初始化", HTTPStatus.INTERNAL_ERROR
+            )
 
         agents = self.skills_registry.get_items()
 
-        return await self._json_response({
-            "agents": [
-                {
-                    "name": name,
-                    "description": item.get_description(),
-                    "stats": self.skills_registry.get_stats(name).to_dict(),
-                }
-                for name, item in agents.items()
-            ]
-        })
+        return await self._json_response(
+            {
+                "agents": [
+                    {
+                        "name": name,
+                        "description": item.get_description(),
+                        "stats": self.skills_registry.get_stats(name).to_dict(),
+                    }
+                    for name, item in agents.items()
+                ]
+            }
+        )
 
     async def handle_agent_stats(self, request: web.Request):
         """获取Agent统计"""
         if not self.skills_registry:
-            return await self._error_response("Skills注册表未初始化", HTTPStatus.INTERNAL_ERROR)
+            return await self._error_response(
+                "Skills注册表未初始化", HTTPStatus.INTERNAL_ERROR
+            )
 
         stats = self.skills_registry.get_stats()
-        
-        return await self._json_response({
-            "agents": {
-                name: stat.to_dict()
-                for name, stat in stats.items()
-            }
-        })
-    
+
+        return await self._json_response(
+            {"agents": {name: stat.to_dict() for name, stat in stats.items()}}
+        )
+
     # ========== 配置管理 ==========
 
     async def handle_get_config(self, request: web.Request):
@@ -444,7 +466,9 @@ class RuntimeAPIServer:
 
             # 验证配置
             if not isinstance(new_config, dict):
-                return await self._error_response("配置格式错误", HTTPStatus.BAD_REQUEST)
+                return await self._error_response(
+                    "配置格式错误", HTTPStatus.BAD_REQUEST
+                )
 
             # 检测变更
             changes = self._detect_config_changes(new_config)
@@ -454,17 +478,16 @@ class RuntimeAPIServer:
 
             logger.info(f"[Runtime API] 配置已更新，变更: {list(changes.keys())}")
 
-            return await self._json_response({
-                "status": "updated",
-                "changes": changes
-            })
+            return await self._json_response({"status": "updated", "changes": changes})
 
         except json.JSONDecodeError:
             return await self._error_response("无效的JSON格式", HTTPStatus.BAD_REQUEST)
         except Exception as e:
             logger.error(f"[Runtime API] 更新配置失败: {e}", exc_info=True)
-            return await self._error_response(f"更新失败: {str(e)}", HTTPStatus.INTERNAL_ERROR)
-    
+            return await self._error_response(
+                f"更新失败: {str(e)}", HTTPStatus.INTERNAL_ERROR
+            )
+
     # ========== 统计数据 ==========
 
     async def handle_stats(self, request: web.Request):
@@ -477,7 +500,7 @@ class RuntimeAPIServer:
         }
 
         return await self._json_response(stats)
-    
+
     # ========== WebUI Chat ==========
 
     async def handle_chat(self, request: web.Request):
@@ -491,9 +514,9 @@ class RuntimeAPIServer:
             platform = data.get("platform", "web")
 
             if not message:
-                return await self._json_response({
-                    "response": "❌ 缺少消息内容"
-                }, status=400)
+                return await self._json_response(
+                    {"response": "❌ 缺少消息内容"}, status=400
+                )
 
             # 如果有决策中心，使用决策中心处理
             if self.decision_hub:
@@ -506,17 +529,16 @@ class RuntimeAPIServer:
                     message, session_id, from_terminal
                 )
 
-            return await self._json_response({
-                "response": response,
-                "session_id": session_id
-            })
+            return await self._json_response(
+                {"response": response, "session_id": session_id}
+            )
 
         except Exception as e:
             logger.error(f"处理聊天请求失败: {e}", exc_info=True)
-            return await self._json_response({
-                "response": f"❌ 处理失败: {str(e)}"
-            }, status=500)
-    
+            return await self._json_response(
+                {"response": f"❌ 处理失败: {str(e)}"}, status=500
+            )
+
     # ========== 健康检查 ==========
 
     async def handle_health(self, request: web.Request):
@@ -546,6 +568,7 @@ class RuntimeAPIServer:
             # 添加静态文件支持（如果配置了静态路径）
             if static_path:
                 from pathlib import Path
+
                 static_dir = Path(static_path)
                 if static_dir.exists() and static_dir.is_dir():
                     web_app.router.add_static("/static", static_path, name="static")
@@ -572,10 +595,12 @@ class RuntimeAPIServer:
                 "host": host,
                 "port": port,
                 "url": f"http://{host}:{port}",
-                "started_at": datetime.utcnow().isoformat()
+                "started_at": datetime.utcnow().isoformat(),
             }
 
-            logger.info(f"[Runtime API] Web端点启动成功: {endpoint.id} -> http://{host}:{port}")
+            logger.info(
+                f"[Runtime API] Web端点启动成功: {endpoint.id} -> http://{host}:{port}"
+            )
             return True
 
         except Exception as e:
@@ -612,7 +637,7 @@ class RuntimeAPIServer:
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                env={**dict(os.environ), **env_vars} if env_vars else None
+                env={**dict(os.environ), **env_vars} if env_vars else None,
             )
 
             # 保存进程引用
@@ -620,7 +645,7 @@ class RuntimeAPIServer:
                 "process": process,
                 "shell": shell,
                 "timeout": timeout,
-                "type": "terminal"
+                "type": "terminal",
             }
 
             # 更新端点状态
@@ -629,10 +654,12 @@ class RuntimeAPIServer:
             endpoint.stats = {
                 "shell": shell,
                 "timeout": timeout,
-                "started_at": datetime.utcnow().isoformat()
+                "started_at": datetime.utcnow().isoformat(),
             }
 
-            logger.info(f"[Runtime API] 终端端点启动成功: {endpoint.id} -> PID {process.pid}")
+            logger.info(
+                f"[Runtime API] 终端端点启动成功: {endpoint.id} -> PID {process.pid}"
+            )
             return True
 
         except Exception as e:
@@ -661,6 +688,7 @@ class RuntimeAPIServer:
 
             # 验证应用路径
             from pathlib import Path
+
             app_file = Path(app_path)
             if not app_file.exists():
                 error_msg = f"桌面应用不存在: {app_path}"
@@ -675,32 +703,28 @@ class RuntimeAPIServer:
                 cmd = ["start", str(app_file)] + app_args
                 # Windows下start需要在shell中执行
                 process = await asyncio.create_subprocess_shell(
-                    " ".join(cmd),
-                    cwd=working_dir
+                    " ".join(cmd), cwd=working_dir
                 )
             elif platform.system() == "Darwin":  # macOS
                 # macOS系统
                 cmd = ["open", str(app_file)] + app_args
-                process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    cwd=working_dir
-                )
+                process = await asyncio.create_subprocess_exec(*cmd, cwd=working_dir)
             else:  # Linux
                 # Linux系统
                 cmd = [str(app_file)] + app_args
                 # 给文件添加执行权限
                 import stat
-                app_file.chmod(app_file.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-                process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    cwd=working_dir
+
+                app_file.chmod(
+                    app_file.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
                 )
+                process = await asyncio.create_subprocess_exec(*cmd, cwd=working_dir)
 
             # 保存进程引用
             self.endpoint_processes[endpoint.id] = {
                 "process": process,
                 "app_path": app_path,
-                "type": "desktop"
+                "type": "desktop",
             }
 
             # 更新端点状态
@@ -710,7 +734,7 @@ class RuntimeAPIServer:
                 "app_path": app_path,
                 "args": app_args,
                 "working_dir": working_dir,
-                "started_at": datetime.utcnow().isoformat()
+                "started_at": datetime.utcnow().isoformat(),
             }
 
             logger.info(f"[Runtime API] 桌面端点启动成功: {endpoint.id} -> {app_path}")
@@ -749,15 +773,19 @@ class RuntimeAPIServer:
 
         # 定义敏感配置键
         sensitive_keys = {
-            'api_key', 'password', 'secret', 'token',
-            'private_key', 'auth_key', 'credential'
+            "api_key",
+            "password",
+            "secret",
+            "token",
+            "private_key",
+            "auth_key",
+            "credential",
         }
 
         for key, value in self._config.items():
             # 检查是否是敏感配置
             is_sensitive = any(
-                sensitive_key in key.lower()
-                for sensitive_key in sensitive_keys
+                sensitive_key in key.lower() for sensitive_key in sensitive_keys
             )
 
             if is_sensitive:
@@ -780,10 +808,7 @@ class RuntimeAPIServer:
             new_val = new_config.get(key)
 
             if old_val != new_val:
-                changes[key] = {
-                    "old": old_val,
-                    "new": new_val
-                }
+                changes[key] = {"old": old_val, "new": new_val}
 
         return changes
 
@@ -791,23 +816,25 @@ class RuntimeAPIServer:
         """获取内存统计"""
         try:
             import psutil
+
             process = psutil.Process()
 
             return {
                 "rss_mb": process.memory_info().rss / 1024 / 1024,  # 物理内存
                 "vms_mb": process.memory_info().vms / 1024 / 1024,  # 虚拟内存
                 "percent": process.memory_percent(),  # 内存使用百分比
-                "available_mb": psutil.virtual_memory().available / 1024 / 1024,  # 可用内存
+                "available_mb": psutil.virtual_memory().available
+                / 1024
+                / 1024,  # 可用内存
             }
         except Exception:
-            return {
-                "error": "无法获取内存统计"
-            }
+            return {"error": "无法获取内存统计"}
 
     def _get_performance_stats(self) -> Dict[str, Any]:
         """获取性能统计"""
         try:
             import psutil
+
             process = psutil.Process()
 
             return {
@@ -817,33 +844,27 @@ class RuntimeAPIServer:
                 "connections": len(process.connections()),
             }
         except Exception:
-            return {
-                "error": "无法获取性能统计"
-            }
+            return {"error": "无法获取性能统计"}
 
     async def _process_with_decision_hub(
-        self,
-        message: str,
-        session_id: str,
-        platform: str,
-        from_terminal: Optional[str]
+        self, message: str, session_id: str, platform: str, from_terminal: Optional[str]
     ) -> str:
         """使用决策中心处理消息"""
         try:
             from mlink.message import Message
 
             perception = {
-                'platform': platform,
-                'content': message,
-                'user_id': session_id,
-                'sender_name': f'{platform}用户-{session_id[:8]}'
+                "platform": platform,
+                "content": message,
+                "user_id": session_id,
+                "sender_name": f"{platform}用户-{session_id[:8]}",
             }
 
             msg = Message(
-                msg_type='data',
+                msg_type="data",
                 content=perception,
-                source='runtime_api',
-                destination='decision_hub'
+                source="runtime_api",
+                destination="decision_hub",
             )
 
             response = await self.decision_hub.process_perception_cross_platform(msg)
@@ -858,18 +879,18 @@ class RuntimeAPIServer:
             return f"处理失败: {str(e)}"
 
     def _process_without_decision_hub(
-        self,
-        message: str,
-        session_id: str,
-        from_terminal: Optional[str]
+        self, message: str, session_id: str, from_terminal: Optional[str]
     ) -> str:
         """无决策中心时的处理"""
         if from_terminal:
             return f"✅ 终端[{from_terminal}]已连接。弥娅主系统正在处理请求..."
 
+        # 使用文本加载器
+        from core.text_loader import is_greeting, get_greeting
+
         # 简单响应
-        if "你好" in message or "hello" in message.lower():
-            return "你好！我是弥娅，很高兴为你服务～"
+        if is_greeting(message):
+            return get_greeting("弥娅")
         elif "帮助" in message or "help" in message.lower():
             return "我可以帮你处理各种任务，包括代码编辑、文件管理、系统操作等。有什么需要帮助的吗？"
         else:

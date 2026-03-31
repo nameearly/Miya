@@ -324,6 +324,16 @@ def get_pat_pat_trigger() -> str:
     return get_text("chatbot_keywords.pat_pat", "拍了拍你")
 
 
+def get_command_keywords() -> Dict[str, List[str]]:
+    """获取命令关键词"""
+    return get_text("command_keywords", {})
+
+
+def get_emotion_keywords() -> Dict[str, List[str]]:
+    """获取情绪检测关键词"""
+    return get_text("emotion_keywords", {})
+
+
 def get_emoji_sending_response(success: bool = True) -> str:
     """获取表情包发送响应"""
     if success:
