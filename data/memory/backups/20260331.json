@@ -1,0 +1,32 @@
+[
+  {
+    "id": "3ba7876dc52b9e21",
+    "content": "晚上好~ 我看到你发来的图片啦！(｡♥‿♥｡)\n\n虽然暂时没法详细分析这张图片，但看起来是一张JPEG格式的图片呢~\n大小约75.9KB，应该是个适中可爱的图片哦！\n\n✨ 小提示：这个分析结果可能不太",
+    "level": "short_term",
+    "priority": 0.3,
+    "tags": [],
+    "user_id": "global",
+    "session_id": "",
+    "group_id": "",
+    "platform": "unknown",
+    "source": "auto_extract",
+    "role": "",
+    "event_type": "",
+    "location": "",
+    "conversation_partner": "",
+    "emotional_tone": "",
+    "significance": 0.5,
+    "created_at": "2026-03-31T19:39:12.516669",
+    "updated_at": "2026-03-31T19:39:12.516669",
+    "expires_at": "2026-03-31T20:39:12.516669",
+    "vector": null,
+    "subject": "",
+    "predicate": "",
+    "obj": "",
+    "metadata": {},
+    "access_count": 0,
+    "last_accessed": null,
+    "is_pinned": false,
+    "is_archived": false
+  }
+]
