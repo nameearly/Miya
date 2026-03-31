@@ -1,0 +1,555 @@
+{
+  "data/emoji\\custom\\miya .png": [
+    "custom",
+    "miya",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\custom\\WY-ComfyUI_00022_.png": [
+    "ComfyUI",
+    "custom",
+    "00022",
+    "WY"
+  ],
+  "data/emoji\\custom\\弥娅·阿尔缪斯形象完善.png": [
+    "阿尔缪斯",
+    "完善",
+    "弥娅",
+    "custom",
+    "形象"
+  ],
+  "data/emoji\\miya_special\\弥娅·阿尔缪斯形象完善.png": [
+    "阿尔缪斯",
+    "miya_special",
+    "完善",
+    "弥娅",
+    "形象"
+  ],
+  "data/emoji\\standard\\miya .png": [
+    "standard",
+    "miya",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\standard\\MIYA.png": [
+    "standard",
+    "MIYA",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\standard\\弥娅·阿尔缪斯形象完善.png": [
+    "阿尔缪斯",
+    "完善",
+    "弥娅",
+    "standard",
+    "形象"
+  ],
+  "data/emoji\\user_uploaded\\tmp0xx34o5t.jpg": [
+    "tmp0xx34o5t",
+    "user_uploaded",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpdos8rtzo.jpg": [
+    "tmpdos8rtzo",
+    "user_uploaded",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpvbmzc_vl.gif": [
+    "vl",
+    "tmpvbmzc",
+    "Temp"
+  ],
+  "data/emoji\\user_uploaded\\tmpcqjp2k3o.jpg": [
+    "tmpcqjp2k3o",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp1byfsc6t.jpg": [
+    "Temp",
+    "tmp1byfsc6t",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmprnpu64a0.gif": [
+    "Temp",
+    "tmprnpu64a0",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmppgy0ehus.jpg": [
+    "Temp",
+    "tmppgy0ehus",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpa41ees5c.jpg": [
+    "tmpa41ees5c",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpfwfo_y69.gif": [
+    "tmpfwfo",
+    "Temp",
+    "y69"
+  ],
+  "data/emoji\\user_uploaded\\tmpfnvtul21.jpg": [
+    "tmpfnvtul21",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpy84x_6md.jpg": [
+    "tmpy84x",
+    "Temp",
+    "6md"
+  ],
+  "data/emoji\\user_uploaded\\tmp8453wy7x.jpg": [
+    "Temp",
+    "tmp8453wy7x",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpj4q6ss4f.gif": [
+    "tmpj4q6ss4f",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpcwdn53sx.jpg": [
+    "Temp",
+    "tmpcwdn53sx",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpsjcpdzjc.gif": [
+    "Temp",
+    "tmpsjcpdzjc",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpeq7nc8m7.jpg": [
+    "tmpeq7nc8m7",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp9ru14_v6.jpg": [
+    "Temp",
+    "tmp9ru14",
+    "v6"
+  ],
+  "data/emoji\\user_uploaded\\tmpjln5v235.jpg": [
+    "Temp",
+    "tmpjln5v235",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpbbma564u.jpg": [
+    "Temp",
+    "tmpbbma564u",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpabp25zt1.jpg": [
+    "Temp",
+    "tmpabp25zt1",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp8g2625cs.jpg": [
+    "Temp",
+    "tmp8g2625cs",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpmivsk3mg.jpg": [
+    "Temp",
+    "tmpmivsk3mg",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpmtk4kdkp.gif": [
+    "Temp",
+    "tmpmtk4kdkp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpjjihw7wo.jpg": [
+    "Temp",
+    "tmpjjihw7wo",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmptvgzft46.gif": [
+    "tmptvgzft46",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmplfpqt3l7.gif": [
+    "Temp",
+    "tmplfpqt3l7",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpd5_h50pu.gif": [
+    "Temp",
+    "tmpd5",
+    "h50pu"
+  ],
+  "data/emoji\\user_uploaded\\tmp6adr_we4.gif": [
+    "tmp6adr",
+    "Temp",
+    "we4"
+  ],
+  "data/emoji\\user_uploaded\\tmpf8hpz2zk.jpg": [
+    "Temp",
+    "tmpf8hpz2zk",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpvcmgrgjj.jpg": [
+    "tmpvcmgrgjj",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp7uux5di1.jpg": [
+    "tmp7uux5di1",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp5oadp8km.gif": [
+    "tmp5oadp8km",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpn71og6td.jpg": [
+    "tmpn71og6td",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpeuerfk7a.jpg": [
+    "tmpeuerfk7a",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp6brgsfr4.jpg": [
+    "tmp6brgsfr4",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp0kqz9s9e.png": [
+    "Temp",
+    "tmp0kqz9s9e",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp5cxkwx45.gif": [
+    "tmp5cxkwx45",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpqlrmbdq5.gif": [
+    "tmpqlrmbdq5",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpgzrxwlh4.gif": [
+    "tmpgzrxwlh4",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpxzcmviol.jpg": [
+    "Temp",
+    "tmpxzcmviol",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpemc18oe5.jpg": [
+    "tmpemc18oe5",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpgjtk48yy.jpg": [
+    "tmpgjtk48yy",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp73e2q_3h.jpg": [
+    "3h",
+    "tmp73e2q",
+    "Temp"
+  ],
+  "data/emoji\\user_uploaded\\tmp_ra0gj2d.jpg": [
+    "ra0gj2d",
+    "tmp",
+    "Temp"
+  ],
+  "data/emoji\\user_uploaded\\tmpx1ojfom_.jpg": [
+    "tmpx1ojfom",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmphx2j4fvy.gif": [
+    "tmphx2j4fvy",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpzldrrea1.gif": [
+    "Temp",
+    "tmpzldrrea1",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpzn80fwxj.gif": [
+    "tmpzn80fwxj",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpote2yw5k.gif": [
+    "Temp",
+    "tmpote2yw5k",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpjh9oeujz.gif": [
+    "tmpjh9oeujz",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp1fc4y0wp.jpg": [
+    "tmp1fc4y0wp",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpbaz5niwn.jpg": [
+    "Temp",
+    "tmpbaz5niwn",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpp00gzd1x.jpg": [
+    "tmpp00gzd1x",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpcsg2kkam.jpg": [
+    "tmpcsg2kkam",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp50n98ihy.gif": [
+    "tmp50n98ihy",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpw7p5roxz.jpg": [
+    "tmpw7p5roxz",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp7nxyo4af.jpg": [
+    "tmp7nxyo4af",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmprz6zaaqb.jpg": [
+    "tmprz6zaaqb",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpr88ccpuv.jpg": [
+    "Temp",
+    "tmpr88ccpuv",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp40ngees5.jpg": [
+    "Temp",
+    "tmp40ngees5",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp4vo7w2h3.jpg": [
+    "Temp",
+    "tmp4vo7w2h3",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpb1vip2h6.jpg": [
+    "tmpb1vip2h6",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmptdemia6x.png": [
+    "tmptdemia6x",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpx3tnq9pw.jpg": [
+    "tmpx3tnq9pw",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpbhetoipw.gif": [
+    "tmpbhetoipw",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpkamu4s5e.jpg": [
+    "tmpkamu4s5e",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpts6bnim8.jpg": [
+    "tmpts6bnim8",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpn_sma5nx.jpg": [
+    "tmpn",
+    "Temp",
+    "sma5nx"
+  ],
+  "data/emoji\\user_uploaded\\tmpq42mwuig.jpg": [
+    "tmpq42mwuig",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp9zs5beot.jpg": [
+    "tmp9zs5beot",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpeu9y_7bg.jpg": [
+    "tmpeu9y",
+    "7bg",
+    "Temp"
+  ],
+  "data/emoji\\user_uploaded\\tmplvdk1j2t.jpg": [
+    "tmplvdk1j2t",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmp6als0syt.gif": [
+    "tmp6als0syt",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpoe9wr8_s.png": [
+    "tmpoe9wr8",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ],
+  "data/emoji\\user_uploaded\\tmpe4tjchx2.jpg": [
+    "tmpe4tjchx2",
+    "Temp",
+    "misc",
+    "表情包",
+    "图片"
+  ]
+}
