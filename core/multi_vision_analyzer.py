@@ -411,10 +411,10 @@ class MultiVisionAnalyzer:
             }
 
         elif model_config.provider in ["openai", "deepseek", "siliconflow"]:
-            # OpenAI兼容格式
+            # OpenAI兼容格式 - 使用model_config.name而非model_type.value
             url = f"{model_config.api_base}/chat/completions"
             payload = {
-                "model": model_config.model_type.value,
+                "model": model_config.name,
                 "messages": [
                     {
                         "role": "user",

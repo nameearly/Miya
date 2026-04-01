@@ -259,21 +259,22 @@ models:
       - "webp"
     
   siliconflow_qwen_vl:
-    name: "Qwen/Qwen2-VL-7B-Instruct"
+    name: "Qwen/Qwen2.5-VL-72B-Instruct"
     type: "vision"
     provider: "openai"
     base_url: "${SILICONFLOW_BASE_URL:-https://api.siliconflow.cn/v1}"
     api_key: "${SILICONFLOW_API_KEY}"
-    description: "Qwen2-VL 7B - 通义千问视觉语言模型（硅基流动）"
+    description: "Qwen2.5-VL 72B - 通义千问视觉语言大模型（硅基流动）"
     capabilities:
       - "image_description"
       - "visual_qa"
       - "chinese_understanding"
+      - "image_analysis"
     cost_per_1k_tokens:
-      input: 0.0002
-      output: 0.0004
+      input: 0.0008
+      output: 0.0016
     max_image_size: "10MB"
-    priority: 0.8
+    priority: 0.95
     
   minicpm_v:
     name: "openbmb/MiniCPM-V-2_6"
@@ -356,10 +357,10 @@ model_routing:
       quality_priority: 0.8
       
     image_description:
-      primary: "zhipu_glm_46v_flash"       # GLM-4.6V-Flash（免费，最新）
-      secondary: "zhipu_glm_4v"            # GLM-4V（付费）
-      fallback: "siliconflow_qwen_vl"      # Qwen视觉模型（硅基流动）
-      cost_priority: 1.0  # 免费模型成本最高优先级
+      primary: "siliconflow_qwen_vl"      # Qwen视觉模型（硅基流动，免费额度充足）
+      secondary: "zhipu_glm_46v_flash"   # GLM-4.6V-Flash（智谱免费，但有速率限制）
+      fallback: "minicpm_v"               # MiniCPM-V（本地部署选项）
+      cost_priority: 1.0
       speed_priority: 0.9
       quality_priority: 0.8
       
