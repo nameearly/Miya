@@ -1,5 +1,5 @@
 """
-Web API 终端路由 - 兼容旧API
+Web API 终端路由
 """
 
 from typing import Dict, Any
@@ -8,8 +8,25 @@ from typing import Dict, Any
 class TerminalRoutes:
     """终端路由"""
 
-    def __init__(self):
+    def __init__(self, web_net=None, decision_hub=None):
+        self.web_net = web_net
+        self.decision_hub = decision_hub
         self._routes = {}
+
+    def get_router(self):
+        """获取FastAPI路由"""
+        try:
+            from fastapi import APIRouter
+
+            router = APIRouter(prefix="/api/terminal", tags=["terminal"])
+
+            @router.post("/execute")
+            async def execute_command(command: str, cwd: str = None):
+                return await self.execute_terminal_command(command, cwd)
+
+            return router
+        except ImportError:
+            return None
 
     def register_routes(self, router) -> bool:
         """注册路由"""

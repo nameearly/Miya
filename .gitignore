@@ -40,7 +40,6 @@ logs/
 *.log.*
 
 # Data
-data/
 volumes/
 *.db
 *.sqlite
@@ -53,6 +52,8 @@ config/.env
 config/.env.local
 
 # Sensitive config files (use .example versions instead)
+config/.env.backup
+config/.env.bak
 config/multi_model_config.json
 config/terminal_config.json
 config/advanced_config.json
@@ -83,6 +84,10 @@ Thumbs.db
 
 # User Data
 userData/
+data/emoji/user_uploaded/*.jpg
+data/emoji/user_uploaded/*.gif
+data/emoji/user_uploaded/*.png
+data/emoji/user_uploaded/*.jpeg
 
 # Cache
 Cache/

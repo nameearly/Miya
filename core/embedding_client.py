@@ -8,6 +8,8 @@ from typing import List, Optional
 import asyncio
 from enum import Enum
 
+from core.system_config import get_api_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -108,7 +110,7 @@ class EmbeddingClient:
             from openai import AsyncOpenAI
 
             # DeepSeek使用OpenAI兼容的API
-            base_url = self.base_url or "https://api.deepseek.com"
+            base_url = self.base_url or get_api_url("deepseek")
             self._client = AsyncOpenAI(api_key=self.api_key, base_url=base_url)
         except ImportError:
             raise ImportError("请安装openai包: pip install openai")
@@ -119,7 +121,7 @@ class EmbeddingClient:
             from openai import AsyncOpenAI
 
             # 硅基流动使用OpenAI兼容的API
-            base_url = self.base_url or "https://api.siliconflow.cn"
+            base_url = self.base_url or get_api_url("siliconflow")
             self._client = AsyncOpenAI(api_key=self.api_key, base_url=base_url)
         except ImportError:
             raise ImportError("请安装openai包: pip install openai")

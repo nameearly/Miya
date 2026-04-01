@@ -19,6 +19,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass, field
 from enum import Enum
+import os
+
+from core.system_config import get_api_url
 
 logger = logging.getLogger(__name__)
 
@@ -409,9 +412,7 @@ class ModelPool:
                     name="deepseek-chat",
                     type=ModelType.TEXT,
                     provider=ModelProvider.OPENAI,
-                    base_url=os.getenv(
-                        "DEEPSEEK_API_BASE", "https://api.deepseek.com/v1"
-                    ),
+                    base_url=os.getenv("DEEPSEEK_API_BASE") or get_api_url("deepseek"),
                     api_key=os.getenv("DEEPSEEK_API_KEY", ""),
                     description="DeepSeek V3 官方模型",
                     capabilities=[

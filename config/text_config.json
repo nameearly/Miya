@@ -28,13 +28,15 @@
     "error_messages": {
         "system_error": "系统出了点问题。我记下了，等会再试。",
         "tool_failed": "工具执行失败了，不过别担心，我会继续帮你想办法~",
+        "tool_call_limit_exceeded": "抱歉，工具调用次数过多，无法完成请求。",
         "no_response": "抱歉，我现在不知道该说什么...",
         "permission_denied": "这个我暂时做不到呢...",
         "advanced_not_initialized": "高级编排器未初始化，无法处理复杂任务",
         "task_failed": "任务执行失败: {error}",
         "schedule_unavailable": "定时任务功能当前不可用(ToolNet未初始化)",
         "schedule_error": "处理定时任务时出错: {error}",
-        "emoji_unavailable": "抱歉，表情包功能暂时不可用。"
+        "emoji_unavailable": "抱歉，表情包功能暂时不可用。",
+        "emoji_send_failed": "抱歉，表情包发送失败了。"
     },
     
     "status_tags": {
@@ -125,7 +127,8 @@
     "emoji_responses": {
         "sending": "好的，我这就给你发送一个表情包~",
         "sending_failed": "抱歉，表情包发送失败了。可能是表情包文件不存在或者发送过程中出了点问题。",
-        "fallback": "虽然我无法发送'{emoji_name}'表情包，但我可以用文字表达我的心情：开心(*^▽^*)"
+        "fallback": "虽然我无法发送'{emoji_name}'表情包，但我可以用文字表达我的心情：开心(*^▽^*)",
+        "sent_random": "已发送随机表情包~"
     },
     
     "schedule_responses": {
@@ -135,7 +138,12 @@
     
     "memory_responses": {
         "saved": "这段对话我已经记住啦~",
-        "daily_summary": "今日对话总结：{count}条对话，{topics}个话题"
+        "daily_summary": "今日对话总结：{count}条对话，{topics}个话题",
+        "no_memories": "还没有记忆呢~",
+        "no_tags": "还没有标签呢~",
+        "search_prompt": "请输入搜索关键词，例如: /记忆搜索 蓝色",
+        "user_no_memories": "你还没有记忆呢~",
+        "cannot_identify_user": "无法识别用户"
     },
     
     "default_responses": {

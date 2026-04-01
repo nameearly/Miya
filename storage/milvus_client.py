@@ -3,11 +3,13 @@ Milvus客户端 - 向量长期记忆
 管理向量数据库存储和检索
 支持真实Milvus连接和模拟回退模式
 """
+
 from typing import Dict, List, Optional, Any
 import json
 from datetime import datetime
 import logging
 import numpy as np
+from core.system_config import get_constant
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +17,19 @@ logger = logging.getLogger(__name__)
 class MilvusClient:
     """Milvus客户端 - 支持真实连接、Milvus Lite和模拟回退"""
 
-    def __init__(self, host: str = 'localhost', port: int = 19530,
-                 collection_name: str = 'miya_memory',
-                 dimension: int = 1536, use_lite: bool = True, use_mock: bool = None):
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = None,
+        collection_name: str = "miya_memory",
+        dimension: int = 1536,
+        use_lite: bool = True,
+        use_mock: bool = None,
+    ):
         self.host = host
-        self.port = port
+        self.port = port or get_constant("database", "milvus", {}).get(
+            "default_port", 19530
+        )
         self.collection_name = collection_name
         self.dimension = dimension
         self._use_lite = use_lite  # 是否优先使用 Milvus Lite
@@ -51,11 +61,17 @@ class MilvusClient:
 
                     # 检查集合是否存在
                     if self.collection_name in self._milvus_client.list_collections():
-                        logger.info(f"✅ 已连接到 Milvus Lite (本地文件): {lite_db_path}")
+                        logger.info(
+                            f"✅ 已连接到 Milvus Lite (本地文件): {lite_db_path}"
+                        )
                         logger.info(f"📊 使用现有集合: {self.collection_name}")
                     else:
-                        logger.info(f"✅ 已连接到 Milvus Lite (本地文件): {lite_db_path}")
-                        logger.info(f"📊 集合不存在，将自动创建: {self.collection_name}")
+                        logger.info(
+                            f"✅ 已连接到 Milvus Lite (本地文件): {lite_db_path}"
+                        )
+                        logger.info(
+                            f"📊 集合不存在，将自动创建: {self.collection_name}"
+                        )
 
                     self._use_mock = False
                     return True
@@ -63,9 +79,7 @@ class MilvusClient:
                     logger.info(f"Milvus Lite 不可用: {e}，尝试远程 Milvus...")
 
             # 尝试远程 Milvus
-            self._milvus_client = MilvusClient(
-                uri=f"http://{self.host}:{self.port}"
-            )
+            self._milvus_client = MilvusClient(uri=f"http://{self.host}:{self.port}")
             self._is_lite = False
 
             # 检查集合是否存在
@@ -116,7 +130,9 @@ class MilvusClient:
             self.dimension = dimension
 
         if self._use_mock:
-            logger.info(f"模拟模式：创建集合 {self.collection_name}，维度: {self.dimension}")
+            logger.info(
+                f"模拟模式：创建集合 {self.collection_name}，维度: {self.dimension}"
+            )
             return True
 
         try:
@@ -127,7 +143,9 @@ class MilvusClient:
 
                 # 删除旧集合（如果存在）
                 try:
-                    self._milvus_client.drop_collection(collection_name=self.collection_name)
+                    self._milvus_client.drop_collection(
+                        collection_name=self.collection_name
+                    )
                     logger.info(f"已删除旧集合: {self.collection_name}")
                 except:
                     pass
@@ -138,9 +156,11 @@ class MilvusClient:
                     dimension=self.dimension,
                     metric_type="L2",
                     id_type="string",
-                    max_length=65535  # 为varChar字段指定max_length
+                    max_length=65535,  # 为varChar字段指定max_length
                 )
-                logger.info(f"创建Milvus集合成功: {self.collection_name} (维度: {self.dimension})")
+                logger.info(
+                    f"创建Milvus集合成功: {self.collection_name} (维度: {self.dimension})"
+                )
             else:
                 logger.info(f"集合已存在: {self.collection_name}")
             return True
@@ -148,8 +168,12 @@ class MilvusClient:
             logger.error(f"创建Milvus集合失败: {e}")
             return False
 
-    def insert(self, vectors: List[List[float]], ids: List[str] = None,
-               metadata: List[Dict] = None) -> List[str]:
+    def insert(
+        self,
+        vectors: List[List[float]],
+        ids: List[str] = None,
+        metadata: List[Dict] = None,
+    ) -> List[str]:
         """
         插入向量
 
@@ -166,8 +190,9 @@ class MilvusClient:
 
             # 准备数据
             if ids is None:
-                ids = [f"vec_{datetime.now().timestamp()}_{i}"
-                       for i in range(len(vectors))]
+                ids = [
+                    f"vec_{datetime.now().timestamp()}_{i}" for i in range(len(vectors))
+                ]
 
             if metadata is None:
                 metadata = [{} for _ in vectors]
@@ -180,18 +205,19 @@ class MilvusClient:
 
             # 插入数据
             data = [
-                {"id": ids[i], "vector": vectors_np[i].tolist(), "metadata": metadata_str[i]}
+                {
+                    "id": ids[i],
+                    "vector": vectors_np[i].tolist(),
+                    "metadata": metadata_str[i],
+                }
                 for i in range(len(vectors))
             ]
 
-            self._milvus_client.insert(
-                collection_name=self.collection_name,
-                data=data
-            )
+            self._milvus_client.insert(collection_name=self.collection_name, data=data)
 
             # 刷新以确保数据可搜索（Milvus Lite可能没有flush方法）
             try:
-                if hasattr(self._milvus_client, 'flush'):
+                if hasattr(self._milvus_client, "flush"):
                     self._milvus_client.flush(self.collection_name)
             except:
                 pass  # 忽略flush错误
@@ -203,12 +229,18 @@ class MilvusClient:
             logger.error(f"Milvus insert失败: {e}")
             return self._insert_mock(vectors, ids, metadata)
 
-    def _insert_mock(self, vectors: List[List[float]], ids: List[str] = None,
-                   metadata: List[Dict] = None) -> List[str]:
+    def _insert_mock(
+        self,
+        vectors: List[List[float]],
+        ids: List[str] = None,
+        metadata: List[Dict] = None,
+    ) -> List[str]:
         """模拟插入向量"""
         if ids is None:
-            ids = [f"vec_mock_{len(self._ids) + i}_{datetime.now().timestamp()}"
-                   for i in range(len(vectors))]
+            ids = [
+                f"vec_mock_{len(self._ids) + i}_{datetime.now().timestamp()}"
+                for i in range(len(vectors))
+            ]
 
         if metadata is None:
             metadata = [{} for _ in vectors]
@@ -216,16 +248,17 @@ class MilvusClient:
         for i, vector in enumerate(vectors):
             vector_id = ids[i]
             self._vectors[vector_id] = {
-                'vector': vector,
-                'metadata': metadata[i],
-                'created_at': datetime.now().isoformat()
+                "vector": vector,
+                "metadata": metadata[i],
+                "created_at": datetime.now().isoformat(),
             }
             self._ids.append(vector_id)
 
         return ids
 
-    def search(self, query_vector: List[float], top_k: int = 10,
-               metric_type: str = 'L2') -> List[Dict]:
+    def search(
+        self, query_vector: List[float], top_k: int = 10, metric_type: str = "L2"
+    ) -> List[Dict]:
         """
         向量搜索
 
@@ -241,17 +274,19 @@ class MilvusClient:
                 collection_name=self.collection_name,
                 data=[query_vector],
                 limit=top_k,
-                output_fields=["metadata"]
+                output_fields=["metadata"],
             )
 
             # 解析结果
             formatted_results = []
             for hit in results[0]:
-                formatted_results.append({
-                    'id': hit['id'],
-                    'distance': hit['distance'],
-                    'metadata': json.loads(hit['entity'].get('metadata', '{}'))
-                })
+                formatted_results.append(
+                    {
+                        "id": hit["id"],
+                        "distance": hit["distance"],
+                        "metadata": json.loads(hit["entity"].get("metadata", "{}")),
+                    }
+                )
 
             logger.info(f"✅ Milvus搜索返回 {len(formatted_results)} 条结果")
             return formatted_results
@@ -260,46 +295,46 @@ class MilvusClient:
             logger.error(f"Milvus search失败: {e}")
             return self._search_mock(query_vector, top_k, metric_type)
 
-    def _search_mock(self, query_vector: List[float], top_k: int = 10,
-                   metric_type: str = 'L2') -> List[Dict]:
+    def _search_mock(
+        self, query_vector: List[float], top_k: int = 10, metric_type: str = "L2"
+    ) -> List[Dict]:
         """模拟向量搜索"""
         results = []
 
         for vector_id, data in self._vectors.items():
-            stored_vector = data['vector']
+            stored_vector = data["vector"]
 
             # 计算距离
-            if metric_type == 'L2':
+            if metric_type == "L2":
                 distance = self._calculate_l2_distance(query_vector, stored_vector)
-            elif metric_type == 'IP':
+            elif metric_type == "IP":
                 distance = self._calculate_inner_product(query_vector, stored_vector)
-            elif metric_type == 'COSINE':
+            elif metric_type == "COSINE":
                 distance = self._calculate_cosine_distance(query_vector, stored_vector)
             else:
                 distance = 0.0
 
-            results.append({
-                'id': vector_id,
-                'distance': distance,
-                'metadata': data['metadata']
-            })
+            results.append(
+                {"id": vector_id, "distance": distance, "metadata": data["metadata"]}
+            )
 
         # 排序并返回top_k
-        if metric_type == 'IP':
+        if metric_type == "IP":
             # 内积越大越好
-            results.sort(key=lambda x: x['distance'], reverse=True)
-        elif metric_type == 'COSINE':
+            results.sort(key=lambda x: x["distance"], reverse=True)
+        elif metric_type == "COSINE":
             # 余弦距离越小越好
-            results.sort(key=lambda x: x['distance'])
+            results.sort(key=lambda x: x["distance"])
         else:
             # L2越小越好
-            results.sort(key=lambda x: x['distance'])
+            results.sort(key=lambda x: x["distance"])
 
         return results[:top_k]
 
     def _calculate_l2_distance(self, v1: List[float], v2: List[float]) -> float:
         """计算L2距离（欧氏距离）"""
         import math
+
         return math.sqrt(sum((a - b) ** 2 for a, b in zip(v1, v2)))
 
     def _calculate_inner_product(self, v1: List[float], v2: List[float]) -> float:
@@ -309,9 +344,10 @@ class MilvusClient:
     def _calculate_cosine_distance(self, v1: List[float], v2: List[float]) -> float:
         """计算余弦距离（1 - 余弦相似度）"""
         import math
+
         dot_product = sum(a * b for a, b in zip(v1, v2))
-        norm_a = math.sqrt(sum(a ** 2 for a in v1))
-        norm_b = math.sqrt(sum(b ** 2 for b in v2))
+        norm_a = math.sqrt(sum(a**2 for a in v1))
+        norm_b = math.sqrt(sum(b**2 for b in v2))
 
         if norm_a == 0 or norm_b == 0:
             return 1.0
@@ -330,10 +366,7 @@ class MilvusClient:
             return self._delete_mock(ids)
 
         try:
-            self._milvus_client.delete(
-                collection_name=self.collection_name,
-                ids=ids
-            )
+            self._milvus_client.delete(collection_name=self.collection_name, ids=ids)
             logger.info(f"✅ 删除 {len(ids)} 个向量")
             return len(ids)
         except Exception as e:
@@ -364,16 +397,18 @@ class MilvusClient:
                 query_results = self._milvus_client.query(
                     collection_name=self.collection_name,
                     filter=f"id == '{vector_id}'",
-                    output_fields=["vector", "metadata"]
+                    output_fields=["vector", "metadata"],
                 )
 
                 if query_results:
                     result = query_results[0]
-                    results.append({
-                        'id': result['id'],
-                        'vector': result['vector'],
-                        'metadata': json.loads(result.get('metadata', '{}'))
-                    })
+                    results.append(
+                        {
+                            "id": result["id"],
+                            "vector": result["vector"],
+                            "metadata": json.loads(result.get("metadata", "{}")),
+                        }
+                    )
 
             return results
         except Exception as e:
@@ -386,15 +421,21 @@ class MilvusClient:
         for vector_id in ids:
             if vector_id in self._vectors:
                 data = self._vectors[vector_id]
-                results.append({
-                    'id': vector_id,
-                    'vector': data['vector'],
-                    'metadata': data['metadata']
-                })
+                results.append(
+                    {
+                        "id": vector_id,
+                        "vector": data["vector"],
+                        "metadata": data["metadata"],
+                    }
+                )
         return results
 
-    def update(self, ids: List[str], vectors: List[List[float]] = None,
-               metadata: List[Dict] = None) -> int:
+    def update(
+        self,
+        ids: List[str],
+        vectors: List[List[float]] = None,
+        metadata: List[Dict] = None,
+    ) -> int:
         """更新向量（Milvus不支持直接更新，需要删除后重新插入）"""
         if self._use_mock:
             return self._update_mock(ids, vectors, metadata)
@@ -419,15 +460,15 @@ class MilvusClient:
                 if vectors and i < len(vectors):
                     new_vectors.append(vectors[i])
                 else:
-                    new_vectors.append(item['vector'])
+                    new_vectors.append(item["vector"])
 
                 if metadata and i < len(metadata):
                     # 合并metadata
-                    new_meta = item['metadata'].copy()
+                    new_meta = item["metadata"].copy()
                     new_meta.update(metadata[i])
                     new_metadata.append(new_meta)
                 else:
-                    new_metadata.append(item['metadata'])
+                    new_metadata.append(item["metadata"])
 
             # 重新插入
             self.insert(new_vectors, ids, new_metadata)
@@ -439,17 +480,21 @@ class MilvusClient:
             logger.error(f"Milvus update失败: {e}")
             return self._update_mock(ids, vectors, metadata)
 
-    def _update_mock(self, ids: List[str], vectors: List[List[float]] = None,
-                   metadata: List[Dict] = None) -> int:
+    def _update_mock(
+        self,
+        ids: List[str],
+        vectors: List[List[float]] = None,
+        metadata: List[Dict] = None,
+    ) -> int:
         """模拟更新向量"""
         updated = 0
 
         for i, vector_id in enumerate(ids):
             if vector_id in self._vectors:
                 if vectors and i < len(vectors):
-                    self._vectors[vector_id]['vector'] = vectors[i]
+                    self._vectors[vector_id]["vector"] = vectors[i]
                 if metadata and i < len(metadata):
-                    self._vectors[vector_id]['metadata'].update(metadata[i])
+                    self._vectors[vector_id]["metadata"].update(metadata[i])
                 updated += 1
 
         return updated
@@ -462,7 +507,7 @@ class MilvusClient:
         try:
             # 获取集合统计信息
             stats = self._milvus_client.get_collection_stats(self.collection_name)
-            return stats.get('row_count', 0)
+            return stats.get("row_count", 0)
         except Exception as e:
             logger.error(f"Milvus count失败: {e}")
             return len(self._vectors)
@@ -471,10 +516,10 @@ class MilvusClient:
         """获取统计信息"""
         if self._use_mock:
             return {
-                'mode': 'mock',
-                'total_vectors': len(self._vectors),
-                'collection_name': self.collection_name,
-                'dimension': self.dimension
+                "mode": "mock",
+                "total_vectors": len(self._vectors),
+                "collection_name": self.collection_name,
+                "dimension": self.dimension,
             }
 
         try:
@@ -483,31 +528,30 @@ class MilvusClient:
             if self.collection_name not in collections:
                 logger.debug(f"集合 {self.collection_name} 不存在，返回 0")
                 return {
-                    'mode': 'real',
-                    'total_vectors': 0,
-                    'collection_name': self.collection_name,
-                    'dimension': self.dimension
+                    "mode": "real",
+                    "total_vectors": 0,
+                    "collection_name": self.collection_name,
+                    "dimension": self.dimension,
                 }
 
             # 集合存在，获取统计信息
             stats = self._milvus_client.get_collection_stats(self.collection_name)
             return {
-                'mode': 'real',
-                'total_vectors': stats.get('row_count', 0),
-                'collection_name': self.collection_name,
-                'dimension': self.dimension
+                "mode": "real",
+                "total_vectors": stats.get("row_count", 0),
+                "collection_name": self.collection_name,
+                "dimension": self.dimension,
             }
         except Exception as e:
             logger.debug(f"Milvus get_stats失败: {e}")
             return {
-                'mode': 'real',
-                'total_vectors': len(self._vectors),
-                'collection_name': self.collection_name,
-                'dimension': self.dimension
+                "mode": "real",
+                "total_vectors": len(self._vectors),
+                "collection_name": self.collection_name,
+                "dimension": self.dimension,
             }
 
-    def create_index(self, index_type: str = 'IVF_FLAT',
-                     params: Dict = None) -> bool:
+    def create_index(self, index_type: str = "IVF_FLAT", params: Dict = None) -> bool:
         """创建索引"""
         if self._use_mock:
             logger.info(f"📝 模拟模式：创建索引 {index_type}")
@@ -516,10 +560,7 @@ class MilvusClient:
         try:
             # 默认索引参数
             if params is None:
-                params = {
-                    "nlist": 128,
-                    "m": 16
-                }
+                params = {"nlist": 128, "m": 16}
 
             # 创建索引
             self._milvus_client.create_index(
@@ -527,8 +568,8 @@ class MilvusClient:
                 index_params={
                     "index_type": index_type,
                     "metric_type": "L2",
-                    "params": params
-                }
+                    "params": params,
+                },
             )
 
             logger.info(f"✅ 创建Milvus索引成功: {index_type}")

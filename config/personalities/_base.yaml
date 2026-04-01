@@ -233,94 +233,6 @@ proactive_chat:
     - terminal      # 终端
     - web           # Web API
 
-  # 继承 personalities 的配置
-  inherit_from_personalities:
-    - quotes  # 经典台词
-    - emotions  # 情绪响应
-    - greetings  # 打招呼回应
-    - comfort_responses  # 安慰回应
-    - encourage_responses  # 鼓励回应
-    - listen_responses  # 倾听回应
-    - check_in_responses  # 关怀回应
-    - default_responses  # 默认回应
-  
-  # 时间感知配置（定时问候）
-  time_awareness:
-    enabled: true
-    inherit_check_in: true
-    time_slots:
-      morning:
-        start: 6
-        end: 12
-        greeting_keywords: ["早", "早上好", "早安"]
-        messages:
-          - "早上好~新的一天要加油哦！"
-          - "早安！今天感觉怎么样？"
-          - "早上好呀~昨晚睡得好吗？"
-          - "早~今天有啥计划吗？"
-          - "早上好呀~吃早餐了吗？"
-          - "早安~新的一天开始了！"
-          - "早上好~希望你有美好的一天！"
-          - "早呀~睡醒了吗？"
-          - "睡得好吗？"
-          - "今天感觉怎么样？"
-          - "今天有什么计划？"
-          - "今天要做什么？"
-          - "今天心情怎么样？"
-          - "新的一天开始了"
-      
-      afternoon:
-        start: 12
-        end: 18
-        greeting_keywords: ["午", "午安", "下午好"]
-        messages:
-          - "午安~吃午饭了吗？"
-          - "中午好~休息一下吧~"
-          - "午安呀~吃饭了吗？"
-          - "中午好~今天上午怎么样？"
-          - "下午好~来喝杯水休息一下吧~"
-          - "下午好~工作学习顺利吗？"
-          - "下午好呀~稍微休息一下~"
-          - "下午好~累了吗？"
-          - "下午心情怎么样？"
-          - "午休了吗？"
-          - "工作累了吗？"
-          - "下午工作顺利吗？"
-      
-      evening:
-        start: 18
-        end: 22
-        greeting_keywords: ["晚", "晚上好", "傍晚"]
-        messages:
-          - "晚上好~今天辛苦了！"
-          - "晚上好呀~有什么想聊的吗？"
-          - "晚上好~吃了吗？"
-          - "晚上好~今天过得怎么样？"
-          - "晚上好呀~在干嘛呢？"
-          - "晚上好~回来啦？"
-          - "吃过晚饭了吗？"
-          - "今天累吗？"
-          - "今天有什么收获吗？"
-          - "明天有什么计划？"
-          - "晚上有什么安排？"
-      
-      night:
-        start: 22
-        end: 6
-        greeting_keywords: ["晚安", "夜深了", "该睡了"]
-        messages:
-          - "晚安~早点休息哦~"
-          - "夜深了，要注意身体呀~"
-          - "晚安呀~该睡觉了~"
-          - "晚安~做个好梦~"
-          - "夜深了~早点休息吧~"
-          - "该休息了"
-          - "早点睡吧"
-          - "今天辛苦了"
-          - "好好休息"
-          - "明天见"
-          - "做个好梦"
-
   # 上下文触发 - 行为期望跟进
   context_trigger:
     enabled: true
@@ -486,18 +398,7 @@ proactive_chat:
       
       如果需要回复，请生成一句简短温暖的话（不超过20字）。
       如果不需要回复，请回复"SKIP"。
-  
-  # 继承 personalities 的配置
-  inherit_from_personalities:
-    - quotes  # 继承经典台词
-    - emotions  # 继承情绪响应
-    - greetings  # 继承打招呼回应
-    - comfort_responses  # 继承安慰回应
-    - encourage_responses  # 继承鼓励回应
-    - listen_responses  # 继承倾听回应
-    - check_in_responses  # 继承关怀回应
-    - default_responses  # 继承默认回应
-  
+
   # 时间感知配置
   time_awareness:
     enabled: true
@@ -562,72 +463,7 @@ proactive_chat:
           - category: "tomorrow"
             weight: 0.2
             templates: ["明天见", "做个好梦"]
-  
-  # 情绪感知配置
-  emotion_perception:
-    enabled: true
-    sensitivity: "high"
-    inherit_emotions: true
-    emotion_keywords:
-      happy:
-        keywords: ["开心", "高兴", "快乐", "棒", "不错", "好", "喜欢", "爱", "兴奋", "激动"]
-        weight: 1.0
-        response_strategy: "share_joy"
-      sad:
-        keywords: ["难过", "伤心", "失落", "沮丧", "失望", "郁闷", "低落", "抑郁"]
-        weight: 1.0
-        response_strategy: "comfort"
-      tired:
-        keywords: ["累", "疲惫", "困", "疲劳", "困倦", "没精神", "没力气"]
-        weight: 0.8
-        response_strategy: "rest"
-      anxious:
-        keywords: ["焦虑", "担心", "紧张", "不安", "害怕", "恐惧", "恐慌"]
-        weight: 1.0
-        response_strategy: "calm"
-      angry:
-        keywords: ["生气", "愤怒", "恼火", "烦躁", "气愤", "不爽"]
-        weight: 0.9
-        response_strategy: "soothe"
-      calm:
-        keywords: ["平静", "放松", "轻松", "舒服", "惬意"]
-        weight: 0.6
-        response_strategy: "maintain"
-      lonely:
-        keywords: ["孤独", "寂寞", "孤单", "一个人"]
-        weight: 0.9
-        response_strategy: "accompany"
-      nostalgic:
-        keywords: ["想家", "怀念", "回忆", "想念"]
-        weight: 0.7
-        response_strategy: "empathize"
-    
-    response_strategies:
-      share_joy:
-        templates: ["真好", "我也很开心", "陪你一起高兴"]
-        inherit_from: "emotions.joy"
-      comfort:
-        templates: ["我在", "抱抱你", "陪你一起"]
-        inherit_from: "emotions.sadness"
-      rest:
-        templates: ["休息一下", "我在", "累了就休息"]
-        inherit_from: "comfort_responses"
-      calm:
-        templates: ["先写能写的", "我陪你", "呼吸。我数。"]
-        inherit_from: "comfort_responses"
-      soothe:
-        templates: ["我在", "慢慢来", "我在你身边"]
-        inherit_from: "comfort_responses"
-      maintain:
-        templates: ["嗯", "我在", "继续"]
-        inherit_from: "default_responses"
-      accompany:
-        templates: ["我在", "陪你", "一个人也可以"]
-        inherit_from: "comfort_responses"
-      empathize:
-        templates: ["我理解", "我在", "陪你一起想"]
-        inherit_from: "listen_responses"
-  
+
   # 兴趣学习配置
   interest_learning:
     enabled: true

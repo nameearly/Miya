@@ -426,17 +426,12 @@ class DecisionHub:
         此处保留的 TerminalTool 仅用于处理带 ! 前缀的直接命令
         """
         try:
-            from webnet.ToolNet.tools.terminal import TerminalTool
+            from webnet.ToolNet.tools.terminal import get_terminal_ultra
 
-            project_root = Path(__file__).parent.parent
-            config_path = project_root / "config" / "terminal_config.json"
-
-            # 【框架一致性】传递 emotion 和 memory_engine
-            self.terminal_tool = TerminalTool()
+            # 终端工具初始化（配置从 system_constants.json 加载）
+            self.terminal_tool = get_terminal_ultra()
             logger.info("[决策层] 终端工具初始化成功（已集成人格和记忆系统）")
-            logger.info(
-                "[决策层] AI 调用终端命令通过 ToolNet 的 terminal_command 工具实现"
-            )
+            logger.info("[决策层] AI 调用终端命令通过 ToolNet 的终端工具实现")
 
         except Exception as e:
             logger.warning(f"[决策层] 终端工具初始化失败: {e}")

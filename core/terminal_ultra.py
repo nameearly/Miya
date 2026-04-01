@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple, Callable, AsyncGenerator
 from dataclasses import dataclass, field
 from enum import Enum
+from core.system_config import get_constant
 
 logger = logging.getLogger("Miya.Tools")
 
@@ -141,12 +142,35 @@ class BashTool:
     }
     DISALLOWED_AUTO_BACKGROUND = {"sleep"}
 
-    DEFAULT_TIMEOUT_MS = 120000
-    MAX_TIMEOUT_MS = 600000
-    PROGRESS_THRESHOLD_MS = 2000
+    DEFAULT_TIMEOUT_MS = get_constant("terminal", "default_timeout_ms", 120000)
+    MAX_TIMEOUT_MS = get_constant("terminal", "max_timeout_ms", 600000)
+    PROGRESS_THRESHOLD_MS = get_constant("terminal", "progress_threshold_ms", 2000)
 
     def __init__(self):
         self._background_tasks: Dict[str, Dict] = {}
+        self._blocked_patterns = get_constant(
+            "terminal",
+            "blocked_commands",
+            [
+                "rm -rf /",
+                "rm -rf /*",
+                "mkfs",
+                "dd if=/dev/zero",
+                ":(){ :|:& };:",
+                "fork()",
+                "> /dev/sd",
+                "chmod -R 777 /",
+            ],
+        )
+        self._dangerous_patterns = get_constant(
+            "terminal",
+            "dangerous_patterns",
+            ["rm -rf", "rm -r", "del /", "format", "chmod 777"],
+        )
+        self._caution_patterns = get_constant(
+            "terminal", "caution_patterns", ["rm ", "del ", "mv ", "cp -r"]
+        )
+        self._whitelist = get_constant("terminal", "whitelist", {})
 
     @property
     def name(self) -> str:
@@ -154,25 +178,13 @@ class BashTool:
 
     def _check_command_risk(self, command: str) -> RiskLevel:
         cmd_lower = command.lower().strip()
-        blocked = [
-            "rm -rf /",
-            "rm -rf /*",
-            "mkfs",
-            "dd if=/dev/zero",
-            ":(){ :|:& };:",
-            "fork()",
-            "> /dev/sd",
-            "chmod -R 777 /",
-        ]
-        for p in blocked:
+        for p in self._blocked_patterns:
             if p in cmd_lower:
                 return RiskLevel.BLOCKED
-        dangerous = ["rm -rf", "rm -r", "del /", "format", "chmod 777"]
-        for p in dangerous:
+        for p in self._dangerous_patterns:
             if p in cmd_lower:
                 return RiskLevel.DANGEROUS
-        caution = ["rm ", "del ", "mv ", "cp -r"]
-        for p in caution:
+        for p in self._caution_patterns:
             if cmd_lower.startswith(p):
                 return RiskLevel.CAUTION
         return RiskLevel.SAFE
@@ -383,8 +395,8 @@ class BashTool:
 
 
 class FileReadTool:
-    DEFAULT_MAX_SIZE = 10 * 1024 * 1024
-    DEFAULT_LIMIT = 2000
+    DEFAULT_MAX_SIZE = get_constant("terminal", "default_max_size", 10485760)
+    DEFAULT_LIMIT = get_constant("terminal", "default_limit", 2000)
 
     @property
     def name(self) -> str:
@@ -617,7 +629,7 @@ class FileDeleteTool:
 
 
 class GlobTool:
-    DEFAULT_MAX_RESULTS = 1000
+    DEFAULT_MAX_RESULTS = get_constant("terminal", "default_max_results", 1000)
 
     @property
     def name(self) -> str:
@@ -676,7 +688,7 @@ class GlobTool:
 
 
 class GrepTool:
-    DEFAULT_HEAD_LIMIT = 250
+    DEFAULT_HEAD_LIMIT = get_constant("terminal", "default_head_limit", 250)
     VCS_EXCLUDE_DIRS = [".git", ".svn", ".hg", ".bzr", ".jj"]
 
     @property
@@ -1462,6 +1474,79 @@ class TerminalUltra:
     ) -> ExecutionResult:
         branch_part = f" {branch}" if branch else ""
         return await self.terminal_exec(f"git pull {remote}{branch_part}")
+
+    async def git_checkout(
+        self, branch_or_ref: str, create: bool = False
+    ) -> ExecutionResult:
+        """Git checkout/switch branch"""
+        if create:
+            return await self.terminal_exec(f"git checkout -b {branch_or_ref}")
+        return await self.terminal_exec(f"git checkout {branch_or_ref}")
+
+    async def git_stash(
+        self, pop: bool = False, list: bool = False, clear: bool = False
+    ) -> ExecutionResult:
+        """Git stash operations"""
+        if pop:
+            return await self.terminal_exec("git stash pop")
+        if list:
+            return await self.terminal_exec("git stash list")
+        if clear:
+            return await self.terminal_exec("git stash clear")
+        return await self.terminal_exec("git stash push")
+
+    async def file_copy(
+        self, source: str, destination: str, overwrite: bool = False
+    ) -> ExecutionResult:
+        """Copy file or directory"""
+        flag = "/Y" if os.name == "nt" else "-f" if overwrite else ""
+        return await self.terminal_exec(
+            f'copy {flag} "{source}" "{destination}"'
+            if os.name == "nt"
+            else f"cp {'-f' if overwrite else ''} '{source}' '{destination}'"
+        )
+
+    async def file_move(
+        self, source: str, destination: str, overwrite: bool = False
+    ) -> ExecutionResult:
+        """Move file or directory"""
+        return await self.terminal_exec(
+            f'move /Y "{source}" "{destination}"'
+            if os.name == "nt"
+            else f"mv {'-f' if overwrite else ''} '{source}' '{destination}'"
+        )
+
+    async def code_explain(
+        self, code: str = None, file_path: str = None
+    ) -> ExecutionResult:
+        """Explain code - returns code content for AI analysis"""
+        if file_path:
+            return await self.file_read(file_path)
+        return ExecutionResult(success=True, output=code or "")
+
+    async def code_search_symbol(
+        self, symbol: str, path: str = None
+    ) -> ExecutionResult:
+        """Search for symbol in codebase"""
+        search_path = path or str(self.workspace_root)
+        return await self.file_grep(pattern=symbol, path=search_path)
+
+    async def plan_complex_task(self, task: str) -> ExecutionResult:
+        """Plan a complex task - returns task description for AI planning"""
+        return ExecutionResult(
+            success=True,
+            output=f"Task: {task}\n\nUse terminal tools to execute step by step.",
+        )
+
+    async def get_suggestions(self, context: str = None) -> ExecutionResult:
+        """Get command suggestions based on context"""
+        suggestions = [
+            "ls -la - 列出目录内容",
+            "git status - 查看Git状态",
+            "cat <file> - 查看文件内容",
+            "grep -r 'pattern' . - 搜索文件内容",
+        ]
+        return ExecutionResult(success=True, output="\n".join(suggestions))
 
     # ==================== 上下文和工具 ====================
 

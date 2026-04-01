@@ -9,10 +9,13 @@ import os
 import httpx
 from typing import Dict, Any
 from webnet.ToolNet.base import BaseTool, ToolContext
+from core.system_config import get_api_url
 
 logger = logging.getLogger(__name__)
 
-GROK_API_URL = os.environ.get("GROK_API_URL", "https://api.xai.ai/v1/chat/completions")
+GROK_API_URL = os.environ.get(
+    "GROK_API_URL", get_api_url("grok_api") or "https://api.xai.ai/v1/chat/completions"
+)
 GROK_API_KEY = os.environ.get("GROK_API_KEY", "")
 GROK_MODEL = os.environ.get("GROK_MODEL", "grok-2-1212")
 

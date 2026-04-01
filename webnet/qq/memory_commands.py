@@ -13,6 +13,7 @@ import asyncio
 from typing import Optional
 
 from core.qq_command_config import get_qq_command_config
+from core.text_loader import get_text
 
 
 async def _get_memory_core():
@@ -127,13 +128,16 @@ class MemoryCommandHandler:
     async def _cmd_search(self, keyword: str) -> str:
         """搜索记忆"""
         if not keyword:
-            return "Please provide keyword, e.g.: /memory search blue"
+            return get_text(
+                "memory_responses.search_prompt",
+                "请输入搜索关键词，例如: /记忆搜索 蓝色",
+            )
 
         core = await self._get_core()
         results = await core.retrieve(query=keyword, limit=10)
 
         if not results:
-            return f"No results for '{keyword}'"
+            return f"没有找到 '{keyword}' 相关记忆"
 
         lines = [f"[SEARCH] '{keyword}' ({len(results)})", "=" * 30]
 
@@ -152,7 +156,7 @@ class MemoryCommandHandler:
         results = await core.retrieve(query="", limit=10)
 
         if not results:
-            return "No memories yet"
+            return get_text("memory_responses.no_memories", "还没有记忆呢~")
 
         sorted_results = sorted(results, key=lambda x: x.created_at, reverse=True)[:10]
 
@@ -179,7 +183,7 @@ class MemoryCommandHandler:
         sorted_tags = sorted(tag_counts.items(), key=lambda x: -x[1])[:15]
 
         if not sorted_tags:
-            return "No tags yet"
+            return get_text("memory_responses.no_tags", "还没有标签呢~")
 
         lines = ["[TAGS]", "=" * 30]
 
@@ -191,13 +195,13 @@ class MemoryCommandHandler:
     async def _cmd_my(self, user_id: str) -> str:
         """我的记忆"""
         if not user_id:
-            return "Cannot identify user"
+            return get_text("memory_responses.cannot_identify_user", "无法识别用户")
 
         core = await self._get_core()
         results = await core.search_by_user(user_id, limit=10)
 
         if not results:
-            return "You have no memories yet~"
+            return get_text("memory_responses.user_no_memories", "你还没有记忆呢~")
 
         by_level = {}
         for mem in results:

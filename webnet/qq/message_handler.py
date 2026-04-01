@@ -12,6 +12,7 @@ from datetime import datetime
 from .models import QQMessage, ReplySegment, FileSegment
 from .image_handler import QQImageHandler
 from .message_parser import QQMessageParser
+from core.text_loader import get_text
 
 logger = logging.getLogger(__name__)
 
@@ -1271,9 +1272,11 @@ class QQMessageHandler:
                 logger.info(f"[QQNet-表情包请求] 未提取到表情包名称，发送随机表情包")
                 success = await self._send_emoji_response(group_id, sender_id)
                 if success:
-                    return "已发送随机表情包~"
+                    return get_text("emoji_responses.sent_random", "已发送随机表情包~")
                 else:
-                    return "抱歉，表情包发送失败了。"
+                    return get_text(
+                        "error_messages.emoji_send_failed", "抱歉，表情包发送失败了。"
+                    )
 
             logger.info(f"[QQNet-表情包请求] 提取到表情包名称: '{emoji_name}'")
 

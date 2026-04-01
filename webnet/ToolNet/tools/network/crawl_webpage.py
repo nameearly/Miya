@@ -10,10 +10,13 @@ import httpx
 from typing import Dict, Any
 from bs4 import BeautifulSoup
 from webnet.ToolNet.base import BaseTool, ToolContext
+from core.system_config import get_api_url
 
 logger = logging.getLogger(__name__)
 
-XXAPI_BASE_URL = os.environ.get("XXAPI_BASE_URL", "https://v2.xxapi.cn")
+XXAPI_BASE_URL = os.environ.get(
+    "XXAPI_BASE_URL", get_api_url("xxapi") or "https://v2.xxapi.cn"
+)
 
 
 class CrawlWebpageTool(BaseTool):

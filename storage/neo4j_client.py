@@ -3,9 +3,11 @@ Neo4j客户端 - 知识图谱/记忆五元组
 管理图数据库存储和查询
 支持真实Neo4j连接和模拟回退模式
 """
+
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import logging
+from core.system_config import get_constant
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +15,17 @@ logger = logging.getLogger(__name__)
 class Neo4jClient:
     """Neo4j客户端 - 支持真实连接和模拟回退"""
 
-    def __init__(self, uri: str = 'bolt://localhost:7687',
-                 user: str = 'neo4j', password: str = None,
-                 database: str = 'neo4j', use_mock: bool = None):
-        self.uri = uri
+    def __init__(
+        self,
+        uri: str = None,
+        user: str = "neo4j",
+        password: str = None,
+        database: str = "neo4j",
+        use_mock: bool = None,
+    ):
+        neo4j_config = get_constant("database", "neo4j", {})
+        default_port = neo4j_config.get("default_port", 7687)
+        self.uri = uri or f"bolt://localhost:{default_port}"
         self.user = user
         self.password = password
         self.database = database
@@ -38,8 +47,7 @@ class Neo4jClient:
             from neo4j import GraphDatabase
 
             self._driver = GraphDatabase.driver(
-                self.uri,
-                auth=(self.user, self.password)
+                self.uri, auth=(self.user, self.password)
             )
 
             # 测试连接
@@ -96,8 +104,9 @@ class Neo4jClient:
                 label_str = ":".join(labels)
                 props_str = ""
                 if properties:
-                    props_str = ", ".join([f"{k}: {self._format_value(v)}"
-                                          for k, v in properties.items()])
+                    props_str = ", ".join(
+                        [f"{k}: {self._format_value(v)}" for k, v in properties.items()]
+                    )
 
                 cypher = f"CREATE (n:{label_str} {{{props_str}}}) RETURN id(n) as id"
 
@@ -114,10 +123,10 @@ class Neo4jClient:
         node_id = f"node_{len(self._nodes)}_{datetime.now().timestamp()}"
 
         node_data = {
-            'id': node_id,
-            'labels': labels,
-            'properties': properties or {},
-            'created_at': datetime.now().isoformat()
+            "id": node_id,
+            "labels": labels,
+            "properties": properties or {},
+            "created_at": datetime.now().isoformat(),
         }
 
         self._nodes[node_id] = node_data
@@ -130,8 +139,9 @@ class Neo4jClient:
 
         return node_id
 
-    def create_relationship(self, start_node: str, end_node: str,
-                           rel_type: str, properties: Dict = None) -> str:
+    def create_relationship(
+        self, start_node: str, end_node: str, rel_type: str, properties: Dict = None
+    ) -> str:
         """
         创建关系
 
@@ -139,15 +149,18 @@ class Neo4jClient:
             关系ID
         """
         if self._use_mock:
-            return self._create_relationship_mock(start_node, end_node, rel_type, properties)
+            return self._create_relationship_mock(
+                start_node, end_node, rel_type, properties
+            )
 
         try:
             with self._driver.session(database=self.database) as session:
                 # 构建Cypher语句
                 props_str = ""
                 if properties:
-                    props_str = ", ".join([f"{k}: {self._format_value(v)}"
-                                          for k, v in properties.items()])
+                    props_str = ", ".join(
+                        [f"{k}: {self._format_value(v)}" for k, v in properties.items()]
+                    )
 
                 cypher = f"""
                 MATCH (a), (b)
@@ -162,20 +175,23 @@ class Neo4jClient:
 
         except Exception as e:
             logger.error(f"Neo4j create_relationship失败: {e}")
-            return self._create_relationship_mock(start_node, end_node, rel_type, properties)
+            return self._create_relationship_mock(
+                start_node, end_node, rel_type, properties
+            )
 
-    def _create_relationship_mock(self, start_node: str, end_node: str,
-                                  rel_type: str, properties: Dict = None) -> str:
+    def _create_relationship_mock(
+        self, start_node: str, end_node: str, rel_type: str, properties: Dict = None
+    ) -> str:
         """模拟创建关系"""
         rel_id = f"rel_{len(self._relationships)}_{datetime.now().timestamp()}"
 
         relationship = {
-            'id': rel_id,
-            'start_node': start_node,
-            'end_node': end_node,
-            'type': rel_type,
-            'properties': properties or {},
-            'created_at': datetime.now().isoformat()
+            "id": rel_id,
+            "start_node": start_node,
+            "end_node": end_node,
+            "type": rel_type,
+            "properties": properties or {},
+            "created_at": datetime.now().isoformat(),
         }
 
         self._relationships.append(relationship)
@@ -209,9 +225,9 @@ class Neo4jClient:
                 if record:
                     node = record["n"]
                     return {
-                        'id': node_id,
-                        'labels': list(node.labels),
-                        'properties': dict(node)
+                        "id": node_id,
+                        "labels": list(node.labels),
+                        "properties": dict(node),
                     }
 
         except Exception as e:
@@ -223,7 +239,7 @@ class Neo4jClient:
         """获取关系"""
         if self._use_mock:
             for rel in self._relationships:
-                if rel['id'] == rel_id:
+                if rel["id"] == rel_id:
                     return rel
             return None
 
@@ -236,11 +252,11 @@ class Neo4jClient:
                 if record:
                     rel = record["r"]
                     return {
-                        'id': rel_id,
-                        'type': rel.type,
-                        'start_node': str(rel.start_node.id),
-                        'end_node': str(rel.end_node.id),
-                        'properties': dict(rel)
+                        "id": rel_id,
+                        "type": rel.type,
+                        "start_node": str(rel.start_node.id),
+                        "end_node": str(rel.end_node.id),
+                        "properties": dict(rel),
                     }
 
         except Exception as e:
@@ -262,11 +278,13 @@ class Neo4jClient:
                 nodes = []
                 for record in result:
                     node = record["n"]
-                    nodes.append({
-                        'id': str(node.id),
-                        'labels': list(node.labels),
-                        'properties': dict(node)
-                    })
+                    nodes.append(
+                        {
+                            "id": str(node.id),
+                            "labels": list(node.labels),
+                            "properties": dict(node),
+                        }
+                    )
 
                 return nodes
 
@@ -274,13 +292,14 @@ class Neo4jClient:
             logger.error(f"Neo4j find_nodes_by_label失败: {e}")
             return []
 
-    def find_nodes_by_property(self, property_name: str,
-                               property_value: Any) -> List[Dict]:
+    def find_nodes_by_property(
+        self, property_name: str, property_value: Any
+    ) -> List[Dict]:
         """按属性查找节点"""
         if self._use_mock:
             results = []
             for node in self._nodes.values():
-                props = node.get('properties', {})
+                props = node.get("properties", {})
                 if props.get(property_name) == property_value:
                     results.append(node)
             return results
@@ -297,11 +316,13 @@ class Neo4jClient:
                 nodes = []
                 for record in result:
                     node = record["n"]
-                    nodes.append({
-                        'id': str(node.id),
-                        'labels': list(node.labels),
-                        'properties': dict(node)
-                    })
+                    nodes.append(
+                        {
+                            "id": str(node.id),
+                            "labels": list(node.labels),
+                            "properties": dict(node),
+                        }
+                    )
 
                 return nodes
 
@@ -309,8 +330,7 @@ class Neo4jClient:
             logger.error(f"Neo4j find_nodes_by_property失败: {e}")
             return []
 
-    def get_relationships(self, node_id: str,
-                          direction: str = 'all') -> List[Dict]:
+    def get_relationships(self, node_id: str, direction: str = "all") -> List[Dict]:
         """
         获取节点的关系
 
@@ -323,9 +343,9 @@ class Neo4jClient:
 
         try:
             with self._driver.session(database=self.database) as session:
-                if direction == 'out':
+                if direction == "out":
                     cypher = f"MATCH (n)-[r]->() WHERE id(n) = {node_id} RETURN r, startNode(r), endNode(r)"
-                elif direction == 'in':
+                elif direction == "in":
                     cypher = f"MATCH ()-[r]->(n) WHERE id(n) = {node_id} RETURN r, startNode(r), endNode(r)"
                 else:  # all
                     cypher = f"MATCH (n)-[r]-(m) WHERE id(n) = {node_id} RETURN r, startNode(r), endNode(r)"
@@ -335,13 +355,15 @@ class Neo4jClient:
                 relationships = []
                 for record in result:
                     rel = record["r"]
-                    relationships.append({
-                        'id': str(rel.id),
-                        'type': rel.type,
-                        'start_node': str(record['startNode(r)'].id),
-                        'end_node': str(record['endNode(r)'].id),
-                        'properties': dict(rel)
-                    })
+                    relationships.append(
+                        {
+                            "id": str(rel.id),
+                            "type": rel.type,
+                            "start_node": str(record["startNode(r)"].id),
+                            "end_node": str(record["endNode(r)"].id),
+                            "properties": dict(rel),
+                        }
+                    )
 
                 return relationships
 
@@ -349,14 +371,16 @@ class Neo4jClient:
             logger.error(f"Neo4j get_relationships失败: {e}")
             return self._get_relationships_mock(node_id, direction)
 
-    def _get_relationships_mock(self, node_id: str, direction: str = 'all') -> List[Dict]:
+    def _get_relationships_mock(
+        self, node_id: str, direction: str = "all"
+    ) -> List[Dict]:
         """模拟获取节点的关系"""
         relationships = []
 
         for rel in self._relationships:
-            if direction in ['out', 'all'] and rel['start_node'] == node_id:
+            if direction in ["out", "all"] and rel["start_node"] == node_id:
                 relationships.append(rel)
-            elif direction in ['in', 'all'] and rel['end_node'] == node_id:
+            elif direction in ["in", "all"] and rel["end_node"] == node_id:
                 relationships.append(rel)
 
         return relationships
@@ -395,10 +419,11 @@ class Neo4jClient:
         results = []
 
         # 解析简单查询
-        if 'MATCH' in cypher and 'RETURN' in cypher:
+        if "MATCH" in cypher and "RETURN" in cypher:
             # 提取标签
             import re
-            label_match = re.search(r':(\w+)', cypher)
+
+            label_match = re.search(r":(\w+)", cypher)
             if label_match:
                 node_label = label_match.group(1)
                 results = self.find_nodes_by_label(node_label)
@@ -431,12 +456,13 @@ class Neo4jClient:
 
         # 删除相关的关系
         self._relationships = [
-            rel for rel in self._relationships
-            if rel['start_node'] != node_id and rel['end_node'] != node_id
+            rel
+            for rel in self._relationships
+            if rel["start_node"] != node_id and rel["end_node"] != node_id
         ]
 
         # 删除标签索引
-        labels = self._nodes[node_id]['labels']
+        labels = self._nodes[node_id]["labels"]
         for label in labels:
             if label in self._labels_index and node_id in self._labels_index[label]:
                 self._labels_index[label].remove(node_id)
@@ -462,7 +488,7 @@ class Neo4jClient:
     def _delete_relationship_mock(self, rel_id: str) -> bool:
         """模拟删除关系"""
         for i, rel in enumerate(self._relationships):
-            if rel['id'] == rel_id:
+            if rel["id"] == rel_id:
                 del self._relationships[i]
                 return True
         return False
@@ -471,44 +497,51 @@ class Neo4jClient:
         """获取统计信息"""
         if self._use_mock:
             return {
-                'mode': 'mock',
-                'total_nodes': len(self._nodes),
-                'total_relationships': len(self._relationships),
-                'labels': list(self._labels_index.keys())
+                "mode": "mock",
+                "total_nodes": len(self._nodes),
+                "total_relationships": len(self._relationships),
+                "labels": list(self._labels_index.keys()),
             }
 
         try:
             with self._driver.session(database=self.database) as session:
                 # 统计节点
-                node_count = session.run("MATCH (n) RETURN count(n) as count").single()["count"]
+                node_count = session.run("MATCH (n) RETURN count(n) as count").single()[
+                    "count"
+                ]
 
                 # 统计关系
-                rel_count = session.run("MATCH ()-[r]->() RETURN count(r) as count").single()["count"]
+                rel_count = session.run(
+                    "MATCH ()-[r]->() RETURN count(r) as count"
+                ).single()["count"]
 
                 # 获取标签
-                labels_result = session.run("MATCH (n) RETURN DISTINCT labels(n) as labels")
+                labels_result = session.run(
+                    "MATCH (n) RETURN DISTINCT labels(n) as labels"
+                )
                 labels = []
                 for record in labels_result:
                     labels.extend(record["labels"])
 
                 return {
-                    'mode': 'real',
-                    'total_nodes': node_count,
-                    'total_relationships': rel_count,
-                    'labels': labels
+                    "mode": "real",
+                    "total_nodes": node_count,
+                    "total_relationships": rel_count,
+                    "labels": labels,
                 }
 
         except Exception as e:
             logger.error(f"Neo4j get_stats失败: {e}")
             return {
-                'mode': 'real',
-                'total_nodes': len(self._nodes),
-                'total_relationships': len(self._relationships),
-                'labels': list(self._labels_index.keys())
+                "mode": "real",
+                "total_nodes": len(self._nodes),
+                "total_relationships": len(self._relationships),
+                "labels": list(self._labels_index.keys()),
             }
 
-    def create_memory_quintuple(self, subject: str, predicate: str,
-                               obj: str, context: str, emotion: str) -> str:
+    def create_memory_quintuple(
+        self, subject: str, predicate: str, obj: str, context: str, emotion: str
+    ) -> str:
         """
         创建记忆五元组
 
@@ -523,7 +556,9 @@ class Neo4jClient:
             关系ID
         """
         if self._use_mock:
-            return self._create_memory_quintuple_mock(subject, predicate, obj, context, emotion)
+            return self._create_memory_quintuple_mock(
+                subject, predicate, obj, context, emotion
+            )
 
         try:
             with self._driver.session(database=self.database) as session:
@@ -559,29 +594,30 @@ class Neo4jClient:
 
         except Exception as e:
             logger.error(f"Neo4j create_memory_quintuple失败: {e}")
-            return self._create_memory_quintuple_mock(subject, predicate, obj, context, emotion)
+            return self._create_memory_quintuple_mock(
+                subject, predicate, obj, context, emotion
+            )
 
-    def _create_memory_quintuple_mock(self, subject: str, predicate: str,
-                                      obj: str, context: str, emotion: str) -> str:
+    def _create_memory_quintuple_mock(
+        self, subject: str, predicate: str, obj: str, context: str, emotion: str
+    ) -> str:
         """模拟创建记忆五元组"""
         # 查找或创建主体节点
-        subject_nodes = self.find_nodes_by_property('name', subject)
+        subject_nodes = self.find_nodes_by_property("name", subject)
         if subject_nodes:
-            subject_id = subject_nodes[0]['id']
+            subject_id = subject_nodes[0]["id"]
         else:
             subject_id = self.create_node(
-                labels=['Memory', 'Entity'],
-                properties={'name': subject}
+                labels=["Memory", "Entity"], properties={"name": subject}
             )
 
         # 查找或创建客体节点
-        obj_nodes = self.find_nodes_by_property('name', obj)
+        obj_nodes = self.find_nodes_by_property("name", obj)
         if obj_nodes:
-            obj_id = obj_nodes[0]['id']
+            obj_id = obj_nodes[0]["id"]
         else:
             obj_id = self.create_node(
-                labels=['Memory', 'Entity'],
-                properties={'name': obj}
+                labels=["Memory", "Entity"], properties={"name": obj}
             )
 
         # 创建关系
@@ -590,10 +626,10 @@ class Neo4jClient:
             end_node=obj_id,
             rel_type=predicate,
             properties={
-                'context': context,
-                'emotion': emotion,
-                'created_at': datetime.now().isoformat()
-            }
+                "context": context,
+                "emotion": emotion,
+                "created_at": datetime.now().isoformat(),
+            },
         )
 
         return rel_id
@@ -603,7 +639,7 @@ class Neo4jClient:
         if self._use_mock:
             results = []
             for rel in self._relationships:
-                if rel.get('properties', {}).get('emotion') == emotion:
+                if rel.get("properties", {}).get("emotion") == emotion:
                     results.append(rel)
             return results
 
@@ -618,13 +654,15 @@ class Neo4jClient:
 
                 memories = []
                 for record in result:
-                    memories.append({
-                        'subject': record["s"]['name'],
-                        'predicate': record["r"].type,
-                        'object': record["o"]['name'],
-                        'context': record["r"]['context'],
-                        'emotion': record["r"]['emotion']
-                    })
+                    memories.append(
+                        {
+                            "subject": record["s"]["name"],
+                            "predicate": record["r"].type,
+                            "object": record["o"]["name"],
+                            "context": record["r"]["context"],
+                            "emotion": record["r"]["emotion"],
+                        }
+                    )
 
                 return memories
 

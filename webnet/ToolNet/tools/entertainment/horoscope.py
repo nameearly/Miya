@@ -1,11 +1,13 @@
 """
 星座运势工具
 """
+
 from typing import Dict, Any
 import logging
 import httpx
 from webnet.ToolNet.base import BaseTool, ToolContext
 from core.constants import NetworkTimeout
+from core.system_config import get_api_url
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +40,9 @@ TIME_TYPE_MAP = {
 STAR_MAP = {1: "★", 2: "★★", 3: "★★★", 4: "★★★★", 5: "★★★★★"}
 
 # API 配置
-HOROSCOPE_API = "https://api.xygeng.cn/one/horoscope.php"
+HOROSCOPE_API = (
+    get_api_url("horoscope_api") or "https://api.xygeng.cn/one/horoscope.php"
+)
 
 
 class Horoscope(BaseTool):
@@ -55,20 +59,22 @@ class Horoscope(BaseTool):
                     "constellation": {
                         "type": "string",
                         "description": f"星座名称：{', '.join(CONSTELLATION_MAP.keys())}",
-                        "enum": list(CONSTELLATION_MAP.keys())
+                        "enum": list(CONSTELLATION_MAP.keys()),
                     },
                     "time_type": {
                         "type": "string",
                         "description": f"时间类型：{', '.join(TIME_TYPE_MAP.keys())}",
                         "enum": list(TIME_TYPE_MAP.keys()),
-                        "default": "今日"
-                    }
+                        "default": "今日",
+                    },
                 },
-                "required": ["constellation"]
-            }
+                "required": ["constellation"],
+            },
         }
 
-    async def _save_to_memory(self, fortune_text: str, constellation: str, time_type: str) -> str:
+    async def _save_to_memory(
+        self, fortune_text: str, constellation: str, time_type: str
+    ) -> str:
         """保存运势到记忆系统"""
         try:
             from memory.undefined_memory import get_undefined_memory_adapter
@@ -113,7 +119,9 @@ class Horoscope(BaseTool):
                 f"获取星座运势: {constellation} ({constellation_en}), 时间: {time_type} ({time_type_en})"
             )
 
-            async with httpx.AsyncClient(timeout=NetworkTimeout.REDIS_CONNECT_TIMEOUT) as client:
+            async with httpx.AsyncClient(
+                timeout=NetworkTimeout.REDIS_CONNECT_TIMEOUT
+            ) as client:
                 response = await client.get(HOROSCOPE_API, params=params)
                 response.raise_for_status()
                 data = response.json()
@@ -190,7 +198,6 @@ class Horoscope(BaseTool):
             # API 失败，使用本地生成的运势
             return await self._get_local_fortune(constellation, time_type)
 
-
     async def _get_local_fortune(self, constellation: str, time_type: str) -> str:
         """生成本地星座运势"""
         import random
@@ -213,7 +220,9 @@ class Horoscope(BaseTool):
         }
 
         # 随机生成运势指数
-        luck_color = random.choice(["红色", "蓝色", "绿色", "黄色", "紫色", "白色", "黑色"])
+        luck_color = random.choice(
+            ["红色", "蓝色", "绿色", "黄色", "紫色", "白色", "黑色"]
+        )
         luck_number = random.randint(1, 99)
         luck_constellation = random.choice(list(CONSTELLATION_MAP.keys()))
 
@@ -230,7 +239,7 @@ class Horoscope(BaseTool):
             "射手座": "适合出行和学习，保持乐观态度，好运自然来。",
             "摩羯座": "工作运势强，专注目标会取得好成绩。",
             "水瓶座": "创意满满，适合创新项目，社交运也不错。",
-            "双鱼座": "灵感丰富，适合艺术创作，感情上要真诚。"
+            "双鱼座": "灵感丰富，适合艺术创作，感情上要真诚。",
         }
 
         short_comment = advice_map.get(constellation, "今天整体运势平稳，保持平常心。")
@@ -239,11 +248,11 @@ class Horoscope(BaseTool):
         result = f"{constellation}{time_type}运势很不错哦！✨\n\n"
 
         result += "**今日运势亮点：**\n"
-        result += f"- 🌟 **综合运势：{stars_display['综合']}**（{fortune_stars['all']*20}%）精力充沛，思维敏捷\n"
-        result += f"- 💖 **爱情运势：{stars_display['爱情']}**（{fortune_stars['love']*20}%）{short_comment}\n"
-        result += f"- 💼 **工作运势：{stars_display['工作']}**（{fortune_stars['work']*20}%）思路清晰，才华得到认可\n"
-        result += f"- 💰 **财运：{stars_display['财运']}**（{fortune_stars['money']*20}%）财务稳定\n"
-        result += f"- ❤️ **健康：{stars_display['健康']}**（{fortune_stars['health']*20}%）身体状态良好\n\n"
+        result += f"- 🌟 **综合运势：{stars_display['综合']}**（{fortune_stars['all'] * 20}%）精力充沛，思维敏捷\n"
+        result += f"- 💖 **爱情运势：{stars_display['爱情']}**（{fortune_stars['love'] * 20}%）{short_comment}\n"
+        result += f"- 💼 **工作运势：{stars_display['工作']}**（{fortune_stars['work'] * 20}%）思路清晰，才华得到认可\n"
+        result += f"- 💰 **财运：{stars_display['财运']}**（{fortune_stars['money'] * 20}%）财务稳定\n"
+        result += f"- ❤️ **健康：{stars_display['健康']}**（{fortune_stars['health'] * 20}%）身体状态良好\n\n"
 
         result += "**今日小贴士：**\n"
         result += f"- 🎨 **幸运色：{luck_color}** - 可以穿点{luck_color}系衣服\n"

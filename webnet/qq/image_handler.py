@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from .models import QQMessage
+from core.system_config import get_api_url
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +185,7 @@ class QQImageHandler:
         self, api_key: str, image_base64: str
     ) -> Dict[str, Any]:
         """调用智谱视觉API"""
-        url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+        url = get_api_url("zhipu", "/chat/completions")
 
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -264,7 +265,7 @@ class QQImageHandler:
         self, api_key: str, image_base64: str, model_name: str
     ) -> Dict[str, Any]:
         """调用Qwen视觉API"""
-        url = "https://api.siliconflow.cn/v1/chat/completions"
+        url = get_api_url("siliconflow", "/chat/completions")
 
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -331,7 +332,7 @@ class QQImageHandler:
         self, api_key: str, image_base64: str, model_name: str
     ) -> Dict[str, Any]:
         """调用OpenAI视觉API"""
-        url = "https://api.openai.com/v1/chat/completions"
+        url = get_api_url("openai", "/chat/completions")
 
         headers = {
             "Authorization": f"Bearer {api_key}",

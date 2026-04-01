@@ -30,7 +30,8 @@ def load_config() -> dict:
         from core.personality_loader import get_personality_loader
 
         loader = get_personality_loader()
-        config = loader.get_proactive_chat_config(loader.get_full_config())
+        base_config = loader._load_base_config()
+        config = loader.get_proactive_chat_config(base_config)
 
         if config:
             logger.info("[主动聊天] 从 _base.yaml 加载配置成功")

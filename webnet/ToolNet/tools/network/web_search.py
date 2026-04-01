@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Any
 import re
 from urllib.parse import urlencode
 import logging
+from core.system_config import get_api_url
 
 logger = logging.getLogger(__name__)
 
@@ -20,31 +21,29 @@ class EnhancedWebSearch:
         self.search_engines = {
             "bing": {
                 "name": "必应",
-                "url": "https://api.bing.microsoft.com/v7.0/search",
+                "url": get_api_url("bing_search")
+                or "https://api.bing.microsoft.com/v7.0/search",
                 "params": {"q": "", "count": 10},
                 "key_required": True,
-                "api_key_env": "BING_API_KEY"
+                "api_key_env": "BING_API_KEY",
             },
             "duckduckgo": {
                 "name": "DuckDuckGo",
-                "url": "https://api.duckduckgo.com/",
+                "url": get_api_url("duckduckgo") or "https://api.duckduckgo.com/",
                 "params": {"q": "", "format": "json"},
-                "key_required": False
+                "key_required": False,
             },
             "serpapi": {
                 "name": "SerpAPI",
-                "url": "https://serpapi.com/search",
+                "url": get_api_url("serpapi") or "https://serpapi.com/search",
                 "params": {"q": "", "engine": "google", "num": 10},
                 "key_required": True,
-                "api_key_env": "SERPAPI_API_KEY"
-            }
+                "api_key_env": "SERPAPI_API_KEY",
+            },
         }
 
     def search(
-        self,
-        query: str,
-        engines: List[str] = None,
-        num_results: int = 10
+        self, query: str, engines: List[str] = None, num_results: int = 10
     ) -> List[Dict[str, Any]]:
         """
         执行搜索
@@ -80,10 +79,7 @@ class EnhancedWebSearch:
         return ranked
 
     def _search_engine(
-        self,
-        query: str,
-        engine: str,
-        num_results: int
+        self, query: str, engine: str, num_results: int
     ) -> List[Dict[str, Any]]:
         """调用单个搜索引擎"""
         if engine not in self.search_engines:
@@ -95,6 +91,7 @@ class EnhancedWebSearch:
         # 检查是否需要API密钥
         if config["key_required"]:
             import os
+
             api_key = os.environ.get(config["api_key_env"], "")
             if not api_key:
                 logger.warning(f"{engine}引擎需要API密钥: {config['api_key_env']}")
@@ -141,13 +138,15 @@ class EnhancedWebSearch:
             return results
 
         for item in data["webPages"]["value"]:
-            results.append({
-                "title": item.get("name", ""),
-                "url": item.get("url", ""),
-                "snippet": item.get("snippet", ""),
-                "displayUrl": item.get("displayUrl", ""),
-                "source": "bing"
-            })
+            results.append(
+                {
+                    "title": item.get("name", ""),
+                    "url": item.get("url", ""),
+                    "snippet": item.get("snippet", ""),
+                    "displayUrl": item.get("displayUrl", ""),
+                    "source": "bing",
+                }
+            )
 
         return results
 
@@ -162,12 +161,14 @@ class EnhancedWebSearch:
         results_list = data.get("Results", data.get("MainResults", []))
 
         for item in results_list[:10]:
-            results.append({
-                "title": item.get("Text", ""),
-                "url": item.get("FirstURL", ""),
-                "snippet": item.get("Text", ""),
-                "source": "duckduckgo"
-            })
+            results.append(
+                {
+                    "title": item.get("Text", ""),
+                    "url": item.get("FirstURL", ""),
+                    "snippet": item.get("Text", ""),
+                    "source": "duckduckgo",
+                }
+            )
 
         return results
 
@@ -179,19 +180,20 @@ class EnhancedWebSearch:
             return results
 
         for item in data["organic_results"]:
-            results.append({
-                "title": item.get("title", ""),
-                "url": item.get("link", ""),
-                "snippet": item.get("snippet", ""),
-                "displayUrl": item.get("link", ""),
-                "source": "serpapi"
-            })
+            results.append(
+                {
+                    "title": item.get("title", ""),
+                    "url": item.get("link", ""),
+                    "snippet": item.get("snippet", ""),
+                    "displayUrl": item.get("link", ""),
+                    "source": "serpapi",
+                }
+            )
 
         return results
 
     def _deduplicate_results(
-        self,
-        results: List[Dict[str, Any]]
+        self, results: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """搜索结果去重"""
         seen = set()
@@ -202,8 +204,8 @@ class EnhancedWebSearch:
             url = result.get("url", "")
 
             # 简化URL（去掉查询参数）
-            clean_url = re.sub(r'\?.*', '', url)
-            clean_url = clean_url.rstrip('/')
+            clean_url = re.sub(r"\?.*", "", url)
+            clean_url = clean_url.rstrip("/")
 
             if clean_url not in seen:
                 seen.add(clean_url)
@@ -212,9 +214,7 @@ class EnhancedWebSearch:
         return deduplicated
 
     def _rank_results(
-        self,
-        results: List[Dict[str, Any]],
-        query: str
+        self, results: List[Dict[str, Any]], query: str
     ) -> List[Dict[str, Any]]:
         """搜索结果排序和评分"""
         query_keywords = set(query.lower().split())
@@ -244,14 +244,14 @@ class EnhancedWebSearch:
             result["relevance_score"] = score
 
         # 按分数排序
-        ranked = sorted(results, key=lambda x: x.get("relevance_score", 0), reverse=True)
+        ranked = sorted(
+            results, key=lambda x: x.get("relevance_score", 0), reverse=True
+        )
 
         return ranked
 
     def generate_summary(
-        self,
-        results: List[Dict[str, Any]],
-        max_length: int = 500
+        self, results: List[Dict[str, Any]], max_length: int = 500
     ) -> str:
         """
         生成搜索结果摘要
@@ -286,15 +286,12 @@ class EnhancedWebSearch:
 
         # 如果超过最大长度，截断
         if len(summary_text) > max_length:
-            summary_text = summary_text[:max_length-3] + "..."
+            summary_text = summary_text[: max_length - 3] + "..."
 
         return summary_text
 
     def search_with_ai_context(
-        self,
-        query: str,
-        context: str,
-        engines: List[str] = None
+        self, query: str, context: str, engines: List[str] = None
     ) -> Dict[str, Any]:
         """
         带AI上下文的搜索
@@ -311,7 +308,7 @@ class EnhancedWebSearch:
         results = self.search(query, engines)
 
         # 分析结果与上下文的相关性
-        context_keywords = set(re.findall(r'[\u4e00-\u9fff]{2,}', context))
+        context_keywords = set(re.findall(r"[\u4e00-\u9fff]{2,}", context))
 
         relevant_results = []
         for result in results:
@@ -332,14 +329,12 @@ class EnhancedWebSearch:
         return {
             "搜索结果": relevant_results if relevant_results else results,
             "上下文关键词": list(context_keywords),
-            "相关结果数": len(relevant_results)
+            "相关结果数": len(relevant_results),
         }
 
 
 def search_command(
-    query: str,
-    engines: List[str] = None,
-    options: Dict[str, Any] = None
+    query: str, engines: List[str] = None, options: Dict[str, Any] = None
 ) -> Dict[str, Any]:
     """
     搜索命令统一接口
@@ -367,16 +362,10 @@ def search_command(
     # 执行搜索
     if "with_context" in options:
         results = searcher.search_with_ai_context(
-            query,
-            options["with_context"],
-            engines
+            query, options["with_context"], engines
         )
     else:
-        results_list = searcher.search(
-            query,
-            engines,
-            options.get("num_results", 10)
-        )
+        results_list = searcher.search(query, engines, options.get("num_results", 10))
 
         # 去重
         if options.get("deduplicate", True):
@@ -387,8 +376,7 @@ def search_command(
     # 生成摘要
     if options.get("generate_summary", False):
         results["摘要"] = searcher.generate_summary(
-            results_list,
-            options.get("max_summary_length", 500)
+            results_list, options.get("max_summary_length", 500)
         )
 
     # 添加元数据

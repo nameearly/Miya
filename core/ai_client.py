@@ -8,11 +8,13 @@ import logging
 import json
 import re
 from typing import Optional, Dict, List, Any, Callable
+from core.text_loader import get_error_message
 from dataclasses import dataclass
 from pathlib import Path
 
 from .prompt_cache import get_global_prompt_cache
 from core.constants import Encoding
+from core.system_config import get_api_url
 
 
 logger = logging.getLogger(__name__)
@@ -350,7 +352,7 @@ class OpenAIClient(BaseAIClient):
         **kwargs,
     ):
         super().__init__(api_key, model, **kwargs)
-        self.base_url = base_url or "https://api.openai.com/v1"
+        self.base_url = base_url or get_api_url("openai")
 
         try:
             from openai import AsyncOpenAI
@@ -671,7 +673,7 @@ class OpenAIClient(BaseAIClient):
                 raise
 
         # 达到最大迭代次数
-        return "抱歉，工具调用次数过多，无法完成请求。"
+        return get_error_message("tool_call_limit_exceeded")
 
 
 class DeepSeekClient(BaseAIClient):
@@ -685,7 +687,7 @@ class DeepSeekClient(BaseAIClient):
         **kwargs,
     ):
         super().__init__(api_key, model, **kwargs)
-        self.base_url = base_url or "https://api.deepseek.com/v1"
+        self.base_url = base_url or get_api_url("deepseek")
 
         try:
             from openai import AsyncOpenAI
@@ -1060,7 +1062,7 @@ class DeepSeekClient(BaseAIClient):
                 raise
 
         # 达到最大迭代次数
-        return "抱歉，工具调用次数过多，无法完成请求。"
+        return get_error_message("tool_call_limit_exceeded")
 
 
 class AnthropicClient(BaseAIClient):

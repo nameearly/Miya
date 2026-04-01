@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 class Settings:
     """配置管理类"""
 
-    def __init__(self, env_file: str = ".env"):
+    def __init__(self, env_file: str = "config/.env"):
         self.env_file = env_file
         self._config = {}
         self._load_env()
