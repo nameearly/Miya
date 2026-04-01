@@ -42,12 +42,13 @@ class VisionModelConfig:
     model_type: VisionModelType
     provider: str
     api_base: str
-    api_key_env: str
+    api_key: str = ""  # 直接存储API密钥
+    api_key_env: str = ""  # 环境变量名（保留兼容）
     enabled: bool = True
-    cost_per_call: float = 0.0  # 每次调用成本（元）
+    cost_per_call: float = 0.0
     max_tokens: int = 500
     timeout: int = 30
-    priority: int = 1  # 优先级（1最高）
+    priority: int = 1
     last_used: datetime = None
     error_count: int = 0
     success_count: int = 0
@@ -193,7 +194,8 @@ class MultiVisionAnalyzer:
                         model_type=v_model_type,
                         provider=provider,
                         api_base=model_config.base_url,
-                        api_key_env="",  # 不再使用环境变量，直接使用 api_key
+                        api_key=model_config.api_key if model_config.api_key else "",
+                        api_key_env="",
                         enabled=True,
                         max_tokens=model_config.max_tokens,
                         timeout=model_config.timeout_seconds,
@@ -375,7 +377,7 @@ class MultiVisionAnalyzer:
         self, model_config: VisionModelConfig, image_base64: str, image_format: str
     ) -> Dict[str, Any]:
         """调用视觉模型API"""
-        api_key = os.getenv(model_config.api_key_env, "")
+        api_key = model_config.api_key
         if not api_key:
             raise ValueError(f"缺少 {model_config.name} 的API密钥")
 
