@@ -22,59 +22,118 @@ import jieba.analyse
 logger = logging.getLogger(__name__)
 
 
+def _load_text_config() -> Dict[str, Any]:
+    """加载text_config.json配置"""
+    config_paths = [
+        "config/text_config.json",
+        os.path.join(os.path.dirname(__file__), "..", "config", "text_config.json"),
+        os.path.join(
+            os.path.dirname(__file__), "..", "..", "config", "text_config.json"
+        ),
+    ]
+    for path in config_paths:
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"加载text_config失败 {path}: {e}")
+    return {}
+
+
 class SemanticTagger:
-    """语义标签生成器"""
-
-    EMOTION_KEYWORDS = {
-        "开心": [
-            "开心",
-            "高兴",
-            "快乐",
-            "哈哈",
-            "笑",
-            "嘻嘻",
-            "美滋滋",
-            "happy",
-            "joy",
-            "开心",
-            "happy",
-        ],
-        "难过": ["难过", "伤心", "哭", "泪", "心痛", "sad", "cry", "难过", "失落"],
-        "生气": ["生气", "愤怒", "气", "怒", "讨厌", "angry", "生气", "愤愤"],
-        "惊讶": ["惊讶", "震惊", "哇", "啊", "惊讶", "震惊", "amazing", "wow"],
-        "害羞": ["害羞", "脸红", "不好意思", "羞涩", "shy", "embarrassed", "害羞"],
-        "可爱": ["可爱", "萌", "卡哇伊", "甜", "萌", "cute", "kawaii", "可爱"],
-        "得意": ["得意", "骄傲", "厉害", "棒", "赞", "proud", "厉害", "牛逼"],
-        "无奈": ["无奈", "无语", "汗", "囧", "尴尬", "helpless", "无奈", "无语"],
-        "亲亲": ["亲亲", "爱你", "喜欢", "么么哒", "love", "kiss", "亲亲", "love"],
-        "加油": ["加油", "努力", "冲", "fighting", "come on", "加油", "努力"],
-    }
-
-    CONTEXT_KEYWORDS = {
-        "问候": ["早上好", "晚安", "你好", "早安", "hi", "hello", "嗨", "hey", "在吗"],
-        "感谢": ["谢谢", "感谢", "谢", "thanks", "thank", "感谢", "谢啦"],
-        "祝福": ["祝福", "祝你", "愿你", "happy birthday", "生日快乐", "祝福"],
-        "道歉": ["对不起", "抱歉", "不好意思", "sorry", "抱歉", "对不起"],
-        "安慰": ["没事", "没关系", "别难过", "别伤心", "安慰", "没关系"],
-        "调侃": ["哈哈", "呵呵", "调皮", "傻", "笨", "调侃", "逗你"],
-        "赞同": ["对", "是", "没错", "同意", "yes", "right", "对的"],
-        "拒绝": ["不", "不要", "别", "no", "not", "拒绝", "不行"],
-        "期待": ["期待", "希望", "想要", "想", "hope", "want", "期待"],
-        "告别": ["再见", "拜拜", "下次见", "bye", "再见", "拜拜"],
-    }
-
-    SCENE_KEYWORDS = {
-        "工作": ["上班", "加班", "开会", "工作", "忙", "office", "work", "工作"],
-        "学习": ["学习", "考试", "作业", "上课", "study", "learn", "学习"],
-        "吃饭": ["吃饭", "饿了", "美食", "好吃", "eat", "food", "吃饭"],
-        "休息": ["睡觉", "困", "累了", "休息", "sleep", "rest", "休息"],
-        "游戏": ["游戏", "打游戏", "玩", "game", "play", "游戏"],
-        "聊天": ["聊天", "说话", "聊", "talk", "chat", "聊天"],
-        "天气": ["天气", "下雨", "热", "冷", "weather", "天气"],
-        "节日": ["节日", "过年", "圣诞", "春节", "holiday", "节日"],
-    }
+    """语义标签生成器 - 从text_config.json加载关键词配置"""
 
     def __init__(self):
+        text_config = _load_text_config()
+        keyword_config = text_config.get("emoji_keyword_mapping", {})
+
+        self.EMOTION_KEYWORDS = keyword_config.get(
+            "emotion_keywords",
+            {
+                "开心": [
+                    "开心",
+                    "高兴",
+                    "快乐",
+                    "哈哈",
+                    "笑",
+                    "嘻嘻",
+                    "美滋滋",
+                    "happy",
+                    "joy",
+                ],
+                "难过": ["难过", "伤心", "哭", "泪", "心痛", "sad", "cry", "失落"],
+                "生气": ["生气", "愤怒", "气", "怒", "讨厌", "angry", "愤愤"],
+                "惊讶": ["惊讶", "震惊", "哇", "啊", "amazing", "wow"],
+                "害羞": ["害羞", "脸红", "不好意思", "羞涩", "shy", "embarrassed"],
+                "可爱": ["可爱", "萌", "卡哇伊", "甜", "cute", "kawaii"],
+                "得意": ["得意", "骄傲", "厉害", "棒", "赞", "proud", "牛逼"],
+                "无奈": ["无奈", "无语", "汗", "囧", "尴尬", "helpless"],
+                "亲亲": ["亲亲", "爱你", "喜欢", "么么哒", "love", "kiss"],
+                "加油": ["加油", "努力", "冲", "fighting", "come on"],
+            },
+        )
+
+        self.CONTEXT_KEYWORDS = keyword_config.get(
+            "context_keywords",
+            {
+                "问候": [
+                    "早上好",
+                    "晚安",
+                    "你好",
+                    "早安",
+                    "hi",
+                    "hello",
+                    "嗨",
+                    "hey",
+                    "在吗",
+                ],
+                "感谢": ["谢谢", "感谢", "谢", "thanks", "thank", "谢啦"],
+                "祝福": ["祝福", "祝你", "愿你", "happy birthday", "生日快乐"],
+                "道歉": ["对不起", "抱歉", "不好意思", "sorry"],
+                "安慰": ["没事", "没关系", "别难过", "别伤心", "安慰"],
+                "调侃": ["哈哈", "呵呵", "调皮", "傻", "笨", "调侃", "逗你"],
+                "赞同": ["对", "是", "没错", "同意", "yes", "right", "对的"],
+                "拒绝": ["不", "不要", "别", "no", "not", "拒绝", "不行"],
+                "期待": ["期待", "希望", "想要", "想", "hope", "want"],
+                "告别": ["再见", "拜拜", "下次见", "bye"],
+            },
+        )
+
+        self.SCENE_KEYWORDS = keyword_config.get(
+            "scene_keywords",
+            {
+                "工作": ["上班", "加班", "开会", "工作", "忙", "office", "work"],
+                "学习": ["学习", "考试", "作业", "上课", "study", "learn"],
+                "吃饭": ["吃饭", "饿了", "美食", "好吃", "eat", "food"],
+                "休息": ["睡觉", "困", "累了", "休息", "sleep", "rest"],
+                "游戏": ["游戏", "打游戏", "玩", "game", "play"],
+                "聊天": ["聊天", "说话", "聊", "talk", "chat"],
+                "天气": ["天气", "下雨", "热", "冷", "weather"],
+                "节日": ["节日", "过年", "圣诞", "春节", "holiday"],
+            },
+        )
+
+        self.EMOTION_MAP = text_config.get(
+            "emoji_emotion_map",
+            {
+                "笑": "开心",
+                "微笑": "开心",
+                "哭": "难过",
+                "泪": "难过",
+                "生气": "生气",
+                "愤怒": "生气",
+                "惊讶": "惊讶",
+                "害羞": "害羞",
+                "可爱": "可爱",
+                "萌": "可爱",
+                "亲": "亲亲",
+                "爱": "亲亲",
+                "加油": "加油",
+                "奋斗": "加油",
+            },
+        )
+
         self._init_jieba()
 
     def _init_jieba(self):
@@ -255,6 +314,7 @@ class SmartEmojiManager:
             os.path.join(emoji_dir, "custom"),
             os.path.join(emoji_dir, "miya_special"),
             os.path.join(emoji_dir, "standard"),
+            os.path.join(emoji_dir, "user_uploaded"),
             stickers_dir,
             os.path.join(stickers_dir, "cute"),
             os.path.join(stickers_dir, "reaction"),
@@ -359,7 +419,6 @@ class SmartEmojiManager:
                 with open(tags_file, "r", encoding="utf-8") as f:
                     self.emoji_tags = json.load(f)
                 logger.info(f"已加载表情包标签: {len(self.emoji_tags)}个")
-                return
             except Exception as e:
                 logger.warning(f"加载标签失败: {e}")
 
@@ -382,8 +441,17 @@ class SmartEmojiManager:
                 tags = self._generate_tags_for_emoji(item)
                 self.emoji_tags[path] = tags
 
+        self._clean_stale_tags(all_items)
         self._save_tags()
         logger.info(f"标签生成完成: {len(self.emoji_tags)}个表情包已标记")
+
+    def _clean_stale_tags(self, valid_items: Dict[str, Dict]):
+        """清理不存在的文件标签"""
+        stale_paths = [p for p in self.emoji_tags if p not in valid_items]
+        for path in stale_paths:
+            del self.emoji_tags[path]
+        if stale_paths:
+            logger.info(f"清理了 {len(stale_paths)} 个不存在的文件标签")
 
     def _generate_tags_for_emoji(self, emoji_info: Dict) -> List[str]:
         """为单个表情包生成标签"""
@@ -391,51 +459,125 @@ class SmartEmojiManager:
 
         category = emoji_info.get("category", "")
         name = emoji_info.get("name", "")
+        path = emoji_info.get("path", "")
 
-        tags.append(category if category and category != "root" else "misc")
+        text_config = _load_text_config()
+        category_tags = text_config.get(
+            "emoji_category_tags",
+            {
+                "custom": ["自定义", "收藏", "常用"],
+                "miya_special": ["弥娅", "专属", "特别"],
+                "standard": ["标准", "默认", "经典"],
+                "user_uploaded": ["用户上传", "分享", "收藏"],
+                "cute": ["可爱", "萌", "甜"],
+                "reaction": ["反应", "回应", "表情"],
+                "seasonal": ["节日", "季节", "特别"],
+                "memes": ["梗图", "搞笑", "网络"],
+            },
+        )
+
+        default_tags = text_config.get("emoji_default_tags", ["表情包", "图片", "表情"])
+
+        if category in category_tags:
+            tags.extend(category_tags[category])
+        elif category and category != "root":
+            tags.append(category)
 
         name_without_ext = os.path.splitext(name)[0]
-        name_keywords = self.semantic_tagger.extract_keywords(name_without_ext, topK=5)
-        tags.extend(name_keywords)
 
-        for emotion, keywords in self.semantic_tagger.EMOTION_KEYWORDS.items():
-            for kw in keywords:
-                if kw in name.lower():
-                    if emotion not in tags:
-                        tags.append(emotion)
-                    break
+        if not name_without_ext.startswith("tmp") and len(name_without_ext) > 2:
+            name_keywords = self.semantic_tagger.extract_keywords(
+                name_without_ext, topK=5
+            )
+            tags.extend(name_keywords)
 
-        for ctx_type, keywords in self.semantic_tagger.CONTEXT_KEYWORDS.items():
-            for kw in keywords:
-                if kw in name.lower():
-                    if ctx_type not in tags:
-                        tags.append(ctx_type)
-                    break
+            for emotion, keywords in self.semantic_tagger.EMOTION_KEYWORDS.items():
+                for kw in keywords:
+                    if kw in name.lower():
+                        if emotion not in tags:
+                            tags.append(emotion)
+                        break
 
-        tags = list(set(tags))
-        if len(tags) < 3:
-            tags.extend(["misc", "表情包", "图片"])
+            for ctx_type, keywords in self.semantic_tagger.CONTEXT_KEYWORDS.items():
+                for kw in keywords:
+                    if kw in name.lower():
+                        if ctx_type not in tags:
+                            tags.append(ctx_type)
+                        break
+
+        for tag in default_tags:
+            if tag not in tags:
+                tags.append(tag)
+
+        tags = list(dict.fromkeys(tags))
 
         return tags[:10]
+
+    def _filter_semantic_tags(self, tags: List[str]) -> List[str]:
+        """过滤技术性标签，保留语义标签"""
+        semantic_tags = []
+        for tag in tags:
+            # 过滤纯数字
+            if tag.isdigit():
+                continue
+            # 过滤带小数点的数字
+            try:
+                float(tag)
+                continue
+            except ValueError:
+                pass
+            # 过滤纯技术术语
+            if tag.lower() in ["kb", "mb", "gb", "px", "像素", "格式", "视觉内容"]:
+                continue
+            semantic_tags.append(tag)
+        return semantic_tags
 
     async def generate_tags_with_ai(
         self, emoji_path: str, image_data: bytes = None
     ) -> List[str]:
-        """使用AI生成更精确的标签"""
+        """使用AI视觉模型生成精确的表情包标签"""
         try:
-            from webnet.ToolNet.tools.qq.qq_image_analyzer import QQImageAnalyzerTool
+            if image_data is None:
+                if not os.path.exists(emoji_path):
+                    return self._generate_tags_for_emoji(
+                        {
+                            "path": emoji_path,
+                            "name": os.path.basename(emoji_path),
+                            "category": "unknown",
+                        }
+                    )
+                with open(emoji_path, "rb") as f:
+                    image_data = f.read()
 
-            analyzer = QQImageAnalyzerTool()
-            context = type("Context", (), {"image_data": image_data, "user_id": 0})()
+            from core.multi_vision_analyzer import analyze_image_multi_model
 
-            description = await analyzer.analyze_image_internal(emoji_path)
+            result = await analyze_image_multi_model(image_data, max_retries=2)
 
-            if description:
-                tags = self.semantic_tagger.extract_keywords(description, topK=8)
-                return tags
+            if result and result.success and result.description:
+                tags = self.semantic_tagger.extract_keywords(result.description, topK=8)
+                if result.labels:
+                    tags.extend(result.labels[:3])
+                if result.has_text and result.text:
+                    text_tags = self.semantic_tagger.extract_keywords(
+                        result.text, topK=3
+                    )
+                    tags.extend(text_tags)
+
+                emotion_map = self.semantic_tagger.EMOTION_MAP
+                desc_lower = result.description.lower()
+                for keyword, emotion in emotion_map.items():
+                    if keyword in desc_lower and emotion not in tags:
+                        tags.append(emotion)
+
+                tags = self._filter_semantic_tags(tags)
+                tags = list(dict.fromkeys(tags))
+                logger.info(
+                    f"AI标签生成成功: {os.path.basename(emoji_path)} -> {tags[:5]}"
+                )
+                return tags[:10]
 
         except Exception as e:
-            logger.warning(f"AI标签生成失败: {e}")
+            logger.warning(f"AI视觉标签生成失败 {emoji_path}: {e}")
 
         return self._generate_tags_for_emoji(
             {
@@ -444,6 +586,125 @@ class SmartEmojiManager:
                 "category": "unknown",
             }
         )
+
+    async def generate_ai_tags_for_all(
+        self, batch_size: int = 5, delay: float = 1.0
+    ) -> Dict[str, int]:
+        """
+        为所有缺少AI标签的表情包批量生成AI标签
+
+        Args:
+            batch_size: 每批处理数量
+            delay: 每个表情包处理间隔（秒），避免API限流
+
+        Returns:
+            统计信息 {'total': int, 'success': int, 'failed': int, 'skipped': int}
+        """
+        stats = {"total": 0, "success": 0, "failed": 0, "skipped": 0}
+
+        all_items = {}
+        for cat, items in self.emoji_cache.items():
+            for item in items:
+                all_items[item["path"]] = item
+        for cat, items in self.sticker_cache.items():
+            for item in items:
+                all_items[item["path"]] = item
+
+        paths_needing_tags = []
+        for path, item in all_items.items():
+            current_tags = self.emoji_tags.get(path, [])
+            has_emotion_tag = any(
+                t in current_tags
+                for t in [
+                    "开心",
+                    "难过",
+                    "生气",
+                    "惊讶",
+                    "害羞",
+                    "可爱",
+                    "加油",
+                    "亲亲",
+                    "得意",
+                    "无奈",
+                    "问候",
+                    "感谢",
+                    "祝福",
+                    "道歉",
+                    "安慰",
+                    "调侃",
+                    "赞同",
+                    "拒绝",
+                    "期待",
+                    "告别",
+                ]
+            )
+            is_meaningful = len(current_tags) >= 5 and any(
+                t
+                not in [
+                    "misc",
+                    "表情包",
+                    "图片",
+                    "表情",
+                    "Temp",
+                    "用户上传",
+                    "分享",
+                    "收藏",
+                    "自定义",
+                    "弥娅",
+                    "专属",
+                    "特别",
+                    "标准",
+                    "默认",
+                    "经典",
+                ]
+                for t in current_tags
+            )
+            if not has_emotion_tag and not is_meaningful:
+                paths_needing_tags.append((path, item))
+            else:
+                stats["skipped"] += 1
+
+        stats["total"] = len(paths_needing_tags)
+        if stats["total"] == 0:
+            logger.info("所有表情包已有足够的标签，无需AI生成")
+            return stats
+
+        logger.info(f"开始批量AI标签生成: 共{stats['total']}个表情包需要处理")
+
+        for i, (path, item) in enumerate(paths_needing_tags):
+            try:
+                if not os.path.exists(path):
+                    stats["failed"] += 1
+                    continue
+
+                with open(path, "rb") as f:
+                    image_data = f.read()
+
+                tags = await self.generate_tags_with_ai(path, image_data)
+                if tags and len(tags) > 2:
+                    self.emoji_tags[path] = tags
+                    stats["success"] += 1
+                else:
+                    stats["failed"] += 1
+
+                if (i + 1) % batch_size == 0:
+                    self._save_tags()
+                    logger.info(
+                        f"进度: {i + 1}/{stats['total']} (成功:{stats['success']}, 失败:{stats['failed']})"
+                    )
+
+                if delay > 0 and i < len(paths_needing_tags) - 1:
+                    await asyncio.sleep(delay)
+
+            except Exception as e:
+                logger.error(f"处理表情包失败 {path}: {e}")
+                stats["failed"] += 1
+
+        self._save_tags()
+        logger.info(
+            f"批量AI标签生成完成: 总计{stats['total']}, 成功{stats['success']}, 失败{stats['failed']}, 跳过{stats['skipped']}"
+        )
+        return stats
 
     def _save_tags(self):
         """保存标签"""
@@ -507,6 +768,8 @@ class SmartEmojiManager:
                 kw_lower = kw.lower()
                 if any(kw_lower in t.lower() for t in tags):
                     score += 3.0
+                if any(t.lower() in kw_lower for t in tags):
+                    score += 1.5
                 if kw_lower in item["name"].lower():
                     score += 2.0
                 if kw_lower in item.get("category", "").lower():

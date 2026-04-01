@@ -141,113 +141,90 @@ class MultiVisionAnalyzer:
         }
 
     async def initialize(self):
-        """初始化多模型分析器"""
+        """初始化多模型分析器 - 使用模型池"""
         async with self._initialization_lock:
             if self._initialized:
                 return
 
             logger.info("[MultiVisionAnalyzer] 初始化多模型图片分析系统...")
 
-            # 配置所有支持的模型
-            self.models = {
-                "glm_46v_flash": VisionModelConfig(
-                    name="智谱GLM-4.6V-Flash",
-                    model_type=VisionModelType.GLM_46V_FLASH,
-                    provider="zhipu",
-                    api_base=os.getenv("ZHIPU_API_BASE", get_api_url("zhipu")),
-                    api_key_env="ZHIPU_API_KEY",
-                    cost_per_call=0.0,  # 免费模型
-                    max_tokens=800,
-                    timeout=30,
-                    priority=1,  # 最高优先级
-                ),
-                "qwen_vl": VisionModelConfig(
-                    name="通义千问视觉模型",
-                    model_type=VisionModelType.QWEN_VL,
-                    provider="dashscope",
-                    api_base=os.getenv(
-                        "DASHSCOPE_API_BASE",
-                        get_api_url("dashscope"),
-                    ),
-                    api_key_env="DASHSCOPE_API_KEY",
-                    cost_per_call=0.001,  # 约0.1分/次
-                    max_tokens=500,
-                    timeout=25,
-                    priority=2,
-                ),
-                "openai_gpt4o": VisionModelConfig(
-                    name="OpenAI GPT-4o Mini",
-                    model_type=VisionModelType.OPENAI_GPT4O,
-                    provider="openai",
-                    api_base=os.getenv("OPENAI_API_BASE", get_api_url("openai")),
-                    api_key_env="OPENAI_API_KEY",
-                    cost_per_call=0.00025,  # $0.0025/1K tokens
-                    max_tokens=300,
-                    timeout=20,
-                    priority=3,
-                ),
-                "deepseek_vision": VisionModelConfig(
-                    name="DeepSeek视觉模型",
-                    model_type=VisionModelType.DEEPSEEK_VISION,
-                    provider="deepseek",
-                    api_base=os.getenv("DEEPSEEK_API_BASE", get_api_url("deepseek")),
-                    api_key_env="DEEPSEEK_API_KEY",
-                    cost_per_call=0.0,  # 免费额度内免费
-                    max_tokens=600,
-                    timeout=30,
-                    priority=4,
-                ),
-                "siliconflow_vl": VisionModelConfig(
-                    name="硅基流动视觉模型",
-                    model_type=VisionModelType.SILICONFLOW_VL,
-                    provider="siliconflow",
-                    api_base=os.getenv(
-                        "SILICONFLOW_API_BASE", get_api_url("siliconflow")
-                    ),
-                    api_key_env="SILICONFLOW_API_KEY",
-                    cost_per_call=0.0,  # 免费额度内免费
-                    max_tokens=500,
-                    timeout=25,
-                    priority=5,
-                ),
-                "simple_analysis": VisionModelConfig(
-                    name="简单图片分析",
-                    model_type=VisionModelType.SIMPLE_ANALYSIS,
-                    provider="local",
-                    api_base="",
-                    api_key_env="",
-                    cost_per_call=0.0,
-                    max_tokens=0,
-                    timeout=5,
-                    priority=99,  # 最低优先级，仅用于故障转移
-                ),
+            from core.model_pool import get_model_pool, ModelType
+
+            model_pool = get_model_pool()
+            vision_models = model_pool.get_models_by_type(ModelType.VISION)
+
+            priority_map = {
+                "zhipu_glm_46v_flash": 1,
+                "siliconflow_qwen_vl": 2,
+                "minicpm_v": 3,
             }
 
-            # 检查每个模型的可用性
+            self.models = {}
             available_models = []
-            for model_id, config in self.models.items():
-                api_key = os.getenv(config.api_key_env, "")
-                if config.model_type == VisionModelType.SIMPLE_ANALYSIS:
-                    # 简单分析总是可用
-                    config.enabled = True
-                    available_models.append(model_id)
-                elif api_key:
-                    config.enabled = True
-                    available_models.append(model_id)
-                    logger.info(f"[MultiVisionAnalyzer] {config.name} 已启用")
-                else:
-                    config.enabled = False
-                    logger.warning(
-                        f"[MultiVisionAnalyzer] {config.name} 未启用 (缺少API密钥)"
+
+            for model_config in vision_models:
+                if model_config.api_key and model_config.base_url:
+                    model_id = model_config.id
+                    priority = priority_map.get(model_id, 5)
+                    # 映射 provider 到旧格式以保持兼容
+                    provider_map = {
+                        "zhipu": "zhipu",
+                        "siliconflow": "siliconflow",
+                        "openai": "openai",
+                        "deepseek": "deepseek",
+                        "local": "local",
+                    }
+                    provider = provider_map.get(
+                        model_config.provider.value, model_config.provider.value
                     )
 
+                    # 为每个模型创建合适的 VisionModelType
+                    if model_id == "zhipu_glm_46v_flash":
+                        v_model_type = VisionModelType.GLM_46V_FLASH
+                    elif model_id == "siliconflow_qwen_vl":
+                        v_model_type = VisionModelType.SILICONFLOW_VL
+                    elif model_id == "minicpm_v":
+                        v_model_type = VisionModelType.LOCAL_CLIP
+                    else:
+                        v_model_type = VisionModelType.SIMPLE_ANALYSIS
+
+                    vision_config = VisionModelConfig(
+                        name=model_config.name,
+                        model_type=v_model_type,
+                        provider=provider,
+                        api_base=model_config.base_url,
+                        api_key_env="",  # 不再使用环境变量，直接使用 api_key
+                        enabled=True,
+                        max_tokens=model_config.max_tokens,
+                        timeout=model_config.timeout_seconds,
+                        priority=priority,
+                    )
+                    self.models[model_id] = vision_config
+                    available_models.append(model_id)
+                    logger.info(
+                        f"[MultiVisionAnalyzer] {model_config.name} 已启用 (来自模型池)"
+                    )
+
+            self.models["simple_analysis"] = VisionModelConfig(
+                name="简单图片分析",
+                model_type=VisionModelType.SIMPLE_ANALYSIS,
+                provider="local",
+                api_base="",
+                api_key_env="",
+                cost_per_call=0.0,
+                max_tokens=0,
+                timeout=5,
+                priority=99,
+            )
+
             if not available_models:
-                logger.error("[MultiVisionAnalyzer] 没有可用的视觉模型！")
-                raise ValueError("没有可用的视觉模型，请至少配置一个API密钥")
+                logger.warning(
+                    "[MultiVisionAnalyzer] 没有可用的视觉模型API，将使用本地分析"
+                )
 
             self._initialized = True
             logger.info(
-                f"[MultiVisionAnalyzer] 初始化完成，已启用 {len(available_models)} 个模型"
+                f"[MultiVisionAnalyzer] 初始化完成，已启用 {len(available_models)} 个视觉模型"
             )
 
     async def analyze_image(
@@ -525,37 +502,164 @@ class MultiVisionAnalyzer:
             raise ValueError(f"{model_config.name} API调用异常: {str(e)[:100]}")
 
     def _simple_image_analysis(self, image_data: bytes) -> Dict[str, Any]:
-        """简单图片分析（无API）"""
-        image_format = self._detect_image_format(image_data)
-        size_kb = len(image_data) / 1024
+        """简单图片分析（无API）- 使用PIL进行本地分析"""
+        try:
+            from PIL import Image
+            import io
+            import colorsys
 
-        # 根据图片格式生成简单描述
-        format_descriptions = {
-            "jpeg": "这是一张JPEG格式的图片",
-            "png": "这是一张PNG格式的图片",
-            "gif": "这是一张GIF动图",
-            "bmp": "这是一张BMP格式的图片",
-            "webp": "这是一张WebP格式的图片",
-        }
+            image_format = self._detect_image_format(image_data)
+            size_kb = len(image_data) / 1024
 
-        description = format_descriptions.get(image_format, "这是一张图片")
-        description += f"，大小约为 {size_kb:.1f}KB。"
+            image = Image.open(io.BytesIO(image_data))
+            width, height = image.size
+            aspect_ratio = width / height if height > 0 else 1
 
-        # 根据大小猜测内容
-        if size_kb > 500:
-            description += " 图片较大，可能包含丰富的细节。"
-        elif size_kb < 50:
-            description += " 图片较小，可能是一个简单的图标或表情。"
+            # 缩小图片以加快分析
+            small = image.resize((50, 50))
+            pixels = list(small.getdata())
 
-        return {
-            "description": description,
-            "labels": ["图片", "视觉内容", image_format.upper()],
-            "nsfw_score": 0.0,
-            "confidence": 0.3,
-            "has_text": False,
-            "text": "",
-            "text_confidence": 0.0,
-        }
+            # 颜色分析
+            avg_r, avg_g, avg_b = 0, 0, 0
+            bright_pixels = 0
+            dark_pixels = 0
+            warm_pixels = 0
+            cool_pixels = 0
+            for p in pixels:
+                if isinstance(p, (tuple, list)) and len(p) >= 3:
+                    r, g, b = p[:3]
+                    avg_r += r
+                    avg_g += g
+                    avg_b += b
+                    brightness = (r + g + b) / 3
+                    if brightness > 180:
+                        bright_pixels += 1
+                    elif brightness < 80:
+                        dark_pixels += 1
+                    if r > g and r > b:
+                        warm_pixels += 1
+                    elif b > r and b > g:
+                        cool_pixels += 1
+
+            total = len(pixels)
+            avg_r /= total
+            avg_g /= total
+            avg_b /= total
+
+            # 判断色调
+            hue = colorsys.rgb_to_hsv(avg_r, avg_g, avg_b)[0]
+            if 0.0 <= hue < 0.15 or hue >= 0.85:
+                tone = "红色调"
+            elif 0.15 <= hue < 0.25:
+                tone = "橙色调"
+            elif 0.25 <= hue < 0.4:
+                tone = "黄色调"
+            elif 0.4 <= hue < 0.5:
+                tone = "绿色调"
+            elif 0.5 <= hue < 0.7:
+                tone = "蓝色调"
+            else:
+                tone = "紫色调"
+
+            # 判断亮度
+            if bright_pixels / total > 0.5:
+                brightness_desc = "明亮"
+            elif dark_pixels / total > 0.5:
+                brightness_desc = "暗淡"
+            else:
+                brightness_desc = "中等亮度"
+
+            # 判断冷暖色
+            if warm_pixels > cool_pixels:
+                color_temp = "暖色调"
+            else:
+                color_temp = "冷色调"
+
+            # 判断形状
+            if aspect_ratio > 1.5:
+                shape_desc = "横向宽图"
+            elif aspect_ratio < 0.67:
+                shape_desc = "纵向长图"
+            elif abs(aspect_ratio - 1.0) < 0.1:
+                shape_desc = "正方形"
+            else:
+                shape_desc = "标准比例"
+
+            # 判断是否可能是表情包
+            is_emoji_like = (
+                width <= 500
+                and height <= 500
+                and size_kb < 500
+                and (image_format == "gif" or image_format == "png")
+            )
+
+            # 判断是否可能是截图
+            is_screenshot = (
+                width >= 800
+                and height >= 600
+                and image_format == "png"
+                and avg_b > avg_r
+                and avg_b > avg_g
+            )
+
+            # 生成描述
+            description = f"这是一张{image_format.upper()}格式的图片"
+            description += f"，尺寸为{width}×{height}像素"
+            description += f"，大小约{size_kb:.1f}KB"
+            description += f"，{shape_desc}"
+            description += f"，{brightness_desc}"
+            description += f"，{color_temp}"
+            description += f"，{tone}"
+
+            if image_format == "gif":
+                description += "，这是一张GIF动图"
+            if is_emoji_like:
+                description += "，看起来像是一个表情包"
+            if is_screenshot:
+                description += "，可能是一张截图"
+
+            # 生成标签
+            labels = [image_format.upper()]
+            if is_emoji_like:
+                labels.extend(
+                    ["表情包", "表情", "动图" if image_format == "gif" else "静态表情"]
+                )
+            if is_screenshot:
+                labels.append("截图")
+            labels.append(brightness_desc)
+            labels.append(color_temp)
+            labels.append(tone)
+            labels.append(shape_desc)
+
+            if size_kb > 500:
+                labels.append("大图")
+            elif size_kb < 50:
+                labels.append("小图")
+
+            return {
+                "description": description,
+                "labels": list(dict.fromkeys(labels)),
+                "nsfw_score": 0.0,
+                "confidence": 0.4,
+                "has_text": False,
+                "text": "",
+                "text_confidence": 0.0,
+            }
+
+        except Exception as e:
+            logger.warning(f"简单图片分析失败: {e}")
+            image_format = self._detect_image_format(image_data)
+            size_kb = len(image_data) / 1024
+            description = f"{image_format.upper()}格式图片，大小{size_kb:.1f}KB"
+            return {
+                "description": description,
+                "labels": [image_format.upper(), "图片"],
+                "nsfw_score": 0.0,
+                "confidence": 0.3,
+                "has_text": False,
+                "text": "",
+                "text_confidence": 0.0,
+            }
 
     def _extract_labels_from_description(self, description: str) -> List[str]:
         """从描述中提取标签"""

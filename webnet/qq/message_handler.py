@@ -982,11 +982,14 @@ class QQMessageHandler:
             emoji = random.choice(emojis)
 
             # 构建文字消息
-            text_message = (
-                "收到你的拍一拍啦！送你一个表情包~ "
-                if not emoji_name
-                else f"给你发送 '{emoji_name}' 表情包~"
-            )
+            if not emoji_name:
+                text_message = get_text(
+                    "poke_responses.builtin_emoji",
+                )
+            else:
+                text_message = get_text("poke_responses.named_emoji").format(
+                    emoji_name=emoji_name
+                )
 
             # 发送消息（文字和表情分开发送）
             if group_id == 0:
@@ -1048,8 +1051,14 @@ class QQMessageHandler:
                 f"[QQNet-本地表情] 开始发送本地表情包: group={group_id}, sender={sender_id}, emoji_name={emoji_name}"
             )
 
-            # 获取配置的表情包目录
-            emoji_dir_path = "./data/emojis"
+            # 获取配置的表情包目录（优先从 QQ 配置读取，回退到 text_config）
+            from core.text_loader import get_text
+            from webnet.qq.config_loader import get_tool_config
+
+            tool_cfg = get_tool_config("qq_emoji")
+            emoji_dir_path = tool_cfg.get("emoji_dir", None)
+            if not emoji_dir_path:
+                emoji_dir_path = get_text("emoji_settings.dir")
             logger.info(f"[QQNet-本地表情] 配置的表情包目录: {emoji_dir_path}")
 
             # 如果配置的目录不存在，检查是否有默认图片文件
@@ -1088,13 +1097,13 @@ class QQMessageHandler:
                     logger.warning("[QQNet] data目录不存在")
                     return False
             else:
-                # 读取表情包目录中的文件
+                # 递归读取表情包目录中的文件（包括子目录）
                 emoji_files = []
                 emoji_files_map = {}  # 文件名（不含扩展名）到完整路径的映射
 
-                for file in os.listdir(emoji_dir_path):
-                    file_path = os.path.join(emoji_dir_path, file)
-                    if os.path.isfile(file_path):
+                for root, dirs, files in os.walk(emoji_dir_path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
                         # 检查是否为图片文件
                         if file.lower().endswith(
                             (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp")
@@ -1177,11 +1186,12 @@ class QQMessageHandler:
             logger.info(f"[QQNet-本地表情] 构建图片消息: {image_path}")
 
             # 构建文字消息
-            text_message = (
-                "收到你的拍一拍啦！送你一个本地表情包~ "
-                if not emoji_name
-                else f"给你发送 '{emoji_name}' 表情包~"
-            )
+            if not emoji_name:
+                text_message = get_text("poke_responses.local_emoji")
+            else:
+                text_message = get_text("poke_responses.named_emoji").format(
+                    emoji_name=emoji_name
+                )
 
             # 发送消息（文字和图片分开发送）
             if group_id == 0:
@@ -1271,12 +1281,10 @@ class QQMessageHandler:
             if not emoji_name:
                 logger.info(f"[QQNet-表情包请求] 未提取到表情包名称，发送随机表情包")
                 success = await self._send_emoji_response(group_id, sender_id)
-                if success:
-                    return get_text("emoji_responses.sent_random", "已发送随机表情包~")
-                else:
-                    return get_text(
-                        "error_messages.emoji_send_failed", "抱歉，表情包发送失败了。"
-                    )
+            if success:
+                return get_text("emoji_responses.sent_random")
+            else:
+                return get_text("error_messages.emoji_send_failed")
 
             logger.info(f"[QQNet-表情包请求] 提取到表情包名称: '{emoji_name}'")
 
@@ -1284,13 +1292,17 @@ class QQMessageHandler:
             success = await self._send_emoji_response(group_id, sender_id, emoji_name)
 
             if success:
-                return f"已发送 '{emoji_name}' 表情包~"
+                return get_text("emoji_responses.sent_success").format(
+                    emoji_name=emoji_name
+                )
             else:
-                return f"抱歉，没有找到 '{emoji_name}' 表情包，已发送随机表情包替代。"
+                return get_text("emoji_responses.sent_fallback").format(
+                    emoji_name=emoji_name
+                )
 
         except Exception as e:
             logger.error(f"[QQNet-表情包请求] 处理失败: {e}", exc_info=True)
-            return f"处理表情包请求时出错: {str(e)}"
+            return get_text("emoji_responses.error").format(error=str(e))
 
     def _extract_emoji_name_from_text(self, text: str) -> str:
         """

@@ -195,7 +195,7 @@ def get_greeting(name: str = "弥娅", style: str = "default") -> str:
 
 def get_farewell() -> str:
     """获取告别语"""
-    return get_random_text("farewells.bye", "再见！")
+    return get_random_text("farewells.bye")
 
 
 def is_greeting(text: str) -> bool:
@@ -236,17 +236,17 @@ def is_negation(text: str) -> bool:
 
 def get_affirmation_response() -> str:
     """获取肯定回复"""
-    return get_random_text("affirmations.responses", "收到！")
+    return get_random_text("affirmations.responses")
 
 
 def get_negation_response() -> str:
     """获取否定回复"""
-    return get_random_text("negations.responses", "好的~")
+    return get_random_text("negations.responses")
 
 
 def get_error_message(error_type: str = "system_error") -> str:
     """获取错误消息"""
-    return get_text(f"error_messages.{error_type}", "系统错误，请稍后再试。")
+    return get_text(f"error_messages.{error_type}")
 
 
 def get_welcome_message(platform: str = "terminal") -> str:
@@ -259,7 +259,7 @@ def get_welcome_message(platform: str = "terminal") -> str:
 
 def get_status_tag(emotion: str = "default") -> str:
     """获取状态标签"""
-    tag = get_text(f"status_tags.{emotion}", "[未知]")
+    tag = get_text(f"status_tags.{emotion}")
     return tag.replace("{emotion}", emotion)
 
 
@@ -321,7 +321,7 @@ def get_chatbot_keywords() -> List[str]:
 
 def get_pat_pat_trigger() -> str:
     """获取拍一拍触发词"""
-    return get_text("chatbot_keywords.pat_pat", "拍了拍你")
+    return get_text("chatbot_keywords.pat_pat")
 
 
 def get_command_keywords() -> Dict[str, List[str]]:
@@ -337,8 +337,8 @@ def get_emotion_keywords() -> Dict[str, List[str]]:
 def get_emoji_sending_response(success: bool = True) -> str:
     """获取表情包发送响应"""
     if success:
-        return get_text("emoji_responses.sending", "好的，我这就给你发送一个表情包~")
-    return get_text("emoji_responses.sending_failed", "抱歉，表情包发送失败了。")
+        return get_text("emoji_responses.sending")
+    return get_text("emoji_responses.sending_failed")
 
 
 def get_emoji_fallback_response(emoji_name: str) -> str:
@@ -355,9 +355,7 @@ def get_schedule_response(success: bool, result: str = "") -> str:
         return get_text(
             "schedule_responses.success", "好的，我已经为你设置好了定时任务！"
         ).format(result=result)
-    return get_text("schedule_responses.failed", "定时任务设置失败：").format(
-        result=result
-    )
+    return get_text("schedule_responses.failed").format(result=result)
 
 
 def get_default_response(response_type: str) -> str:
@@ -397,7 +395,7 @@ def get_core_form_names() -> Dict[str, str]:
 
 def get_reminder_message(content: str) -> str:
     """获取提醒消息"""
-    return get_text("reminder_message", "提醒：{content}").format(content=content)
+    return get_text("reminder_message").format(content=content)
 
 
 def get_advanced_response(response_type: str, **kwargs) -> str:

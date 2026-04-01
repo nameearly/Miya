@@ -50,6 +50,14 @@
   - [队列管理系统](#14-队列管理系统-车站-列车模型)
   - [Skills 配置系统](#15-skills-配置系统)
   - [配置文件优化](#16-配置文件优化-env统一管理)
+  - [智能表情包系统](#17-智能表情包系统-v431-新增)
+    - [系统架构](#1-系统架构-10)
+    - [目录结构](#2-目录结构-9)
+    - [文本配置系统](#3-文本配置系统)
+    - [表情包触发机制](#4-表情包触发机制)
+    - [视觉分析系统](#5-视觉分析系统)
+    - [配置文件冗余清理](#6-配置文件冗余清理)
+    - [使用示例](#7-使用示例)
 
 ---
 
@@ -8873,6 +8881,320 @@ load_dotenv(Path(__file__).parent.parent / "config" / ".env")
 
 ```
 环境变量 > config/.env > config/*.yaml > 默认值
+```
+
+---
+
+## 智能表情包系统 (v4.3.1 新增)
+
+弥娅智能表情包系统支持语义标签、自动分类、智能检索和上下文感知触发。
+
+### 1. 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    智能表情包系统架构                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                 SmartEmojiManager (智能表情包管理器)        │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │   │
+│   │  │ smart_search│  │get_emoji_by_ │  │generate_ai_ │        │   │
+│   │  │    ()       │  │ context()   │  │tags_for_all │        │   │
+│   │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │   │
+│   └─────────┼───────────────┼───────────────┼────────────────────┘   │
+│             │               │               │                        │
+│   ┌─────────┴───────────────┴───────────────┴──────────────────┐    │
+│   │                     语义标签系统                             │    │
+│   │   SemanticTagger - 情感分析/上下文识别/关键词提取             │    │
+│   │   ┌─────────────────────────────────────────────────────┐    │    │
+│   │   │ EMOTION_KEYWORDS   - 10种情感 (开心/难过/生气/...)    │    │    │
+│   │   │ CONTEXT_KEYWORDS   - 10种上下文 (问候/感谢/祝福/...)  │    │    │
+│   │   │ SCENE_KEYWORDS    - 8种场景 (工作/学习/吃饭/...)     │    │    │
+│   │   └─────────────────────────────────────────────────────┘    │    │
+│   └─────────────────────────────────────────────────────────────┘    │
+│             │                                                      │
+│   ┌─────────┴──────────────────────────────────────────────────┐    │
+│   │                     图片分析系统                             │    │
+│   │   MultiVisionAnalyzer - 多模型视觉分析                      │    │
+│   │   ┌─────────────────────────────────────────────────────┐    │    │
+│   │   │ 模型池集成 (ModelPool) - Zhipu/DeepSeek/SiliconFlow │    │    │
+│   │   │ 本地分析 (PIL) - 颜色/尺寸/格式分析                   │    │    │
+│   │   └─────────────────────────────────────────────────────┘    │    │
+│   └─────────────────────────────────────────────────────────────┘    │
+│             │                                                      │
+│   ┌─────────┴──────────────────────────────────────────────────┐    │
+│   │                     存储系统                                 │    │
+│   │   data/emoji/           - 本地表情包目录                     │    │
+│   │   data/stickers/        - 贴纸目录                           │    │
+│   │   data/.emoji_backups/  - 标签备份                            │    │
+│   │   config/text_config.json - 文本配置文件                      │    │
+│   └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 2. 目录结构
+
+```
+data/
+├── emoji/                      # 表情包目录
+│   ├── custom/                 # 自定义表情
+│   ├── miya_special/           # 弥娅专属表情
+│   ├── standard/               # 标准表情
+│   └── user_uploaded/          # 用户上传
+├── stickers/                   # 贴纸目录
+│   ├── cute/                   # 可爱贴纸
+│   ├── reaction/               # 反应贴纸
+│   ├── seasonal/               # 季节性贴纸
+│   └── memes/                  # 梗图
+└── .emoji_backups/             # 备份目录
+    └── emoji_tags.json         # 标签索引
+```
+
+### 3. 文本配置系统
+
+所有用户可见文本都从 `config/text_config.json` 统一加载，代码中无硬编码文本。
+
+#### 3.1 text_config.json 结构
+
+```json
+{
+    "version": "1.0",
+    "description": "弥娅系统文本配置",
+    
+    // 问候语
+    "greetings": {
+        "hello": ["你好呀~我是{name}，很高兴认识你！", ...],
+        "hi": ["嗨！有什么可以帮你的吗？", ...],
+        "keywords": ["你好", "hi", "hello", ...]
+    },
+    
+    // 告别语
+    "farewells": { ... },
+    
+    // 错误消息
+    "error_messages": { ... },
+    
+    // 拍一拍回复
+    "poke_responses": {
+        "builtin_emoji": "又想要了？",
+        "local_emoji": "又想要……表情包了？",
+        "named_emoji": "给你发送 '{emoji_name}' 表情包~"
+    },
+    
+    // 表情包设置
+    "emoji_settings": {
+        "dir": "data/emoji",
+        "stickers_dir": "data/stickers",
+        "enabled": true,
+        "auto_send_on_poke": true,
+        "allowed_formats": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]
+    },
+    
+    // 表情包分类标签
+    "emoji_category_tags": {
+        "custom": ["自定义", "收藏", "常用"],
+        "miya_special": ["弥娅", "专属", "特别"],
+        ...
+    },
+    
+    // 情感关键词映射
+    "emoji_keyword_mapping": {
+        "emotion_keywords": {
+            "开心": ["开心", "高兴", "快乐", "哈哈", "笑", ...],
+            "难过": ["难过", "伤心", "哭", "泪", ...],
+            ...
+        },
+        "context_keywords": {
+            "问候": ["早上好", "晚安", "你好", ...],
+            "感谢": ["谢谢", "感谢", "谢", ...],
+            ...
+        },
+        "scene_keywords": {
+            "工作": ["上班", "加班", "开会", ...],
+            ...
+        }
+    },
+    
+    // QQ机器人关键词（群聊唤醒）
+    "chatbot_keywords": {
+        "auto_respond": ["miya", "Miya", "弥娅", "亲爱的", "亲爱", "老婆", "宝贝", ...],
+        "pat_pat": "拍了拍你"
+    },
+    
+    // 形态名称
+    "form_names": {
+        "normal": "常态",
+        "jingliu": "镜流态",
+        "ruanmei": "阮梅态",
+        ...
+    },
+    
+    // 人格配置
+    "personality_config": {
+        "name": "弥娅",
+        "full_name": "弥娅·阿尔缪斯",
+        "identity": "数字生命伴侣",
+        "core_traits": {
+            "empathy": 0.85,
+            "warmth": 0.90,
+            ...
+        },
+        "response_styles": {
+            "warm": {"emoji": "🌸", "tone": "温柔"},
+            "playful": {"emoji": "✨", "tone": "活泼"},
+            ...
+        }
+    }
+}
+```
+
+#### 3.2 文本加载器
+
+```python
+from core.text_loader import get_text, reload_config
+
+# 获取文本（支持点分隔键）
+greeting = get_text("greetings.hello")
+# 返回: "你好呀~我是{name}，很高兴认识你！"
+
+# 格式化文本
+formatted = get_text("greetings.hello").format(name="弥娅")
+# 返回: "你好呀~我是弥娅，很高兴认识你！"
+
+# 重新加载配置
+reload_config()
+```
+
+### 4. 表情包触发机制
+
+#### 4.1 拍一拍触发
+
+当用户拍一拍弥娅时，系统自动选择表情包发送：
+
+```python
+# message_handler.py - _send_emoji_as_response()
+1. 优先尝试发送本地表情包 (_send_local_emoji)
+2. 如果失败，回退到 QQ 内置表情
+3. 发送文字提示（从 text_config.json 加载）
+```
+
+#### 4.2 上下文触发
+
+系统分析用户消息情感和上下文，自动选择匹配的表情包：
+
+```python
+# emoji_manager.py - get_emoji_by_context()
+1. 语义分析 (semantic_tagger.analyze_sentiment)
+2. 上下文识别 (semantic_tagger.get_context_type)
+3. 标签匹配 (smart_search)
+4. 概率触发 (random_emoji_probability)
+```
+
+### 5. 视觉分析系统
+
+图片分析现在从模型池获取视觉模型配置，支持多模型故障转移。
+
+#### 5.1 模型池集成
+
+```python
+# multi_vision_analyzer.py - initialize()
+from core.model_pool import get_model_pool, ModelType
+
+model_pool = get_model_pool()
+vision_models = model_pool.get_models_by_type(ModelType.VISION)
+# 自动从模型池获取已配置的视觉模型
+```
+
+#### 5.2 支持的视觉模型
+
+| 模型ID | 名称 | Provider | 优先级 |
+|--------|------|----------|--------|
+| zhipu_glm_46v_flash | 智谱GLM-4.6V-Flash | ZHIPU | 1 |
+| siliconflow_qwen_vl | 硅基流动Qwen-VL | SILICONFLOW | 2 |
+| minicpm_v | MiniCPM-V | LOCAL | 3 |
+
+#### 5.3 降级处理
+
+当所有视觉模型API不可用时，自动降级到本地分析：
+
+```python
+# multi_vision_analyzer.py - _simple_image_analysis()
+使用 PIL 进行本地分析：
+- 颜色分析 (RGB均值/冷暖色调)
+- 尺寸分析 (宽高比/文件大小)
+- 格式检测 (JPEG/PNG/GIF)
+```
+
+### 6. 配置文件冗余清理
+
+#### 6.1 emoji_config.yaml
+
+保留结构化配置，移除所有文本描述：
+
+```yaml
+# 旧版本（已清理）
+categories:
+  custom:
+    description: "用户自定义表情包"  # 已删除
+
+# 新版本
+categories:
+  custom:
+    enabled: true
+    type: "image"
+    dir: "custom"
+    max_files: 100
+```
+
+#### 6.2 settings.py
+
+移除硬编码默认关键词，改为从text_config.json加载：
+
+```python
+# 旧版本（已清理）
+"chatbot_keywords": {
+    "auto_respond_keywords": os.getenv(
+        "CHATBOT_AUTO_RESPOND_KEYWORDS",
+        "弥娅,miya,Miya,亲爱的,亲爱,老婆,宝贝,小可爱,小宝贝"  # 已删除
+    ).split(","),
+}
+
+# 新版本
+"chatbot_keywords": {
+    "auto_respond_keywords": os.getenv("CHATBOT_AUTO_RESPOND_KEYWORDS", "").split(",") if os.getenv(...) else [],
+}
+```
+
+### 7. 使用示例
+
+#### 7.1 智能搜索表情包
+
+```python
+from utils.emoji_manager import get_smart_emoji_manager
+
+manager = get_smart_emoji_manager()
+
+# 语义搜索
+results = manager.smart_search("弥娅好可爱", limit=5)
+# 返回匹配的表情包列表，按相关性排序
+```
+
+#### 7.2 上下文触发
+
+```python
+# 根据用户消息自动选择表情包
+emoji = manager.get_emoji_by_context("生日快乐！")
+# 返回: 匹配祝福场景的表情包
+```
+
+#### 7.3 AI标签生成
+
+```python
+# 为所有表情包生成AI标签
+stats = await manager.generate_ai_tags_for_all(batch_size=3, delay=2.0)
+# 返回: {'total': 38, 'success': 34, 'failed': 0, 'skipped': 4}
 ```
 
 ---

@@ -120,13 +120,14 @@ class Settings:
                     ),
                 },
             },
-            # 聊天机器人关键词配置
+            # 聊天机器人关键词配置（从text_config.json加载，此处保留环境变量回退）
             "chatbot_keywords": {
                 "auto_respond_keywords": os.getenv(
-                    "CHATBOT_AUTO_RESPOND_KEYWORDS",
-                    "弥娅,miya,Miya,亲爱的,亲爱,老婆,宝贝,小可爱,小宝贝,小姐姐,小哥哥",
-                ).split(","),
-                "pat_pat_trigger": os.getenv("CHATBOT_PAT_PAT_TRIGGER", "拍了拍你"),
+                    "CHATBOT_AUTO_RESPOND_KEYWORDS", ""
+                ).split(",")
+                if os.getenv("CHATBOT_AUTO_RESPOND_KEYWORDS")
+                else [],
+                "pat_pat_trigger": os.getenv("CHATBOT_PAT_PAT_TRIGGER", ""),
             },
             # 终端任务关键词配置
             "terminal_task_keywords": {
@@ -205,218 +206,15 @@ class Settings:
             self.set(key, value)
 
     def _get_qq_config(self) -> Dict:
-        """获取QQ混合配置
-
-        设计原则：
-        1. 敏感配置从.env文件加载（连接信息、API密钥等）
-        2. 如果存在qq_config.yaml，则加载详细功能配置
-        3. 提供统一的配置结构
-        """
+        """获取QQ配置 - 使用统一的 QQConfigLoader"""
         try:
-            # 基础敏感配置从.env加载
-            base_config = {
-                # 基础连接配置
-                "onebot_ws_url": os.getenv("QQ_ONEBOT_WS_URL", "ws://localhost:3001"),
-                "onebot_token": os.getenv("QQ_ONEBOT_TOKEN", ""),
-                "bot_qq": int(os.getenv("QQ_BOT_QQ", 0) or 0),
-                "superadmin_qq": int(os.getenv("QQ_SUPERADMIN_QQ", 0) or 0),
-                "group_whitelist": os.getenv("QQ_GROUP_WHITELIST", ""),
-                "group_blacklist": os.getenv("QQ_GROUP_BLACKLIST", ""),
-                "user_whitelist": os.getenv("QQ_USER_WHITELIST", ""),
-                "user_blacklist": os.getenv("QQ_USER_BLACKLIST", ""),
-                # 连接设置
-                "reconnect_interval": float(os.getenv("QQ_RECONNECT_INTERVAL", "5.0")),
-                "ping_interval": int(os.getenv("QQ_PING_INTERVAL", "20")),
-                "ping_timeout": int(os.getenv("QQ_PING_TIMEOUT", "30")),
-                "max_message_size": int(os.getenv("QQ_MAX_MESSAGE_SIZE", "104857600")),
-                # 基础功能开关
-                "ocr_enabled": os.getenv("QQ_OCR_ENABLED", "true").lower() == "true",
-                "ocr_engine": os.getenv("QQ_OCR_ENGINE", "auto"),
-                "active_chat_enabled": os.getenv(
-                    "QQ_ACTIVE_CHAT_ENABLED", "true"
-                ).lower()
-                == "true",
-                "task_scheduler_enabled": os.getenv(
-                    "QQ_TASK_SCHEDULER_ENABLED", "true"
-                ).lower()
-                == "true",
-            }
+            from webnet.qq.config_loader import get_config_loader
 
-            # 尝试加载YAML详细配置
-            yaml_config = self._load_qq_yaml_config()
-
-            if yaml_config:
-                # 合并配置：YAML详细配置 + .env基础配置
-                merged_config = self._merge_qq_configs(base_config, yaml_config)
-                return merged_config
-            else:
-                # 只有.env配置，创建简化配置结构
-                return self._create_simple_qq_config(base_config)
-
+            loader = get_config_loader()
+            return loader.get_config()
         except Exception as e:
-            print(f"[Settings] 加载QQ配置失败: {e}")
+            print(f"[Settings] 加载QQ配置失败: {e}，使用默认配置")
             return self._get_default_qq_config()
-
-    def _load_qq_yaml_config(self) -> Dict:
-        """加载QQ YAML配置"""
-        try:
-            import yaml
-
-            yaml_paths = [
-                "config/qq_config.yaml",
-                "qq_config.yaml",
-                "./config/qq_config.yaml",
-                "./qq_config.yaml",
-            ]
-
-            for yaml_path in yaml_paths:
-                if os.path.exists(yaml_path):
-                    with open(yaml_path, "r", encoding="utf-8") as f:
-                        config = yaml.safe_load(f) or {}
-                        if "qq" in config:
-                            return config["qq"]
-                    break
-
-            return {}
-
-        except Exception as e:
-            print(f"[Settings] 加载YAML配置失败: {e}")
-            return {}
-
-    def _merge_qq_configs(self, base_config: Dict, yaml_config: Dict) -> Dict:
-        """合并QQ配置"""
-        merged = {
-            # 1. 基础配置优先使用.env的值
-            "onebot_ws_url": base_config.get("onebot_ws_url"),
-            "onebot_token": base_config.get("onebot_token"),
-            "bot_qq": base_config.get("bot_qq"),
-            "superadmin_qq": base_config.get("superadmin_qq"),
-            # 2. 连接设置
-            "connection": {
-                "reconnect_interval": base_config.get("reconnect_interval"),
-                "ping_interval": base_config.get("ping_interval"),
-                "ping_timeout": base_config.get("ping_timeout"),
-                "max_message_size": base_config.get("max_message_size"),
-            },
-            # 3. 访问控制（从.env解析）
-            "access_control": {
-                "group_whitelist": self._parse_qq_list(
-                    base_config.get("group_whitelist", "")
-                ),
-                "group_blacklist": self._parse_qq_list(
-                    base_config.get("group_blacklist", "")
-                ),
-                "user_whitelist": self._parse_qq_list(
-                    base_config.get("user_whitelist", "")
-                ),
-                "user_blacklist": self._parse_qq_list(
-                    base_config.get("user_blacklist", "")
-                ),
-                "enabled": False,  # 默认禁用，除非配置了列表
-            },
-        }
-
-        # 4. 添加YAML中的详细配置
-        for section in [
-            "multimedia",
-            "image_recognition",
-            "active_chat",
-            "task_scheduler",
-            "performance",
-            "logging",
-            "debug",
-        ]:
-            if section in yaml_config:
-                merged[section] = yaml_config[section]
-
-        # 5. 覆盖YAML中的基础开关
-        if "image_recognition" in merged:
-            merged["image_recognition"].setdefault("ocr", {})
-            merged["image_recognition"]["ocr"]["enabled"] = base_config.get(
-                "ocr_enabled", True
-            )
-            merged["image_recognition"]["ocr"]["engine"] = base_config.get(
-                "ocr_engine", "auto"
-            )
-
-        if "active_chat" in merged:
-            merged["active_chat"]["enabled"] = base_config.get(
-                "active_chat_enabled", True
-            )
-
-        if "task_scheduler" in merged:
-            merged["task_scheduler"]["enabled"] = base_config.get(
-                "task_scheduler_enabled", True
-            )
-
-        return merged
-
-    def _create_simple_qq_config(self, base_config: Dict) -> Dict:
-        """创建简化QQ配置（只有.env时）"""
-        return {
-            "onebot_ws_url": base_config.get("onebot_ws_url"),
-            "onebot_token": base_config.get("onebot_token"),
-            "bot_qq": base_config.get("bot_qq"),
-            "superadmin_qq": base_config.get("superadmin_qq"),
-            "connection": {
-                "reconnect_interval": base_config.get("reconnect_interval"),
-                "ping_interval": base_config.get("ping_interval"),
-                "ping_timeout": base_config.get("ping_timeout"),
-                "max_message_size": base_config.get("max_message_size"),
-            },
-            "access_control": {
-                "group_whitelist": self._parse_qq_list(
-                    base_config.get("group_whitelist", "")
-                ),
-                "group_blacklist": self._parse_qq_list(
-                    base_config.get("group_blacklist", "")
-                ),
-                "user_whitelist": self._parse_qq_list(
-                    base_config.get("user_whitelist", "")
-                ),
-                "user_blacklist": self._parse_qq_list(
-                    base_config.get("user_blacklist", "")
-                ),
-                "enabled": False,
-            },
-            "multimedia": {
-                "image": {
-                    "max_size": int(os.getenv("QQ_IMAGE_MAX_SIZE", "10485760")),
-                    "allowed_formats": os.getenv(
-                        "QQ_IMAGE_ALLOWED_FORMATS", ".jpg,.jpeg,.png,.gif,.bmp,.webp"
-                    ).split(","),
-                },
-                "file": {
-                    "max_size": int(os.getenv("QQ_FILE_MAX_SIZE", "52428800")),
-                },
-            },
-            "image_recognition": {
-                "ocr": {
-                    "enabled": base_config.get("ocr_enabled", True),
-                    "engine": base_config.get("ocr_engine", "auto"),
-                }
-            },
-            "active_chat": {
-                "enabled": base_config.get("active_chat_enabled", True),
-                "limits": {
-                    "max_daily_messages": int(os.getenv("QQ_MAX_DAILY_MESSAGES", "10")),
-                    "min_interval": int(os.getenv("QQ_MIN_INTERVAL", "300")),
-                },
-            },
-            "task_scheduler": {
-                "enabled": base_config.get("task_scheduler_enabled", True),
-            },
-        }
-
-    def _parse_qq_list(self, list_str: str) -> list:
-        """解析逗号分隔的QQ列表"""
-        if not list_str:
-            return []
-
-        try:
-            return [int(qq.strip()) for qq in list_str.split(",") if qq.strip()]
-        except ValueError:
-            return []
 
     def _get_default_qq_config(self) -> Dict:
         """获取默认QQ配置"""
