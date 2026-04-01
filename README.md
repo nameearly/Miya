@@ -51,13 +51,27 @@
   - [Skills 配置系统](#15-skills-配置系统)
   - [配置文件优化](#16-配置文件优化-env统一管理)
   - [智能表情包系统](#17-智能表情包系统-v431-新增)
-    - [系统架构](#1-系统架构-10)
-    - [目录结构](#2-目录结构-9)
-    - [文本配置系统](#3-文本配置系统)
-    - [表情包触发机制](#4-表情包触发机制)
-    - [视觉分析系统](#5-视觉分析系统)
-    - [配置文件冗余清理](#6-配置文件冗余清理)
-    - [使用示例](#7-使用示例)
+     - [系统架构](#1-系统架构-10)
+     - [目录结构](#2-目录结构-9)
+     - [文本配置系统](#3-文本配置系统)
+     - [表情包触发机制](#4-表情包触发机制)
+     - [视觉分析系统](#5-视觉分析系统)
+     - [配置文件冗余清理](#6-配置文件冗余清理)
+     - [使用示例](#7-使用示例)
+  - [图片识别与回复系统](#图片识别与回复系统-v43x-新增)
+     - [系统架构](#1-系统架构-17)
+     - [模型池配置](#2-模型池配置)
+     - [文本配置系统](#3-文本配置系统-1)
+     - [图片处理流程](#4-图片处理流程)
+     - [核心模块说明](#5-核心模块说明)
+     - [使用示例](#6-使用示例-1)
+  - [文本配置系统详解](#文本配置系统详解)
+     - [配置加载机制](#1-配置加载机制)
+     - [使用方式](#2-使用方式)
+     - [配置结构](#3-配置结构)
+     - [动态更新](#4-动态更新)
+  - [常见问题与解决方案](#常见问题与解决方案)
+  - [更新日志重要更新](#更新日志-重要更新)
 
 ---
 
@@ -9202,6 +9216,521 @@ stats = await manager.generate_ai_tags_for_all(batch_size=3, delay=2.0)
 ## 许可证
 
 本项目采用 [MIT 许可证](LICENSE)。
+
+---
+
+## 图片识别与回复系统 (v4.3.x 新增)
+
+弥娅图片识别系统支持多模型视觉分析、AI人格化回复、形态差异化回应。
+
+### 1. 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    图片识别与回复系统架构                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │              EnhancedQQImageHandler (增强图片处理器)         │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │   │
+│   │  │ handle_    │  │ _create_    │  │ _generate_  │        │   │
+│   │  │ image_      │  │ response_   │  │ miya_style_ │        │   │
+│   │  │ message()   │  │ message()   │  │ response()  │        │   │
+│   │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │   │
+│   └─────────┼────────────────┼────────────────┼──────────────────┘   │
+│             │                │                │                      │
+│   ┌─────────┴────────────────┴────────────────┴──────────────────┐    │
+│   │                     多模型视觉分析系统                        │    │
+│   │   MultiVisionAnalyzer - 多模型自动故障转移                     │    │
+│   │   ┌─────────────────────────────────────────────────────┐    │    │
+│   │   │ 模型池集成 (ModelPool)                               │    │    │
+│   │   │ - zhipu_glm_46v_flash (智谱免费，有限流风险)          │    │    │
+│   │   │ - siliconflow_qwen_vl (SiliconFlow付费，稳定)         │    │    │
+│   │   │ - minicpm_v (MiniCPM视觉模型)                        │    │    │
+│   │   └─────────────────────────────────────────────────────┘    │    │
+│   └──────────────────────────────────────────────────────────────┘    │
+│             │                                                      │
+│   ┌─────────┴──────────────────────────────────────────────────┐    │
+│   │                     AI人格化生成系统                         │    │
+│   │   - 根据当前形态(normal/awakened/god)选择不同回复风格      │    │
+│   │   - 使用大语言模型生成弥娅风格的评论                        │    │
+│   │   - 支持文言风、热情风、亲切风三种模式                       │    │
+│   └──────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 2. 模型池配置
+
+视觉模型通过统一模型池管理，支持自动故障转移。
+
+#### 2.1 unified_model_config.yaml 配置
+
+```yaml
+models:
+  # 视觉模型配置
+  siliconflow_qwen_vl:
+    name: "Qwen/Qwen2.5-VL-72B-Instruct"
+    type: "vision"
+    provider: "openai"
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "${SILICONFLOW_API_KEY}"
+    capabilities:
+      - "image_description"
+      - "vision_understanding"
+  
+  zhipu_glm_46v_flash:
+    name: "glm-4.6v-flash"
+    type: "vision"
+    provider: "zhipu"
+    base_url: "https://open.bigmodel.cn/api/paas/v4"
+    api_key: "${ZHIPU_API_KEY}"
+    capabilities:
+      - "image_description"
+  
+  minicpm_v:
+    name: "openbmb/MiniCPM-V-2_6"
+    type: "vision"
+    provider: "openai"
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "${SILICONFLOW_API_KEY}"
+    capabilities:
+      - "image_description"
+```
+
+#### 2.2 模型路由配置
+
+```python
+# core/model_pool.py
+default_routes = {
+    "image_description": ModelRoute(
+        task_type="image_description",
+        primary="siliconflow_qwen_vl",    # 优先使用付费模型
+        secondary="minicpm_v",
+        fallback="zhipu_glm_46v_flash",
+    ),
+    ...
+}
+```
+
+### 3. 文本配置系统
+
+所有图片回复相关文本从 `config/text_config.json` 统一加载，支持形态差异化。
+
+#### 3.1 image_response 配置结构
+
+```json
+{
+    "image_response": {
+        "greeting": {
+            "morning": "早上好呀~",
+            "afternoon": "下午好哦~",
+            "evening": "晚上好~",
+            "night": "夜深了~",
+            "suffix": "你给我看图片啦？(｡♥‿♥｡)"
+        },
+        "analysis": {
+            "simple": "暂时没法详细看，但感觉是张{format}格式的图片呢~",
+            "intro": "我看看... {description}"
+        },
+        "ending": "还有别的想给我看吗？",
+        "keywords": ["你给我看图片", "你给我发图片"],
+        
+        "ai_prompts": {
+            "god": {
+                "system": "汝乃弥娅之神格形态。用古风文言回应，简洁威严。",
+                "style": "用文言风格，庄重简洁"
+            },
+            "awakened": {
+                "system": "汝乃弥娅之觉醒形态。热情活力，简洁回应。",
+                "style": "热情活力的风格"
+            },
+            "normal": {
+                "system": "汝乃弥娅，温暖的AI伙伴。用亲切自然的日常聊天风格回应。",
+                "style": "亲切自然的日常聊天风格"
+            }
+        },
+        
+        "forms": {
+            "normal": {
+                "greeting": {"morning": "早上好呀~", ...},
+                "suffix": "你给我看图片啦？(｡♥‿♥｡)",
+                "intro": "我看看...",
+                "simple": "暂时没法详细看，但感觉是张{format}格式的图片呢~",
+                "ending": "还有别的想给我看吗？"
+            },
+            "god": {
+                "greeting": {"morning": "晨安，旅者。", ...},
+                "suffix": "呈上何物？",
+                "intro": "吾观此图...",
+                "simple": "此乃{format}格式之图像。",
+                "ending": "还有何事？"
+            },
+            "awakened": {
+                "greeting": {"morning": "早上好呀~", ...},
+                "suffix": "给我看图片啦？(｡♥‿♥｡)",
+                "intro": "让我看看...",
+                "simple": "暂时没法详细看，但感觉是张{format}格式的图片呢~",
+                "ending": "还有想给我看的吗？"
+            }
+        }
+    }
+}
+```
+
+### 4. 图片处理流程
+
+#### 4.1 消息处理流程
+
+```
+用户发送图片
+    │
+    ▼
+QQNet.message_handler._handle_image_message()
+    │
+    ▼
+EnhancedQQImageHandler.handle_image_message()
+    │
+    ├── 下载图片
+    │
+    ├── 视觉模型分析 (MultiVisionAnalyzer)
+    │   └── 优先 siliconflow_qwen_vl，失败则故障转移
+    │
+    ├── 生成弥娅风格回复 (_create_response_message)
+    │   ├── 获取当前形态 (normal/awakened/god)
+    │   ├── 从text_config.json读取对应配置
+    │   └── 设置image_response标记
+    │
+    └── 返回QQMessage
+        │
+        ▼
+qq_main._handle_qq_callback()
+    │
+    └── 检测image_response属性
+        └── 直接发送，不经过decision_hub
+```
+
+#### 4.2 AI人格化回复生成
+
+```python
+# enhanced_image_handler.py - _generate_miya_style_response()
+
+def _generate_miya_style_response(
+    description: str,      # 视觉模型描述
+    labels: list,         # 标签
+    nsfw_score: float,   # NSFW评分
+    has_text: bool,      # 是否有文字
+    text_content: str,   # 文字内容
+    size_kb: float,      # 图片大小
+    format: str,         # 格式
+    current_form: str,   # 当前形态
+    sender_id: int       # 发送者ID
+) -> str:
+    """使用AI生成弥娅风格的图片回复"""
+    
+    # 1. 从text_config.json读取当前形态的AI提示词
+    ai_prompts = get_text("image_response.ai_prompts", {})
+    form_prompts = ai_prompts.get(current_form, ai_prompts.get("default", {}))
+    system_prompt = form_prompts.get("system", "汝乃弥娅，温暖的AI伙伴。")
+    style_hint = form_prompts.get("style", "亲切自然的日常聊天风格")
+    
+    # 2. 构建prompt
+    prompt = f"""图片分析结果：
+- 描述：{description[:200]}
+- 标签：{", ".join(labels) if labels else "无"}
+- 文字检测：{'有文字内容' if has_text else '无文字'}
+- 图片大小：{size_kb:.1f}KB
+- 格式：{format}
+
+请用{style_hint}，针对图片内容给出一句简短的评论或感想（20-50字），就像朋友聊天一样。不要分析太多。"""
+    
+    # 3. 调用模型池中的文本模型生成回复
+    model = pool.select_model_for_task("simple_chat", "qq", "balanced")
+    response = call_model(model, system_prompt, prompt)
+    
+    return response
+```
+
+### 5. 核心模块说明
+
+#### 5.1 EnhancedQQImageHandler
+
+```python
+# webnet/qq/enhanced_image_handler.py
+
+class EnhancedQQImageHandler:
+    """增强版QQ图片处理器"""
+    
+    def __init__(self, qq_net, personality=None):
+        self.qq_net = qq_net
+        self.personality = personality  # 传入人设对象
+        ...
+    
+    async def handle_image_message(self, event: Dict) -> Optional[QQMessage]:
+        """处理图片消息"""
+        # 1. 提取图片信息
+        image_info = self._extract_image_info(event)
+        
+        # 2. 下载图片
+        image_data = await self._download_image(image_info)
+        
+        # 3. 多模型分析
+        analysis_result = await self._analyze_image(image_data)
+        
+        # 4. 创建弥娅风格回复
+        return self._create_response_message(event, analysis_result)
+    
+    def _create_response_message(self, event, analysis_result) -> QQMessage:
+        """创建回复消息 - 从配置读取文本"""
+        # 获取当前形态
+        current_form = "normal"
+        if self.personality:
+            profile = self.personality.get_profile()
+            current_form = profile.get("current_form", "normal")
+        
+        # 从配置读取对应形态的文本
+        forms_cfg = get_text("image_response.forms", "")
+        form_cfg = forms_cfg.get(current_form, forms_cfg.get("default", {}))
+        
+        # 构建回复...
+        qq_msg.image_response = response_text  # 标记为图片回复
+        return qq_msg
+    
+    def _generate_miya_style_response(self, ...) -> str:
+        """使用AI生成人格化回复"""
+        # 从配置读取AI提示词
+        ai_prompts = get_text("image_response.ai_prompts", {})
+        # 调用模型生成回复
+        ...
+```
+
+#### 5.2 QQNet 图片处理集成
+
+```python
+# webnet/qq/core.py
+
+class QQNet:
+    def __init__(self, miya_core, mlink=None, memory_net=None, tts_net=None):
+        # 传递personality给图片处理器
+        personality = miya_core.personality if miya_core and hasattr(miya_core, 'personality') else None
+        self.image_handler = QQImageHandler(self, personality)
+        ...
+```
+
+#### 5.3 QQMessage 模型扩展
+
+```python
+# webnet/qq/models.py
+
+@dataclass
+class QQMessage:
+    """QQ消息数据类"""
+    # ... 原有字段 ...
+    
+    # 新增：图片分析回复（用于直接发送而不经过decision_hub）
+    image_response: str = ""
+```
+
+#### 5.4 qq_main 图片回复处理
+
+```python
+# run/qq_main.py
+
+async def _handle_qq_callback(self, qq_message: Any) -> None:
+    # ... 其他处理 ...
+    
+    # 检查是否已有图片分析回复
+    if hasattr(qq_message, "image_response") and qq_message.image_response:
+        await self._send_qq_response(qq_message, qq_message.image_response)
+        return
+    
+    # 继续正常处理流程...
+```
+
+### 6. 使用示例
+
+#### 6.1 配置视觉模型优先级
+
+在 `config/unified_model_config.yaml` 中配置视觉模型：
+
+```yaml
+models:
+  siliconflow_qwen_vl:
+    name: "Qwen/Qwen2.5-VL-72B-Instruct"
+    type: "vision"
+    api_key: "${SILICONFLOW_API_KEY}"
+    capabilities:
+      - "image_description"
+      - "vision_understanding"
+```
+
+#### 6.2 自定义形态回复文本
+
+在 `config/text_config.json` 中添加新的形态配置：
+
+```json
+{
+    "image_response": {
+        "forms": {
+            "your_form": {
+                "greeting": {"morning": "新形态早安~"},
+                "suffix": "看图片啦？",
+                "intro": "让我康康...",
+                "ending": "还想看吗？"
+            }
+        }
+    }
+}
+```
+
+#### 6.3 调试图片回复
+
+查看日志输出：
+```
+[EnhancedQQImageHandler] 图片消息处理完成
+[图片回复] 检测到图片分析回复，直接发送
+发送群消息至 123456789
+```
+
+---
+
+## 文本配置系统详解
+
+弥娅系统所有用户可见文本都从 `config/text_config.json` 统一加载，实现配置与代码分离。
+
+### 1. 配置加载机制
+
+```python
+# core/text_loader.py
+
+def get_text(key: str, default: str = "") -> str:
+    """获取文本 - 支持点分隔键"""
+    config = _load_config()
+    keys = key.split(".")
+    value = config
+    for k in keys:
+        if isinstance(value, dict):
+            value = value.get(k, {})
+        else:
+            return default
+    return value if isinstance(value, str) else default
+```
+
+### 2. 使用方式
+
+```python
+from core.text_loader import get_text, get_random_text
+
+# 获取文本
+greeting = get_text("greetings.hello")
+# 返回: "你好呀~我是{name}，很高兴认识你！"
+
+# 获取列表中的随机文本
+random_greeting = get_random_text("greetings.hello")
+
+# 格式化
+formatted = greeting.format(name="弥娅")
+```
+
+### 3. 配置结构
+
+```json
+{
+    "version": "1.0",
+    "description": "弥娅系统文本配置 - 所有用户可见文本在此配置",
+    
+    "greetings": {...},
+    "farewells": {...},
+    "error_messages": {...},
+    "status_tags": {...},
+    "poke_responses": {...},
+    "emoji_settings": {...},
+    "emoji_category_tags": {...},
+    "chatbot_keywords": {...},
+    "form_names": {...},
+    "personality_config": {...},
+    
+    "image_response": {
+        "greeting": {...},
+        "analysis": {...},
+        "ai_prompts": {...},
+        "forms": {...}
+    },
+    
+    "proactive_chat": {...},
+    "memory": {...}
+}
+```
+
+### 4. 动态更新
+
+修改 `text_config.json` 后，代码中通过 `get_text()` 获取的值会自动更新。
+
+---
+
+## 常见问题与解决方案
+
+### 1. 图片识别不输出回复
+
+**问题**: 图片已分析，但QQ没有输出回复
+
+**解决**:
+1. 检查 `run/qq_main.py` 中是否有图片回复检测逻辑
+2. 确认 `QQMessage.image_response` 属性已设置
+3. 查看日志 `[图片回复] 检测到图片分析回复，直接发送`
+
+### 2. 视觉模型限流
+
+**问题**: zhipu_glm_46v_flash 返回 429 错误
+
+**解决**:
+1. 调整 `model_pool.py` 中的模型优先级，使用付费模型优先
+2. 配置多个视觉模型实现自动故障转移
+
+### 3. 形态不生效
+
+**问题**: 不同形态的回复文本一样
+
+**解决**:
+1. 确认 `personality.get_profile()` 返回正确的 `current_form`
+2. 检查 `text_config.json` 中对应形态的配置是否存在
+3. 查看日志确认当前形态
+
+---
+
+## 更新日志 (重要更新)
+
+### v4.3.x 更新内容
+
+#### 图片识别与回复系统
+- 多模型视觉分析 (MultiVisionAnalyzer)
+- 模型池集成 (ModelPool)
+- AI人格化回复生成
+- 形态差异化回复 (normal/awakened/god)
+- 文本配置系统完善 (text_config.json)
+- QQ消息模型扩展 (image_response字段)
+- 图片回复直接发送机制
+
+#### 智能表情包系统
+- 语义标签系统 (SemanticTagger)
+- 智能检索 (SmartEmojiManager)
+- 本地表情包支持
+- 上下文触发机制
+- 拍一拍自动回复
+
+#### 配置系统
+- 统一文本配置 (text_config.json)
+- 模型池重构 (统一管理文本/视觉模型)
+- 配置文件冗余清理
+
+---
+
+## 相关文档
+
+- [智能表情包系统](./README.md#智能表情包系统-v431-新增)
+- [模型池系统](./README.md#模型池)
+- [统一记忆系统](./README.md#统一记忆系统-v430-新增)
+- [十四神格人设系统](./README.md#十四神格人设系统-v420-新增)
 
 ---
 
