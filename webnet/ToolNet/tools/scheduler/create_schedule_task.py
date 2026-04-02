@@ -173,6 +173,11 @@ class CreateScheduleTaskTool(BaseTool):
                     task_data["times"] = times
 
             # 使用调度器
+            print(
+                f"[DEBUG] context: {type(context)}, memory_engine: {context.memory_engine}"
+            )
+            print(f"[DEBUG] context.__dict__: {context.__dict__}")
+
             if context.memory_engine:
                 # 尝试获取调度器 - 多层降级获取
                 scheduler = None
@@ -190,14 +195,15 @@ class CreateScheduleTaskTool(BaseTool):
                 # 3. 尝试从全局获取
                 if not scheduler:
                     try:
-                        from hub.scheduler import Scheduler
+                        from hub.scheduler import get_global_scheduler
 
-                        # 检查是否有全局实例
-                        import hub.scheduler as hs
-
-                        if hasattr(hs, "_global_scheduler"):
-                            scheduler = hs._global_scheduler
-                            logger.info("从全局获取scheduler成功")
+                        scheduler = get_global_scheduler()
+                        if scheduler and scheduler._running:
+                            logger.info(
+                                f"从全局获取scheduler成功, running={scheduler._running}"
+                            )
+                        else:
+                            scheduler = None
                     except Exception as e:
                         logger.warning(f"尝试获取全局scheduler失败: {e}")
 
