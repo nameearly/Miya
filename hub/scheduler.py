@@ -101,6 +101,11 @@ class Scheduler:
 
     async def _run_loop(self):
         """调度循环"""
+        import sys
+
+        print(
+            f"[SCHEDULER] _run_loop started, running={self._running}", file=sys.stderr
+        )
         while self._running:
             try:
                 # 检查是否有待执行的任务
@@ -108,11 +113,19 @@ class Scheduler:
                     now = datetime.now()
                     # 查看队首任务（不弹出）
                     next_task = self.task_queue[0]
+                    print(
+                        f"[SCHEDULER] Queue has {len(self.task_queue)} tasks, next: {next_task.execute_at}",
+                        file=sys.stderr,
+                    )
                     if next_task.execute_at <= now:
                         # 任务时间到了，执行
                         heapq.heappop(self.task_queue)
                         logger.info(
                             f"执行定时任务: {next_task.task_id}, 类型: {next_task.task_type}"
+                        )
+                        print(
+                            f"[SCHEDULER] Executing task {next_task.task_id}",
+                            file=sys.stderr,
                         )
                         await self._execute_task(next_task)
 
