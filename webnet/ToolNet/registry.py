@@ -8,6 +8,8 @@ ToolNet 工具注册表（兼容层）
 import logging
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
 
+from core.text_loader import get_permission
+
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +129,21 @@ class ToolRegistry:
             self.logger.warning(
                 f"[权限拒绝] 用户 {context.user_id} 尝试执行工具 {name}，缺少权限"
             )
-            return f"❌ 权限不足：执行工具 '{name}' 需要权限 '{permission_check['required_permission']}'"
+            from core.text_loader import get_permission
+
+            denied_msg = get_permission("tool_permissions.denied_message", "")
+            if denied_msg:
+                return denied_msg.format(
+                    tool_name=name,
+                    permission=permission_check.get("required_permission", "unknown"),
+                )
+            return get_permission(
+                "tool_permissions.denied_message",
+                "❌ 权限不足：执行工具 '{tool_name}' 需要权限 '{permission}'",
+            ).format(
+                tool_name=name,
+                permission=permission_check.get("required_permission", "unknown"),
+            )
 
         try:
             # 【修复】确保args是字典类型
@@ -166,40 +182,50 @@ class ToolRegistry:
             包含 allowed 和 required_permission 的字典
         """
         try:
-            # 占位实现 - 权限检查暂时允许执行
-            return {"allowed": True, "required_permission": None}
+            from webnet.AuthNet.permission_core import PermissionCore
+            from webnet.AuthNet.user_mapper import UserMapper
 
-            # 从 AuthNet 获取权限核心（后续需要迁移）
-            # from webnet.AuthNet.permission_core import PermissionCore
-            # from webnet.AuthNet.user_mapper import UserMapper
+            user_id = getattr(context, "user_id", None)
+            group_id = getattr(context, "group_id", None)
+            platform = getattr(context, "platform", None)
 
-            # 确定用户ID和平台
-            user_id = getattr(context, "user_id", None) or getattr(
-                context, "superadmin", None
-            )
-            platform = getattr(context, "platform", "terminal")
+            if platform is None:
+                platform = self._detect_platform_from_context(context)
+
+            superadmin = getattr(context, "superadmin", None)
+            onebot_client = getattr(context, "onebot_client", None)
 
             if user_id is None:
-                # 没有用户ID，允许执行（可能是系统调用）
                 return {"allowed": True, "required_permission": None}
 
-            # 生成统一用户ID
-            user_mapper = UserMapper()
-            platform = self._detect_platform_from_context(context)
-            unified_user_id = user_mapper.generate_user_id(platform, str(user_id))
+            if superadmin and user_id == superadmin:
+                self.logger.info(f"[权限检查] 用户 {user_id} 是超级管理员，放行")
+                return {"allowed": True, "required_permission": None}
 
-            # 构建权限节点
+            if group_id and onebot_client:
+                try:
+                    member_info = await onebot_client.get_group_member_info(
+                        group_id=group_id, user_id=user_id
+                    )
+                    role = member_info.get("role", "member")
+                    if role in ["owner", "admin"]:
+                        self.logger.info(
+                            f"[权限检查] 用户 {user_id} 是群管理员(role={role})，放行"
+                        )
+                        return {"allowed": True, "required_permission": None}
+                except Exception as e:
+                    self.logger.warning(f"[权限检查] 获取群成员信息失败: {e}")
+
+            user_mapper = UserMapper()
+            unified_user_id = user_mapper.generate_user_id(platform, str(user_id))
             required_permission = f"tool.{tool_name}"
 
-            # 检查权限
             perm_core = PermissionCore()
             has_permission = perm_core.check_permission(
                 unified_user_id, required_permission
             )
 
-            # 如果没有直接权限，检查是否是超级管理员
             if not has_permission:
-                # 尝试系统管理员
                 has_permission = perm_core.check_permission(
                     "system_admin", required_permission
                 )
@@ -211,7 +237,6 @@ class ToolRegistry:
             }
 
         except Exception as e:
-            # 权限检查失败时，允许执行（降级处理）
             self.logger.warning(f"[权限检查异常] {e}，允许执行")
             return {"allowed": True, "required_permission": None, "error": str(e)}
 

@@ -292,6 +292,31 @@ class MiyaQQ:
                 "has_media": qq_message.has_media,
             }
 
+            # 【修复】检查消息是否已有图片分析回复，如果有则直接发送
+            img_keywords_str = ""
+            try:
+                from core.text_loader import get_text
+
+                img_keywords_str = get_text("image_response.keywords", "")
+            except Exception:
+                pass
+
+            if hasattr(qq_message, "image_response") and qq_message.image_response:
+                self.logger.info("[图片回复] 检测到图片分析回复，直接发送")
+                await self._send_qq_response(qq_message, qq_message.image_response)
+                return
+
+            if hasattr(qq_message, "message") and qq_message.message:
+                msg_content = qq_message.message
+                if img_keywords_str:
+                    keywords = [
+                        k.strip() for k in img_keywords_str.split(",") if k.strip()
+                    ]
+                    if any(kw in msg_content for kw in keywords):
+                        self.logger.info("[图片回复] 检测到图片分析回复内容，直接发送")
+                        await self._send_qq_response(qq_message, msg_content)
+                        return
+
             # 检查用户输入是否是TTS切换指令
             content_str = str(perception.get("content", "")).strip().lower()
             direct_response = None
@@ -414,18 +439,11 @@ class MiyaQQ:
             self.logger.error(f"处理QQ消息失败: {e}", exc_info=True)
 
     async def _send_qq_response(self, qq_message: Any, response_text: str) -> None:
-        """
-        发送QQ响应
-
-        Args:
-            qq_message: QQMessage对象
-            response_text: 响应文本
-        """
+        """发送QQ响应"""
         if not response_text or not self.qq_net:
             return
 
         try:
-            # 简化发送日志
             if qq_message.message_type == "poke":
                 if qq_message.group_id and qq_message.group_id > 0:
                     self.logger.info(f"发送群聊拍一拍回复至 {qq_message.group_id}")
@@ -469,6 +487,11 @@ class MiyaQQ:
                 ):
                     self.miya.decision_hub.onebot_client = self.qq_net.onebot_client
                     self.logger.info("DecisionHub onebot_client 已设置")
+
+                # 设置 qq_net 引用到 decision_hub（用于权限检查）
+                if self.miya.decision_hub and self.qq_net:
+                    self.miya.decision_hub.qq_net = self.qq_net
+                    self.logger.info("DecisionHub qq_net 已设置")
 
                 # 2. 主动聊天系统通过 DecisionHub 管理 (core/proactive_chat)
 

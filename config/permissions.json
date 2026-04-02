@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_updated": "2026-03-11",
+  "last_updated": "2026-04-02",
   "description": "弥娅系统统一权限配置文件",
 
   "permission_groups": {
@@ -143,6 +143,76 @@
       "created_at": "2026-03-15T10:00:00"
     }
   ],
+
+  "command_permissions": {
+    "enabled": true,
+    "description": "命令执行权限配置",
+    "roles": ["superadmin", "group_owner", "group_admin"],
+    "denied_message": "抱歉，你没有权限执行此命令哦～ 只有{roles}才能使用呢。",
+    "commands": {
+      "/状态": {
+        "description": "查看弥娅状态",
+        "required_roles": ["superadmin", "group_owner", "group_admin"]
+      },
+      "/查看状态": {
+        "description": "查看弥娅状态",
+        "required_roles": ["superadmin", "group_owner", "group_admin"]
+      },
+      "状态查询": {
+        "description": "查看弥娅状态",
+        "required_roles": ["superadmin", "group_owner", "group_admin"]
+      },
+      "状态": {
+        "description": "查看弥娅状态",
+        "required_roles": ["superadmin", "group_owner", "group_admin"]
+      },
+      "/形态": {
+        "description": "切换人格形态",
+        "required_roles": ["superadmin", "group_owner", "group_admin"]
+      },
+      "/form": {
+        "description": "切换人格形态",
+        "required_roles": ["superadmin", "group_owner", "group_admin"]
+      },
+      "/说话": {
+        "description": "切换说话模式",
+        "required_roles": ["superadmin", "group_owner", "group_admin"]
+      },
+      "/speak": {
+        "description": "切换说话模式",
+        "required_roles": ["superadmin", "group_owner", "group_admin"]
+      },
+      "/存在": {
+        "description": "存在性情感命令",
+        "required_roles": ["superadmin", "group_owner", "group_admin"]
+      },
+      "/exist": {
+        "description": "存在性情感命令",
+        "required_roles": ["superadmin", "group_owner", "group_admin"]
+      }
+    }
+  },
+
+  "tool_permissions": {
+    "enabled": true,
+    "description": "工具执行权限配置",
+    "denied_message": "❌ 权限不足：执行工具 '{tool_name}' 需要权限 '{permission}'",
+    "game_exit_denied": "⚠️ 只有群管理员或超级管理员才能结束游戏模式哦～",
+    "game_save_denied": "只有管理员才能保存游戏存档",
+    "game_export_denied": "只有管理员才能导出游戏存档",
+    "game_import_denied": "只有管理员才能导入游戏存档",
+    "character_edit_denied": "设置失败: 你没有权限修改此角色卡",
+    "program_launch_denied": "❌ 没有权限启动程序: {program_name}",
+    "api_denied": "权限不足",
+    "process_kill_denied": "权限不足"
+  },
+
+  "role_names": {
+    "superadmin": "超级管理员",
+    "group_owner": "群主",
+    "group_admin": "群管理员",
+    "group_member": "群成员"
+  },
 
   "special_rules": {
     "admin_whitelist": [

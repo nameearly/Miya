@@ -16,10 +16,7 @@ class ExitGame(BaseTool):
         return {
             "name": "exit_game",
             "description": "退出当前的游戏模式（跑团或酒馆），返回普通模式",
-            "parameters": {
-                "type": "object",
-                "properties": {}
-            }
+            "parameters": {"type": "object", "properties": {}},
         }
 
     async def execute(self, args: Dict[str, Any], context) -> str:
@@ -36,38 +33,39 @@ class ExitGame(BaseTool):
 
         # 管理员权限检查
         # 如果在群聊中，检查用户是否为群管理员或superadmin
-        if context.group_id and hasattr(context, 'superadmin'):
+        if context.group_id and hasattr(context, "superadmin"):
             group_id = context.group_id
             user_id = context.user_id
             superadmin = context.superadmin
 
             # 检查是否为 superadmin
-            is_superadmin = (superadmin and user_id == superadmin)
+            is_superadmin = superadmin and user_id == superadmin
 
             # 检查用户是否为群管理员
             is_admin = False
-            if hasattr(context, 'onebot_client') and context.onebot_client:
+            if hasattr(context, "onebot_client") and context.onebot_client:
                 try:
                     member_info = await context.onebot_client.get_group_member_info(
-                        group_id=group_id,
-                        user_id=user_id
+                        group_id=group_id, user_id=user_id
                     )
-                    is_admin = member_info.get('role', 'member') in ['admin', 'owner']
+                    is_admin = member_info.get("role", "member") in ["admin", "owner"]
                 except Exception as e:
                     self.logger.warning(f"检查群管理员失败: {e}")
 
             # 只有 superadmin 或群管理员才能退出游戏模式
             if not is_superadmin and not is_admin:
-                return "⚠️ 只有群管理员或超级管理员才能结束游戏模式哦～"
+                from core.text_loader import get_permission
+
+                return get_permission(
+                    "tool_permissions.game_exit_denied",
+                    "⚠️ 只有群管理员或超级管理员才能结束游戏模式哦～",
+                )
 
         # 退出模式
         exited_mode = mode_manager.exit_mode(chat_id)
 
         # 生成退出消息
-        mode_names = {
-            GameModeType.TRPG: "跑团",
-            GameModeType.TAVERN: "酒馆"
-        }
+        mode_names = {GameModeType.TRPG: "跑团", GameModeType.TAVERN: "酒馆"}
 
         mode_name = mode_names.get(exited_mode, "游戏") if exited_mode else "游戏"
 
@@ -92,7 +90,11 @@ class ExitGame(BaseTool):
 
 现在已回到普通模式，有什么需要帮忙的吗？
 
-我是弥娅，随时待命！💙"""
+我是弥娅，随时待命！💙""",
         }
 
-        return messages.get(exited_mode, f"已退出{mode_name}模式，欢迎回来～") if exited_mode else f"已退出{mode_name}模式，欢迎回来～"
+        return (
+            messages.get(exited_mode, f"已退出{mode_name}模式，欢迎回来～")
+            if exited_mode
+            else f"已退出{mode_name}模式，欢迎回来～"
+        )

@@ -12,6 +12,7 @@ from typing import List, Optional, Dict, Any
 logger = logging.getLogger(__name__)
 
 _config: Optional[Dict[str, Any]] = None
+_permission_config: Optional[Dict[str, Any]] = None
 
 
 def _load_config() -> Dict[str, Any]:
@@ -36,6 +37,43 @@ def _load_config() -> Dict[str, Any]:
         _config = _get_default_config()
 
     return _config
+
+
+def load_permission_config() -> Dict[str, Any]:
+    """加载权限配置"""
+    global _permission_config
+
+    if _permission_config is not None:
+        return _permission_config
+
+    config_path = Path(__file__).parent.parent / "config" / "permissions.json"
+
+    try:
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                _permission_config = json.load(f)
+            logger.info("权限配置加载成功")
+        else:
+            logger.warning(f"权限配置文件不存在: {config_path}")
+            _permission_config = {}
+    except Exception as e:
+        logger.warning(f"加载权限配置失败: {e}")
+        _permission_config = {}
+
+    return _permission_config
+
+
+def get_permission(key: str, default: Any = None) -> Any:
+    """获取权限配置"""
+    config = load_permission_config()
+    keys = key.split(".")
+    value = config
+    for k in keys:
+        if isinstance(value, dict):
+            value = value.get(k, default)
+        else:
+            return default
+    return value
 
 
 def _get_default_config() -> Dict[str, Any]:

@@ -1,11 +1,10 @@
 """
 QQ命令配置加载器
-动态加载所有QQ端命令配置
+从统一的配置文件加载命令配置
+注意：命令关键词从 text_config.json 读取，快捷响应从 text_config.json 读取
 """
 
-import json
 import logging
-from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger(__name__)
@@ -14,33 +13,25 @@ _config: Optional[Dict[str, Any]] = None
 
 
 def _load_config() -> Dict[str, Any]:
-    """加载QQ命令配置"""
+    """从统一配置加载QQ命令配置"""
     global _config
 
     if _config is not None:
         return _config
 
-    config_dir = Path(__file__).parent.parent / "config"
-    config_path = config_dir / "qq_command_config.json"
-    default_config_path = config_dir / "default_qq_command_config.json"
-
     try:
-        if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as f:
-                _config = json.load(f)
-            logger.info("QQ命令配置加载成功")
-        elif default_config_path.exists():
-            logger.warning(f"QQ命令配置文件不存在: {config_path}，使用默认配置文件")
-            with open(default_config_path, "r", encoding="utf-8") as f:
-                _config = json.load(f)
-        else:
-            logger.warning(f"QQ命令配置文件和默认配置文件都不存在，使用空配置")
-            _config = {}
+        from core.text_loader import get_text, get_command_keywords
+
+        _config = {
+            "command_aliases": get_command_keywords(),
+            "quick_responses": get_text("quick_responses", {}),
+            "error_messages": get_text("error_messages", {}),
+        }
+        logger.info("QQ命令配置加载成功（从 text_config.json）")
     except Exception as e:
         logger.warning(f"加载QQ命令配置失败: {e}，使用空配置")
         _config = {}
 
-    assert _config is not None
     return _config
 
 
@@ -117,24 +108,6 @@ def is_memory_command(content: str) -> bool:
     return False
 
 
-def get_memory_command_type(content: str) -> Optional[str]:
-    """获取记忆命令类型"""
-    config = _load_config()
-    memory_config = config.get("memory_commands", {}).get("commands", {})
-
-    content_lower = content.lower().strip()
-
-    for cmd_type, cmd_info in memory_config.items():
-        aliases = cmd_info.get("aliases", [])
-        for alias in aliases:
-            if content_lower == alias.lower() or content_lower.startswith(
-                alias.lower()
-            ):
-                return cmd_type
-
-    return None
-
-
 def get_quick_response_keywords(response_type: str) -> List[str]:
     """获取快速响应关键词"""
     config = _load_config()
@@ -159,43 +132,6 @@ def get_error_message(error_type: str) -> str:
     """获取错误消息"""
     config = _load_config()
     return config.get("error_messages", {}).get(error_type, "命令执行失败")
-
-
-def format_help_message() -> str:
-    """格式化帮助信息"""
-    config = _load_config()
-
-    lines = ["可用命令:"]
-
-    sys_cmds = config.get("system_commands", {})
-    for cmd_name, cmd_info in sys_cmds.items():
-        if isinstance(cmd_info, dict):
-            aliases = cmd_info.get("aliases", [])
-            desc = cmd_info.get("description", "")
-            lines.append(f"  {aliases[0] if aliases else ''} - {desc}")
-
-    pers_cmds = config.get("personality_commands", {})
-    for cmd_name, cmd_info in pers_cmds.items():
-        if isinstance(cmd_info, dict):
-            aliases = cmd_info.get("aliases", [])
-            desc = cmd_info.get("description", "")
-            lines.append(f"  {aliases[0] if aliases else ''} - {desc}")
-
-    mode_cmds = config.get("mode_commands", {})
-    for cmd_name, cmd_info in mode_cmds.items():
-        if isinstance(cmd_info, dict):
-            aliases = cmd_info.get("aliases", [])
-            desc = cmd_info.get("description", "")
-            lines.append(f"  {aliases[0] if aliases else ''} - {desc}")
-
-    memory_cmds = config.get("memory_commands", {}).get("commands", {})
-    for cmd_name, cmd_info in memory_cmds.items():
-        if isinstance(cmd_info, dict):
-            aliases = cmd_info.get("aliases", [])
-            desc = cmd_info.get("description", "")
-            lines.append(f"  {aliases[0] if aliases else ''} - {desc}")
-
-    return "\n".join(lines)
 
 
 class QQCommandConfig:
@@ -231,15 +167,6 @@ class QQCommandConfig:
     def is_memory(self, content: str) -> bool:
         return is_memory_command(content)
 
-    def get_memory_type(self, content: str) -> Optional[str]:
-        return get_memory_command_type(content)
-
-    def get_help(self) -> str:
-        return format_help_message()
-
-    def get_error(self, error_type: str) -> str:
-        return get_error_message(error_type)
-
     def get_quick_keywords(self, response_type: str) -> List[str]:
         return get_quick_response_keywords(response_type)
 
@@ -248,6 +175,9 @@ class QQCommandConfig:
 
     def is_farewell(self, content: str) -> bool:
         return is_farewell_keyword(content)
+
+    def get_error(self, error_type: str) -> str:
+        return get_error_message(error_type)
 
     def reload(self):
         """重新加载"""

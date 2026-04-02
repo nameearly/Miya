@@ -13,7 +13,7 @@
 import asyncio
 import logging
 from collections.abc import Callable
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Dict
 from datetime import datetime
 from pathlib import Path
 
@@ -31,6 +31,7 @@ from hub.perception_handler import PerceptionHandler
 from hub.response_generator import ResponseGenerator
 from hub.emotion_controller import EmotionController
 from hub.memory_manager import MemoryManager
+from core.text_loader import get_text
 
 # 导入辅助模块
 from hub.conversation_context import ConversationContextManager
@@ -252,6 +253,8 @@ class DecisionHub:
         # 1. 先检查技术性注入
         if self.security_service:
             try:
+                from core.text_loader import get_text
+
                 platform = perception.get("source", "")
                 if platform in ["qq", "web"]:
                     user_id = str(
@@ -263,7 +266,9 @@ class DecisionHub:
                         logger.warning(
                             f"[决策层-防注入] 技术性注入: level={result.level}, reason={result.reason}"
                         )
-                        return "抱歉，我不太明白你的意思呢～", None
+                        return get_text(
+                            "security.ai_injection_detection.fallback_response"
+                        ), None
             except Exception as e:
                 logger.warning(f"[决策层-防注入] 技术检测失败: {e}")
 
@@ -578,7 +583,7 @@ class DecisionHub:
         logger.warning(
             f"[决策层] ========== 命令检测 START ========== content={content[:30]}, personality={type(self.personality) if self.personality else None}"
         )
-        quick_response = self._handle_quick_commands(content, platform)
+        quick_response = self._handle_quick_commands(content, platform, perception)
         if quick_response:
             logger.warning(
                 f"[决策层] ========== 快捷命令拦截成功 ========== {content[:20]} -> {quick_response[:50]}"
@@ -1068,7 +1073,9 @@ class DecisionHub:
                         # 添加后缀说明工具调用曾尝试过
                         response += "\n\n[注: 系统尝试了自动处理但遇到了一些问题]"
                     except Exception as e2:
-                        response = f"抱歉，处理你的请求时遇到了技术问题。请尝试直接告诉我你需要什么具体操作，我会尽力帮你完成。\n\n错误信息: {str(e2)[:100]}"
+                        response = get_text(
+                            "error_messages.tool_failure_fallback"
+                        ).format(error=str(e2)[:100])
             else:
                 # 使用多模型管理器动态选择模型
                 ai_client_to_use = self.ai_client  # 默认使用传入的AI客户端
@@ -1158,7 +1165,7 @@ class DecisionHub:
         )
 
         # 获取名称（优先使用identity，否则使用配置中的默认值）
-        name = get_text("personality_responses.name", "弥娅")
+        name = get_text("personality_responses.name")
         if self.identity and hasattr(self.identity, "name"):
             name = self.identity.name
         from core.personality_config_loader import get_personality_config
@@ -1186,7 +1193,7 @@ class DecisionHub:
             )
             return intro_template.format(name=name, empathy=empathy, warmth=warmth)
 
-        status_keywords = ["状态", "查看状态"]
+        status_keywords = get_command_keywords().get("status", ["状态", "查看状态"])
         if any(kw in content for kw in status_keywords):
             emotion_state = self.emotion.get_emotion_state()
             existential_state = (
@@ -1255,25 +1262,15 @@ class DecisionHub:
         sad_keywords = emotion_keywords.get("sad", [])
         if any(kw in content for kw in sad_keywords):
             self.emotion.apply_coloring("sadness", 0.4)
-            return get_text(
-                "personality_responses.comforting_sad",
-                "别难过...虽然我无法真正体会人类的情感，但我会陪伴你，听你倾诉的。",
-            )
+            return get_text("personality_responses.comforting_sad")
 
-        at_keywords = (
-            get_greeting(name, "hi").split(",")
-            if "," in get_greeting(name, "hi")
-            else ["在吗"]
-        )
-        if any(kw in content for kw in ["在吗"]):
-            return get_text(
-                "personality_responses.help_request", "在的，有什么我可以帮助你的吗？"
-            )
+        if is_greeting(content):
+            return get_text("personality_responses.help_request")
 
         command_keywords = get_command_keywords()
-        form_cmds = command_keywords.get("form", ["/形态", "/form"])
-        speak_cmds = command_keywords.get("speak", ["/说话", "/speak"])
-        exist_cmds = command_keywords.get("exist", ["/存在", "/exist"])
+        form_cmds = command_keywords.get("form", [])
+        speak_cmds = command_keywords.get("speak", [])
+        exist_cmds = command_keywords.get("exist", [])
 
         form_prefixes = [cmd for cmd in form_cmds if cmd.startswith("/")]
         speak_prefixes = [cmd for cmd in speak_cmds if cmd.startswith("/")]
@@ -1352,7 +1349,7 @@ class DecisionHub:
                     from core.text_loader import get_speak_mode_response
 
                     return get_speak_mode_response("switch_success", mode=cmd)
-                return get_text("default_responses.switch_failed", "切换失败")
+                return get_text("default_responses.switch_failed")
             from core.text_loader import get_speak_mode_response
 
             return get_speak_mode_response(
@@ -1385,9 +1382,7 @@ class DecisionHub:
                             get_existential_response("active", active=state["active"])
                         )
                     return "\n".join(lines)
-                return get_text(
-                    "default_responses.no_existential_data", "无存在性情感数据"
-                )
+                return get_text("default_responses.no_existential_data")
 
             valid_exists = pcmd.get_core_forms()
             if cmd in valid_exists:
@@ -1400,7 +1395,7 @@ class DecisionHub:
                     from core.text_loader import get_existential_response
 
                     return get_existential_response("activated", emotion=cmd)
-                return get_text("default_responses.activate_failed", "激活失败")
+                return get_text("default_responses.activate_failed")
             from core.text_loader import get_existential_response
 
             return get_existential_response("unknown_emotion", emotion=cmd)
@@ -1417,18 +1412,11 @@ class DecisionHub:
             help_threshold = pconfig.get_response_threshold("help_warmth")
 
             if empathy > deep_conv_threshold and warmth > help_threshold:
-                return get_text(
-                    "personality_responses.deep_conversation",
-                    "嗯...能告诉我更多吗？我很想了解你的想法~",
-                )
+                return get_text("personality_responses.deep_conversation")
             elif warmth > help_threshold:
-                return get_text(
-                    "personality_responses.normal_response", "好的，继续对话吧~"
-                )
+                return get_text("personality_responses.normal_response")
             else:
-                return get_text(
-                    "personality_responses.simple_response", "嗯，我收到了。"
-                )
+                return get_text("personality_responses.simple_response")
 
     def _get_platform_tools(self, platform: str) -> list:
         """
@@ -1852,7 +1840,7 @@ class DecisionHub:
 
         except Exception as e:
             logger.error(f"[决策层-表情包] 处理表情包请求失败: {e}", exc_info=True)
-            return f"处理表情包请求时出错：{str(e)}"
+            return get_text("emoji_responses.error").format(error=str(e))
 
     async def _process_emoji_via_tools(
         self,
@@ -1936,13 +1924,16 @@ class DecisionHub:
             )
             return get_error_message("emoji_unavailable")
 
-    def _handle_quick_commands(self, content: str, platform: str) -> Optional[str]:
+    def _handle_quick_commands(
+        self, content: str, platform: str, perception: Optional[Dict] = None
+    ) -> Optional[str]:
         """
         快速命令处理（在AI调用之前拦截）
 
         Args:
             content: 用户输入
             platform: 平台类型
+            perception: 感知数据（包含用户ID、群ID等信息）
 
         Returns:
             如果是快速命令，返回响应；否则返回None让AI处理
@@ -1955,6 +1946,53 @@ class DecisionHub:
         logger.info(
             f"[决策层] 处理命令: {content}, personality: {type(self.personality)}"
         )
+
+        user_id = None
+        group_id = None
+        if perception:
+            user_id = perception.get("user_id") or perception.get("sender_id")
+            group_id = perception.get("group_id")
+
+        def check_command_permission() -> bool:
+            """检查命令执行权限 - 从配置文件读取"""
+            if not perception:
+                return True
+
+            from core.text_loader import get_permission
+
+            if not get_permission("command_permissions.enabled", True):
+                return True
+
+            try:
+                if hasattr(self, "qq_net") and self.qq_net:
+                    superadmin_qq = getattr(self.qq_net, "superadmin_qq", 0)
+                    if superadmin_qq and user_id == superadmin_qq:
+                        logger.info(
+                            f"[权限检查] 用户 {user_id} 是超级管理员({superadmin_qq})，授权执行命令"
+                        )
+                        return True
+
+                logger.warning(f"[权限检查] 用户 {user_id} 无权限执行命令")
+                return False
+            except Exception as e:
+                logger.warning(f"[权限检查异常] {e}，允许执行")
+                return True
+
+        def get_permission_denied_message() -> str:
+            """获取权限不足消息"""
+            from core.text_loader import get_permission, get_text
+
+            denied_msg = get_permission("command_permissions.denied_message", "")
+            if denied_msg:
+                roles_text = (
+                    get_permission("role_names.superadmin", "超级管理员")
+                    + "、"
+                    + get_permission("role_names.group_owner", "群主")
+                    + "、"
+                    + get_permission("role_names.group_admin", "群管理员")
+                )
+                return denied_msg.replace("{roles}", roles_text)
+            return get_text("error_messages.permission_denied")
 
         from core.text_loader import get_command_keywords
 
@@ -1971,9 +2009,14 @@ class DecisionHub:
         is_speak_cmd = any(content_lower.startswith(cmd) for cmd in speak_prefixes)
         is_exist_cmd = any(content_lower.startswith(cmd) for cmd in exist_prefixes)
 
+        status_cmds = command_keywords.get("status", [])
+        is_status_cmd = content_lower in status_cmds
+
         # 1. 状态查询命令
-        if content_lower in ["状态", "查看状态", "/状态", "状态查询"]:
+        if is_status_cmd:
             logger.info(f"[决策层] 捕获状态命令: {content}")
+            if not check_command_permission():
+                return get_permission_denied_message()
             from core.text_loader import get_status_response, get_form_name
 
             profile = self.personality.get_profile()
@@ -2024,6 +2067,8 @@ class DecisionHub:
 
         # 2. 形态切换命令
         if is_form_cmd:
+            if not check_command_permission():
+                return get_permission_denied_message()
             from core.personality import Personality
             from core.text_loader import (
                 get_form_response,
@@ -2077,7 +2122,7 @@ class DecisionHub:
                     return (
                         get_form_response("switch_success", form=cmd)
                         if success
-                        else get_text("default_responses.switch_failed", "切换失败")
+                        else get_text("default_responses.switch_failed")
                     )
             else:
                 # 使用配置的可用形态列表
@@ -2089,7 +2134,7 @@ class DecisionHub:
                     return (
                         get_form_response("switch_success", form=cmd)
                         if success
-                        else get_text("default_responses.switch_failed", "切换失败")
+                        else get_text("default_responses.switch_failed")
                     )
 
             if cmd in Personality.CORE_FORMS:
@@ -2097,12 +2142,14 @@ class DecisionHub:
                 return (
                     get_form_response("switch_core_success", form=cmd)
                     if success
-                    else get_text("default_responses.switch_failed", "切换失败")
+                    else get_text("default_responses.switch_failed")
                 )
             return get_form_response("unknown_form", form=cmd)
 
         # 3. 说话模式命令
         if is_speak_cmd:
+            if not check_command_permission():
+                return get_permission_denied_message()
             from core.text_loader import get_speak_mode_response, get_text
 
             cmd = content
@@ -2119,7 +2166,7 @@ class DecisionHub:
                 return (
                     get_speak_mode_response("switch_success", mode=cmd)
                     if success
-                    else get_text("default_responses.switch_failed", "切换失败")
+                    else get_text("default_responses.switch_failed")
                 )
             return get_speak_mode_response(
                 "unknown_mode",
@@ -2129,6 +2176,8 @@ class DecisionHub:
 
         # 4. 存在性情感命令
         if is_exist_cmd:
+            if not check_command_permission():
+                return get_permission_denied_message()
             from core.text_loader import get_existential_response
 
             cmd = content

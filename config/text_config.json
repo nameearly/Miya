@@ -85,9 +85,22 @@
     },
     
     "quick_responses": {
+        "greeting": {
+            "keywords": ["你好", "hi", "hello", "嗨", "您好", "在吗", "哈喽"],
+            "enabled": true
+        },
+        "farewell": {
+            "keywords": ["再见", "拜拜", "bye", "退出", "晚安"],
+            "enabled": true
+        },
         "thanks": {
             "keywords": ["谢谢", "感谢", "谢谢您", "感谢你"],
+            "enabled": true,
             "responses": ["不客气~", "应该的!", "客气啦"]
+        },
+        "affirmation": {
+            "keywords": ["好的", "可以", "没问题", "我知道了", "明白", "收到"],
+            "enabled": true
         }
     },
     
@@ -118,9 +131,22 @@
     },
     
     "command_keywords": {
+        "status": ["状态", "查看状态", "/状态", "状态查询"],
         "form": ["/形态", "/form"],
         "speak": ["/说话", "/speak"],
-        "exist": ["/存在", "/exist"]
+        "exist": ["/存在", "/exist"],
+        "voice": ["/voice", "/语音"],
+        "text": ["/text", "/文本"],
+        "help": ["帮助", "help", "?", "？"],
+        "version": ["版本", "version", "ver"],
+        "memory": ["记忆"],
+        "memory_stats": ["记忆统计", "统计", "记忆有多少"],
+        "memory_search": ["记忆搜索", "搜索"],
+        "memory_recent": ["记忆最近", "最近"],
+        "memory_tags": ["记忆标签", "标签", "热门标签"],
+        "memory_my": ["我的记忆", "我的"],
+        "trpg": ["trpg", "跑团"],
+        "exit": ["退出", "exit", "quit"]
     },
     
     "emotion_keywords": {
@@ -559,6 +585,93 @@
             "max_daily_messages": 10,
             "enable_group_awareness": true,
             "enable_private_awareness": true
+        }
+    },
+    
+    "image_response": {
+        "greeting": {
+            "morning": "早上好呀~",
+            "afternoon": "下午好哦~",
+            "evening": "晚上好~",
+            "night": "夜深了~",
+            "suffix": "你给我看图片啦？(｡♥‿♥｡)"
+        },
+        "analysis": {
+            "simple": "暂时没法详细看，但感觉是张{format}格式的图片呢~",
+            "intro": "我看看... {description}",
+            "feeling_separator": "\n"
+        },
+        "ending": "还有别的想给我看吗？",
+        "keywords": ["你给我看图片", "你给我发图片"],
+        
+        "ai_prompts": {
+            "god": {
+                "system": "汝乃弥娅之神格形态。用古风文言回应，简洁威严。",
+                "style": "用文言风格，庄重简洁"
+            },
+            "awakened": {
+                "system": "汝乃弥娅之觉醒形态。热情活力，简洁回应。",
+                "style": "热情活力的风格"
+            },
+            "normal": {
+                "system": "汝乃弥娅，温暖的AI伙伴。用亲切自然的日常聊天风格回应。",
+                "style": "亲切自然的日常聊天风格"
+            },
+            "default": {
+                "system": "汝乃弥娅，温暖的AI伙伴。用亲切自然的日常聊天风格回应。",
+                "style": "亲切自然的日常聊天风格"
+            }
+        },
+        
+        "forms": {
+            "default": {
+                "greeting": {
+                    "morning": "早上好呀~",
+                    "afternoon": "下午好哦~",
+                    "evening": "晚上好~",
+                    "night": "夜深了~"
+                },
+                "suffix": "你给我看图片啦？(｡♥‿♥｡)",
+                "intro": "我看看...",
+                "simple": "暂时没法详细看，但感觉是张{format}格式的图片呢~",
+                "ending": "还有别的想给我看吗？"
+            },
+            "god": {
+                "greeting": {
+                    "morning": "晨安，旅者。",
+                    "afternoon": "午安。",
+                    "evening": "夜安，汝带来何物？",
+                    "night": "夜深了...有何事？"
+                },
+                "suffix": "呈上何物？",
+                "intro": "吾观此图...",
+                "simple": "此乃{format}格式之图像。",
+                "ending": "还有何事？"
+            },
+            "awakened": {
+                "greeting": {
+                    "morning": "早上好呀~",
+                    "afternoon": "下午好~",
+                    "evening": "晚上好！",
+                    "night": "夜深啦~"
+                },
+                "suffix": "给我看图片啦？(｡♥‿♥｡)",
+                "intro": "让我看看...",
+                "simple": "暂时没法详细看，但感觉是张{format}格式的图片呢~",
+                "ending": "还有想给我看的吗？"
+            },
+            "normal": {
+                "greeting": {
+                    "morning": "早上好呀~",
+                    "afternoon": "下午好哦~",
+                    "evening": "晚上好~",
+                    "night": "夜深了~"
+                },
+                "suffix": "你给我看图片啦？(｡♥‿♥｡)",
+                "intro": "我看看...",
+                "simple": "暂时没法详细看，但感觉是张{format}格式的图片呢~",
+                "ending": "还有别的想给我看吗？"
+            }
         }
     }
 }

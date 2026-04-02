@@ -11,10 +11,13 @@ from typing import Dict, Any
 from pathlib import Path
 from datetime import datetime
 
+from core.text_loader import get_permission
+
 logger = logging.getLogger(__name__)
 
 try:
     from fastapi import APIRouter, HTTPException
+
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
@@ -24,7 +27,7 @@ except ImportError:
 
 class DesktopRoutes:
     """桌面操控路由
-    
+
     职责:
     - 终端命令执行
     - 文件系统操作（列表、读取、写入、删除）
@@ -35,34 +38,37 @@ class DesktopRoutes:
 
     def __init__(self, web_net: Any, decision_hub: Any):
         """初始化桌面路由
-        
+
         Args:
             web_net: WebNet实例
             decision_hub: DecisionHub实例
         """
         self.web_net = web_net
         self.decision_hub = decision_hub
-        
+
         if not FASTAPI_AVAILABLE:
             self.router = None
             return
-        
+
         self.router = APIRouter(prefix="/api/desktop", tags=["Desktop"])
         self._setup_routes()
         logger.info("[DesktopRoutes] 桌面路由已初始化")
 
     def _setup_routes(self):
         """设置路由"""
-        
+
         @self.router.post("/terminal/execute")
-        async def execute_terminal_command(
-            command: str,
-            timeout: int = 30
-        ):
+        async def execute_terminal_command(command: str, timeout: int = 30):
             """执行终端命令（电脑操控核心功能）"""
             try:
                 # 安全检查：禁止危险命令
-                dangerous_commands = ['rm -rf /', 'format', 'del /f /s /q', 'shutdown', 'reboot']
+                dangerous_commands = [
+                    "rm -rf /",
+                    "format",
+                    "del /f /s /q",
+                    "shutdown",
+                    "reboot",
+                ]
                 if any(dcmd in command for dcmd in dangerous_commands):
                     raise HTTPException(status_code=403, detail="危险命令已被拦截")
 
@@ -73,8 +79,8 @@ class DesktopRoutes:
                     capture_output=True,
                     text=True,
                     timeout=timeout,
-                    encoding='utf-8',
-                    errors='ignore'
+                    encoding="utf-8",
+                    errors="ignore",
                 )
 
                 return {
@@ -83,29 +89,18 @@ class DesktopRoutes:
                     "exit_code": result.returncode,
                     "stdout": result.stdout,
                     "stderr": result.stderr,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
             except subprocess.TimeoutExpired:
-                return {
-                    "success": False,
-                    "error": "命令执行超时",
-                    "command": command
-                }
+                return {"success": False, "error": "命令执行超时", "command": command}
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"[DesktopRoutes] 终端命令执行失败: {e}", exc_info=True)
-                return {
-                    "success": False,
-                    "error": str(e),
-                    "command": command
-                }
+                return {"success": False, "error": str(e), "command": command}
 
         @self.router.get("/files/list")
-        async def list_files_api(
-            path: str = ".",
-            recursive: bool = False
-        ):
+        async def list_files_api(path: str = ".", recursive: bool = False):
             """列出文件（电脑操控）"""
             try:
                 base_path = Path(path).resolve()
@@ -114,7 +109,9 @@ class DesktopRoutes:
                 try:
                     base_path.relative_to(project_path)
                 except ValueError:
-                    raise HTTPException(status_code=403, detail="访问被拒绝：路径超出项目范围")
+                    raise HTTPException(
+                        status_code=403, detail="访问被拒绝：路径超出项目范围"
+                    )
 
                 if recursive:
                     files = list(base_path.rglob("*"))
@@ -124,13 +121,17 @@ class DesktopRoutes:
                 file_list = []
                 for f in files:
                     try:
-                        file_list.append({
-                            "name": f.name,
-                            "path": str(f),
-                            "is_dir": f.is_dir(),
-                            "size": f.stat().st_size if f.is_file() else 0,
-                            "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat()
-                        })
+                        file_list.append(
+                            {
+                                "name": f.name,
+                                "path": str(f),
+                                "is_dir": f.is_dir(),
+                                "size": f.stat().st_size if f.is_file() else 0,
+                                "modified": datetime.fromtimestamp(
+                                    f.stat().st_mtime
+                                ).isoformat(),
+                            }
+                        )
                     except:
                         pass
 
@@ -138,23 +139,16 @@ class DesktopRoutes:
                     "success": True,
                     "path": path,
                     "files": file_list,
-                    "count": len(file_list)
+                    "count": len(file_list),
                 }
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"[DesktopRoutes] 列出文件失败: {e}", exc_info=True)
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
         @self.router.get("/files/read")
-        async def read_file_api(
-            path: str,
-            offset: int = 0,
-            limit: int = 1000
-        ):
+        async def read_file_api(path: str, offset: int = 0, limit: int = 1000):
             """读取文件内容"""
             try:
                 file_path = Path(path).resolve()
@@ -163,7 +157,9 @@ class DesktopRoutes:
                 try:
                     file_path.relative_to(project_path)
                 except ValueError:
-                    raise HTTPException(status_code=403, detail="访问被拒绝：路径超出项目范围")
+                    raise HTTPException(
+                        status_code=403, detail="访问被拒绝：路径超出项目范围"
+                    )
 
                 if not file_path.is_file():
                     raise HTTPException(status_code=404, detail="文件不存在")
@@ -172,30 +168,24 @@ class DesktopRoutes:
                 if file_path.stat().st_size > 10 * 1024 * 1024:  # 10MB
                     raise HTTPException(status_code=400, detail="文件过大")
 
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    lines = f.readlines()[offset:offset + limit]
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    lines = f.readlines()[offset : offset + limit]
 
                 return {
                     "success": True,
                     "path": path,
                     "lines": lines,
                     "total_lines_read": len(lines),
-                    "offset": offset
+                    "offset": offset,
                 }
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"[DesktopRoutes] 读取文件失败: {e}", exc_info=True)
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
         @self.router.post("/files/write")
-        async def write_file_api(
-            path: str,
-            content: str
-        ):
+        async def write_file_api(path: str, content: str):
             """写入文件内容"""
             try:
                 file_path = Path(path).resolve()
@@ -204,28 +194,27 @@ class DesktopRoutes:
                 try:
                     file_path.relative_to(project_path)
                 except ValueError:
-                    raise HTTPException(status_code=403, detail="访问被拒绝：路径超出项目范围")
+                    raise HTTPException(
+                        status_code=403, detail="访问被拒绝：路径超出项目范围"
+                    )
 
                 # 创建父目录
                 file_path.parent.mkdir(parents=True, exist_ok=True)
 
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content)
 
                 return {
                     "success": True,
                     "path": path,
                     "message": "文件写入成功",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"[DesktopRoutes] 写入文件失败: {e}", exc_info=True)
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
         @self.router.delete("/files/delete")
         async def delete_file_api(path: str):
@@ -237,30 +226,26 @@ class DesktopRoutes:
                 try:
                     file_path.relative_to(project_path)
                 except ValueError:
-                    raise HTTPException(status_code=403, detail="访问被拒绝：路径超出项目范围")
+                    raise HTTPException(
+                        status_code=403, detail="访问被拒绝：路径超出项目范围"
+                    )
 
                 if not file_path.exists():
                     raise HTTPException(status_code=404, detail="文件不存在")
 
                 if file_path.is_dir():
                     import shutil
+
                     shutil.rmtree(file_path)
                 else:
                     file_path.unlink()
 
-                return {
-                    "success": True,
-                    "path": path,
-                    "message": "删除成功"
-                }
+                return {"success": True, "path": path, "message": "删除成功"}
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"[DesktopRoutes] 删除文件失败: {e}", exc_info=True)
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
         @self.router.get("/system/info")
         async def get_system_info():
@@ -273,60 +258,64 @@ class DesktopRoutes:
                         "os_version": platform.version(),
                         "machine": platform.machine(),
                         "processor": platform.processor(),
-                        "python_version": platform.python_version()
+                        "python_version": platform.python_version(),
                     },
                     "cpu": {
                         "count": psutil.cpu_count(),
-                        "percent": psutil.cpu_percent(interval=1)
+                        "percent": psutil.cpu_percent(interval=1),
                     },
                     "memory": {
                         "total": psutil.virtual_memory().total,
                         "available": psutil.virtual_memory().available,
-                        "percent": psutil.virtual_memory().percent
+                        "percent": psutil.virtual_memory().percent,
                     },
                     "disk": {
-                        "total": psutil.disk_usage('/').total if platform.system() != 'Windows' else psutil.disk_usage('C:\\').total,
-                        "used": psutil.disk_usage('/').used if platform.system() != 'Windows' else psutil.disk_usage('C:\\').used,
-                        "free": psutil.disk_usage('/').free if platform.system() != 'Windows' else psutil.disk_usage('C:\\').free,
-                    }
+                        "total": psutil.disk_usage("/").total
+                        if platform.system() != "Windows"
+                        else psutil.disk_usage("C:\\").total,
+                        "used": psutil.disk_usage("/").used
+                        if platform.system() != "Windows"
+                        else psutil.disk_usage("C:\\").used,
+                        "free": psutil.disk_usage("/").free
+                        if platform.system() != "Windows"
+                        else psutil.disk_usage("C:\\").free,
+                    },
                 }
             except Exception as e:
                 logger.error(f"[DesktopRoutes] 获取系统信息失败: {e}", exc_info=True)
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
         @self.router.get("/processes")
         async def list_processes():
             """列出运行中的进程"""
             try:
                 processes = []
-                for proc in psutil.process_iter(['pid', 'name', 'username', 'cpu_percent', 'memory_percent']):
+                for proc in psutil.process_iter(
+                    ["pid", "name", "username", "cpu_percent", "memory_percent"]
+                ):
                     try:
-                        processes.append({
-                            "pid": proc.info['pid'],
-                            "name": proc.info['name'],
-                            "username": proc.info['username'],
-                            "cpu_percent": proc.info['cpu_percent'],
-                            "memory_percent": proc.info['memory_percent']
-                        })
+                        processes.append(
+                            {
+                                "pid": proc.info["pid"],
+                                "name": proc.info["name"],
+                                "username": proc.info["username"],
+                                "cpu_percent": proc.info["cpu_percent"],
+                                "memory_percent": proc.info["memory_percent"],
+                            }
+                        )
                     except:
                         pass
 
                 # 按CPU使用率排序
-                processes.sort(key=lambda x: x.get('cpu_percent', 0), reverse=True)
+                processes.sort(key=lambda x: x.get("cpu_percent", 0), reverse=True)
 
                 return {
                     "success": True,
-                    "processes": processes[:50]  # 限制返回50个进程
+                    "processes": processes[:50],  # 限制返回50个进程
                 }
             except Exception as e:
                 logger.error(f"[DesktopRoutes] 列出进程失败: {e}", exc_info=True)
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
         @self.router.post("/processes/kill")
         async def kill_process(pid: int):
@@ -335,55 +324,56 @@ class DesktopRoutes:
                 proc = psutil.Process(pid)
                 proc.terminate()
 
-                return {
-                    "success": True,
-                    "pid": pid,
-                    "message": f"进程 {pid} 已终止"
-                }
+                return {"success": True, "pid": pid, "message": f"进程 {pid} 已终止"}
             except psutil.NoSuchProcess:
                 raise HTTPException(status_code=404, detail="进程不存在")
             except psutil.AccessDenied:
-                raise HTTPException(status_code=403, detail="权限不足")
+                raise HTTPException(
+                    status_code=403,
+                    detail=get_permission(
+                        "tool_permissions.process_kill_denied", "权限不足"
+                    ),
+                )
             except Exception as e:
                 logger.error(f"[DesktopRoutes] 终止进程失败: {e}", exc_info=True)
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
         @self.router.get("/tools/available")
         async def get_available_tools():
             """获取可用工具列表（MCP/Skill）"""
             try:
-                if hasattr(self.decision_hub, 'tool_subnet') and self.decision_hub.tool_subnet:
+                if (
+                    hasattr(self.decision_hub, "tool_subnet")
+                    and self.decision_hub.tool_subnet
+                ):
                     # 使用 get_tools_schema 获取工具信息
                     tools_schema = self.decision_hub.tool_subnet.get_tools_schema()
 
                     tool_list = []
                     for tool_schema in tools_schema:
-                        tool_list.append({
-                            "name": tool_schema.get("function", {}).get("name", ""),
-                            "description": tool_schema.get("function", {}).get("description", ""),
-                            "category": tool_schema.get("category", "general"),
-                            "parameters": tool_schema.get("function", {}).get("parameters", {})
-                        })
+                        tool_list.append(
+                            {
+                                "name": tool_schema.get("function", {}).get("name", ""),
+                                "description": tool_schema.get("function", {}).get(
+                                    "description", ""
+                                ),
+                                "category": tool_schema.get("category", "general"),
+                                "parameters": tool_schema.get("function", {}).get(
+                                    "parameters", {}
+                                ),
+                            }
+                        )
 
                     return {
                         "success": True,
                         "tools": tool_list,
-                        "count": len(tool_list)
+                        "count": len(tool_list),
                     }
                 else:
-                    return {
-                        "success": False,
-                        "message": "工具子网未初始化"
-                    }
+                    return {"success": False, "message": "工具子网未初始化"}
             except Exception as e:
                 logger.error(f"[DesktopRoutes] 获取工具列表失败: {e}", exc_info=True)
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
     def get_router(self):
         """获取路由器"""

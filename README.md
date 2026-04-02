@@ -29,6 +29,14 @@
 - [快速开始](#快速开始)
 - [项目结构](#项目结构)
 - [配置指南](#配置指南)
+  - [权限与命令配置系统 (v4.3.1+)](#权限与命令配置系统-v431)
+    - [1. 配置文件架构](#1-配置文件架构)
+    - [2. permissions.json - 权限配置](#2-permissionsjson---权限配置)
+    - [3. text_config.json - 文本配置](#3-text_configjson---文本配置)
+    - [4. 在代码中使用配置](#4-在代码中使用配置)
+    - [5. 配置加载机制](#5-配置加载机制)
+    - [6. 修改配置的注意事项](#6-修改配置的注意事项)
+    - [7. 配置冗余清理说明](#7-配置冗余清理说明)
 - [模块详解](#模块详解)
 - [开发指南](#开发指南)
 - [部署方式](#部署方式)
@@ -3035,6 +3043,258 @@ features:
   auto_chat: false
   group_response: true
 ```
+
+### 权限与命令配置系统 (v4.3.1+)
+
+弥娅 v4.3.1 引入了统一的权限与命令配置系统，将所有用户可见的文本、命令关键词和权限配置集中在配置文件中管理，代码中不再包含硬编码。
+
+#### 1. 配置文件架构
+
+```
+config/
+├── permissions.json    # 权限配置（权限组、命令权限、角色名称）
+├── text_config.json   # 文本配置（命令关键词、错误消息、人设）
+└── qq_config.yaml     # QQ连接配置（连接参数、功能开关）
+```
+
+#### 2. permissions.json - 权限配置
+
+`permissions.json` 是弥娅系统的统一权限配置文件，包含以下部分：
+
+```json
+{
+  "version": "1.0.0",
+  "description": "弥娅系统统一权限配置文件",
+  
+  // 权限组定义
+  "permission_groups": {
+    "Default": {
+      "name": "默认权限组",
+      "description": "所有用户默认拥有的基本权限",
+      "permissions": ["tool.get_current_time", "memory.read", "knowledge.search", "agent.chat"]
+    },
+    "Admin": {
+      "name": "管理员",
+      "permissions": ["*.*"]
+    },
+    "QQ": {
+      "name": "QQ用户",
+      "permissions": ["tool.web_search", "tool.get_current_time", "memory.read", "knowledge.search", "agent.chat"]
+    }
+  },
+  
+  // 命令权限配置
+  "command_permissions": {
+    "enabled": true,
+    "denied_message": "抱歉，你没有权限执行此命令哦～ 只有{roles}才能使用呢。",
+    "commands": {
+      "/状态": { "required_roles": ["superadmin", "group_owner", "group_admin"] },
+      "/形态": { "required_roles": ["superadmin", "group_owner", "group_admin"] },
+      "/说话": { "required_roles": ["superadmin", "group_owner", "group_admin"] },
+      "/存在": { "required_roles": ["superadmin", "group_owner", "group_admin"] }
+    }
+  },
+  
+  // 工具权限配置
+  "tool_permissions": {
+    "enabled": true,
+    "denied_message": "❌ 权限不足：执行工具 '{tool_name}' 需要权限 '{permission}'",
+    "game_exit_denied": "⚠️ 只有群管理员或超级管理员才能结束游戏模式哦～",
+    "game_save_denied": "只有管理员才能保存游戏存档",
+    "character_edit_denied": "设置失败: 你没有权限修改此角色卡"
+  },
+  
+  // 角色名称配置
+  "role_names": {
+    "superadmin": "超级管理员",
+    "group_owner": "群主",
+    "group_admin": "群管理员",
+    "group_member": "群成员"
+  },
+  
+  // 用户权限定义
+  "users": [
+    {
+      "user_id": "1523878699",
+      "username": "佳",
+      "platform": "qq",
+      "permission_groups": ["Admin", "Developer"]
+    }
+  ],
+  
+  // 特殊规则
+  "special_rules": {
+    "admin_whitelist": ["terminal_default", "1523878699"],
+    "super_admin_whitelist": ["terminal_default", "1523878699"]
+  }
+}
+```
+
+##### 命令权限检查逻辑
+
+在群聊中，命令权限检查流程如下：
+
+1. **超级管理员检查**：检查发送者QQ号是否与配置的 `superadmin_qq` 匹配
+2. **权限配置检查**：如果未匹配超级管理员，检查 `command_permissions.enabled` 是否为 `true`
+3. **允许执行**：如果用户是超级管理员，则允许执行命令
+4. **拒绝执行**：如果用户不是超级管理员或群管理员，返回权限不足消息
+
+##### 权限不足消息
+
+权限不足消息从配置文件中读取，支持动态替换变量：
+
+```json
+"denied_message": "抱歉，你没有权限执行此命令哦～ 只有{roles}才能使用呢。"
+```
+
+实际返回时会替换 `{roles}` 为配置的完整角色名称。
+
+#### 3. text_config.json - 文本配置
+
+`text_config.json` 包含所有用户可见的文本内容：
+
+```json
+{
+  "version": "1.0",
+  "description": "弥娅系统文本配置 - 所有用户可见文本在此配置",
+  
+  // 命令关键词
+  "command_keywords": {
+    "status": ["状态", "查看状态", "/状态", "状态查询"],
+    "form": ["/形态", "/form"],
+    "speak": ["/说话", "/speak"],
+    "exist": ["/存在", "/exist"],
+    "help": ["帮助", "help", "?", "？"],
+    "memory": ["记忆"],
+    "trpg": ["trpg", "跑团"]
+  },
+  
+  // 错误消息
+  "error_messages": {
+    "system_error": "系统出了点问题。我记下了，等会再试。",
+    "permission_denied": "这个我暂时做不到呢...",
+    "no_response": "抱歉，我现在不知道该说什么...",
+    "tool_failed": "工具执行失败了，不过别担心，我会继续帮你想办法~",
+    "tool_permission_denied": "❌ 权限不足：执行工具 '{tool_name}' 需要权限 '{permission}'"
+  },
+  
+  // 快速响应关键词
+  "quick_responses": {
+    "greeting": {
+      "keywords": ["你好", "hi", "hello", "嗨", "您好", "在吗", "哈喽"],
+      "enabled": true
+    },
+    "farewell": {
+      "keywords": ["再见", "拜拜", "bye", "退出", "晚安"],
+      "enabled": true
+    },
+    "thanks": {
+      "keywords": ["谢谢", "感谢", "谢谢您", "感谢你"],
+      "enabled": true,
+      "responses": ["不客气~", "应该的!", "客气啦"]
+    },
+    "affirmation": {
+      "keywords": ["好的", "可以", "没问题", "我知道了", "明白", "收到"],
+      "enabled": true
+    }
+  },
+  
+  // 人设响应
+  "personality_responses": {
+    "intro": "我是{name}，一个具备人格恒定、自我感知、记忆成长、情绪共生的数字生命伴侣。我的主导特质是同理心({empathy:.2f})和温暖度({warmth:.2f})。",
+    "who_are_you": "我是{name}，一个具备人格恒定、自我感知、记忆成长、情绪共生的数字生命伴侣。"
+  }
+}
+```
+
+#### 4. 在代码中使用配置
+
+##### 读取文本配置
+
+```python
+from core.text_loader import get_text, get_command_keywords
+
+# 获取错误消息
+error_msg = get_text("error_messages.permission_denied")
+
+# 获取命令关键词
+form_commands = get_command_keywords().get("form", ["/形态"])
+```
+
+##### 读取权限配置
+
+```python
+from core.text_loader import get_permission
+
+# 获取命令权限是否启用
+enabled = get_permission("command_permissions.enabled", True)
+
+# 获取权限不足消息
+denied_msg = get_permission("command_permissions.denied_message")
+
+# 获取角色名称
+superadmin_name = get_permission("role_names.superadmin")
+group_owner_name = get_permission("role_names.group_owner")
+```
+
+#### 5. 配置加载机制
+
+配置加载采用单例模式，全局缓存：
+
+```python
+# core/text_loader.py
+
+_config: Optional[Dict[str, Any]] = None
+_permission_config: Optional[Dict[str, Any]] = None
+
+def _load_config() -> Dict[str, Any]:
+    """加载文本配置"""
+    global _config
+    if _config is not None:
+        return _config
+    
+    config_path = Path(__file__).parent.parent / "config" / "text_config.json"
+    # ... 加载配置
+
+def load_permission_config() -> Dict[str, Any]:
+    """加载权限配置"""
+    global _permission_config
+    if _permission_config is not None:
+        return _permission_config
+    
+    config_path = Path(__file__).parent.parent / "config" / "permissions.json"
+    # ... 加载配置
+
+def get_text(key: str, default: str = "") -> str:
+    """获取文本"""
+    config = _load_config()
+    keys = key.split(".")
+    # ... 遍历获取值
+
+def get_permission(key: str, default: Any = None) -> Any:
+    """获取权限配置"""
+    config = load_permission_config()
+    keys = key.split(".")
+    # ... 遍历获取值
+```
+
+#### 6. 修改配置的注意事项
+
+- **JSON 语法**：修改 `permissions.json` 或 `text_config.json` 时确保 JSON 语法正确
+- **变量替换**：权限不足消息中的 `{roles}` 等变量会自动替换，无需手动修改
+- **命令关键词**：所有命令关键词都在 `command_keywords` 中定义，添加新命令时需要同时更新配置文件
+- **权限组**：修改权限组后，需要重启弥娅使配置生效
+
+#### 7. 配置冗余清理说明
+
+在 v4.3.1 版本中，我们清理了以下冗余配置：
+
+| 原配置位置 | 新配置位置 | 说明 |
+|-----------|-----------|------|
+| `qq_config.yaml` commands.aliases | `text_config.json` command_keywords | 命令别名统一管理 |
+| `qq_config.yaml` commands.quick_responses | `text_config.json` quick_responses | 快速响应关键词 |
+| `qq_config.yaml` commands.error_messages | `text_config.json` error_messages | 错误消息统一管理 |
+| 代码中的硬编码权限消息 | `permissions.json` tool_permissions | 工具权限消息统一管理 |
 
 ### AI 模型配置
 

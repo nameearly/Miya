@@ -80,7 +80,13 @@ class QQNet:
         # 处理模块
         self.message_handler = QQMessageHandler(self)
         self.tts_handler = QQTTsHandler(self)
-        self.image_handler = QQImageHandler(self)
+        # 传递personality给图片处理器
+        personality = (
+            miya_core.personality
+            if miya_core and hasattr(miya_core, "personality")
+            else None
+        )
+        self.image_handler = QQImageHandler(self, personality)
         # 主动聊天功能现在使用 core.proactive_chat.ProactiveChatSystem
         # 旧系统已废弃，不再初始化
         self.active_chat_manager = None
@@ -106,76 +112,106 @@ class QQNet:
     def _load_config_from_file(self):
         """从配置文件加载配置（使用统一配置系统）"""
         try:
-            # 使用统一配置系统
-            qq_config = get_qq_config()
+            # 使用统一配置系统（新结构：qq.connection.*）
+            conn = get_connection_config()
+            multi = get_multimedia_config()
+            features = get_qq_config("features") or {}
+            img_rec = get_qq_config("image_recognition") or {}
+            task_sched = get_qq_config("task_scheduler") or {}
+            access_ctrl = get_qq_config("access_control") or {}
+            commands = get_qq_config("commands") or {}
+            perf = get_qq_config("performance") or {}
+            logging_cfg = get_qq_config("logging") or {}
 
             # 基础连接配置
-            self.onebot_ws_url = qq_config.get("onebot_ws_url", "ws://localhost:3001")
-            self.onebot_token = qq_config.get("onebot_token", "")
-            self.bot_qq = qq_config.get("bot_qq", 0)
-            self.superadmin_qq = qq_config.get("superadmin_qq", 0)
+            self.onebot_ws_url = conn.get("ws_url", "ws://localhost:6700")
+            self.onebot_token = conn.get("token", "")
+            self.bot_qq = conn.get("bot_qq", 0)
+            self.superadmin_qq = conn.get("superadmin_qq", 0)
+            self.reconnect_interval = conn.get("reconnect_interval", 5.0)
+            self.ping_interval = conn.get("ping_interval", 20)
+            self.ping_timeout = conn.get("ping_timeout", 30)
+            self.max_message_size = conn.get("max_message_size", 104857600)
 
-            # 连接配置
-            self.reconnect_interval = qq_config.get("reconnect_interval", 5.0)
-            self.ping_interval = qq_config.get("ping_interval", 20)
-            self.ping_timeout = qq_config.get("ping_timeout", 30)
-            self.max_message_size = qq_config.get("max_message_size", 104857600)
+            # 访问控制
+            ac_enabled = access_ctrl.get("enabled", False)
+            gw = access_ctrl.get("group_whitelist", [])
+            gb = access_ctrl.get("group_blacklist", [])
+            uw = access_ctrl.get("user_whitelist", [])
+            ub = access_ctrl.get("user_blacklist", [])
 
-            # 访问控制（从环境变量解析）
-            group_whitelist_str = qq_config.get("group_whitelist", "")
-            group_blacklist_str = qq_config.get("group_blacklist", "")
-            user_whitelist_str = qq_config.get("user_whitelist", "")
-            user_blacklist_str = qq_config.get("user_blacklist", "")
-
-            self.group_whitelist = (
-                set(map(int, filter(None, group_whitelist_str.split(","))))
-                if group_whitelist_str
-                else set()
-            )
-            self.group_blacklist = (
-                set(map(int, filter(None, group_blacklist_str.split(","))))
-                if group_blacklist_str
-                else set()
-            )
-            self.user_whitelist = (
-                set(map(int, filter(None, user_whitelist_str.split(","))))
-                if user_whitelist_str
-                else set()
-            )
-            self.user_blacklist = (
-                set(map(int, filter(None, user_blacklist_str.split(","))))
-                if user_blacklist_str
-                else set()
-            )
+            self.group_whitelist = set(gw) if isinstance(gw, list) else set()
+            self.group_blacklist = set(gb) if isinstance(gb, list) else set()
+            self.user_whitelist = set(uw) if isinstance(uw, list) else set()
+            self.user_blacklist = set(ub) if isinstance(ub, list) else set()
+            self.access_control_enabled = ac_enabled
 
             # 多媒体配置
-            multimedia_config = qq_config.get("multimedia", {})
-            self.image_config = multimedia_config.get("image", {})
-            self.file_config = multimedia_config.get("file", {})
+            self.image_config = multi.get("image", {})
+            self.file_config = multi.get("file", {})
 
             # 图片识别配置
-            image_recognition_config = qq_config.get("image_recognition", {})
+            ocr_cfg = img_rec.get("ocr", {})
             self.ocr_config = {
-                "enabled": image_recognition_config.get("ocr_enabled", True),
-                "engine": image_recognition_config.get("ocr_engine", "auto"),
+                "enabled": ocr_cfg.get("enabled", False),
+                "engine": ocr_cfg.get("engine", "none"),
             }
+            self.ai_analysis_config = img_rec.get("ai_analysis", {})
+            self.image_cache_config = img_rec.get("cache", {})
 
-            # 主动聊天配置
-            active_chat_config = qq_config.get("active_chat", {})
-            self.active_chat_enabled = active_chat_config.get("enabled", True)
+            # 功能开关
+            self.active_chat_enabled = features.get("active_chat", True)
+            self.passive_chat_enabled = features.get("passive_chat", True)
+            self.poke_reply_enabled = features.get("poke_reply", True)
+            self.emoji_request_enabled = features.get("emoji_request", True)
+            self.scheduled_tasks_enabled = features.get("scheduled_tasks", True)
+            self.welcome_new_member = features.get("welcome_new_member", False)
+
             self.active_chat_limits = {
-                "max_daily_messages": active_chat_config.get("max_daily_messages", 10),
-                "min_interval": active_chat_config.get("min_interval", 300),
+                "max_daily_messages": 10,
+                "min_interval": 300,
             }
 
             # 任务调度配置
-            task_scheduler_config = qq_config.get("task_scheduler", {})
-            self.task_scheduler_enabled = task_scheduler_config.get("enabled", True)
+            self.task_scheduler_enabled = task_sched.get("enabled", True)
 
-            # TTS配置（保持向后兼容）
-            self.tts_enabled = True  # 默认启用TTS
-            self.tts_voice_mode = "text"  # text 或 voice, 默认文本
-            self.smart_tts_enabled = False  # 智能TTS判断开关，默认关闭
+            # 命令配置
+            self.command_prefix = commands.get("prefix", "/")
+            # 命令别名从 text_config.json 读取
+            from core.text_loader import get_command_keywords
+
+            self.command_aliases = get_command_keywords()
+            # 快速响应从 text_config.json 读取
+            from core.text_loader import get_text
+
+            self.quick_responses = get_text("quick_responses", {})
+            # 错误消息从 text_config.json 读取
+            self.error_messages = get_text("error_messages", {})
+
+            # 消息解析配置
+            msg_parse = get_qq_config("message_parsing") or {}
+            self.enable_reply_parsing = msg_parse.get("enable_reply_parsing", True)
+            self.enable_file_parsing = msg_parse.get("enable_file_parsing", True)
+            self.enable_media_detection = msg_parse.get("enable_media_detection", True)
+
+            # 合并转发配置
+            forward_cfg = get_qq_config("forward") or {}
+            self.enable_forward_parsing = forward_cfg.get("enable_parsing", True)
+            self.max_forward_depth = forward_cfg.get("max_expand_depth", 3)
+
+            # 性能配置
+            cache_cfg = perf.get("cache", {})
+            self.message_history_cache = cache_cfg.get("message_history", 100)
+            self.user_info_cache = cache_cfg.get("user_info", 1000)
+
+            # 日志配置
+            self.log_message_detail = logging_cfg.get("log_message_detail", False)
+            self.debug_mode = logging_cfg.get("debug", False)
+
+            # TTS配置
+            self.tts_enabled = True
+            self.tts_voice_mode = "text"
+            self.smart_tts_enabled = False
 
             # QQ消息分段配置
             self.qq_message_split = True
@@ -184,16 +220,11 @@ class QQNet:
             # 本地播放配置
             self.local_playback_enabled = False
             self.local_playback_volume = 1.0
-
-            # 音频播放器
             self.audio_player = None
 
             logger.info(f"QQNet 统一配置加载成功，WebSocket地址: {self.onebot_ws_url}")
-
-            # 记录关键配置
             logger.info(f"Bot QQ: {self.bot_qq}")
             logger.info(f"Super Admin: {self.superadmin_qq}")
-            logger.info(f"WebSocket: {self.onebot_ws_url}")
             logger.info(f"重连间隔: {self.reconnect_interval}秒")
             logger.info(f"心跳间隔: {self.ping_interval}秒")
             logger.info(
@@ -203,11 +234,13 @@ class QQNet:
             logger.info(
                 f"任务调度: {'启用' if self.task_scheduler_enabled else '禁用'}"
             )
+            logger.info(
+                f"功能开关: poke={self.poke_reply_enabled}, emoji={self.emoji_request_enabled}"
+            )
 
         except Exception as e:
             logger.error(f"[QQNet] 加载统一配置失败，使用默认配置: {e}")
-            # 使用硬编码的默认值
-            self.onebot_ws_url = "ws://localhost:3001"  # 注意：默认端口改为3001
+            self.onebot_ws_url = "ws://localhost:6700"
             self.onebot_token = ""
             self.bot_qq = 0
             self.superadmin_qq = 0
@@ -220,16 +253,32 @@ class QQNet:
             self.group_blacklist = set()
             self.user_whitelist = set()
             self.user_blacklist = set()
+            self.access_control_enabled = False
 
             self.image_config = {
                 "max_size": 10485760,
                 "allowed_formats": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"],
             }
             self.file_config = {"max_size": 52428800}
-            self.ocr_config = {"enabled": True, "engine": "auto"}
+            self.ocr_config = {"enabled": False, "engine": "none"}
             self.active_chat_enabled = True
+            self.passive_chat_enabled = True
+            self.poke_reply_enabled = True
+            self.emoji_request_enabled = True
+            self.scheduled_tasks_enabled = True
             self.active_chat_limits = {"max_daily_messages": 10, "min_interval": 300}
             self.task_scheduler_enabled = True
+
+            self.command_prefix = "/"
+            self.command_aliases = {}
+            self.quick_responses = {}
+            self.error_messages = {}
+
+            self.enable_reply_parsing = True
+            self.enable_file_parsing = True
+            self.enable_media_detection = True
+            self.enable_forward_parsing = True
+            self.max_forward_depth = 3
 
             self.tts_enabled = True
             self.tts_voice_mode = "text"
