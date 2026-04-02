@@ -78,8 +78,14 @@
      - [使用方式](#2-使用方式)
      - [配置结构](#3-配置结构)
      - [动态更新](#4-动态更新)
-  - [常见问题与解决方案](#常见问题与解决方案)
-  - [更新日志重要更新](#更新日志-重要更新)
+   - [常见问题与解决方案](#常见问题与解决方案)
+   - [记忆系统优化详解](#记忆系统优化详解-2026-04)
+     - [核心优化](#1-核心优化)
+     - [配置集中化](#2-配置集中化)
+     - [主动聊天系统优化](#3-主动聊天系统优化)
+     - [模块清理](#4-模块清理)
+     - [相关文件变更](#5-相关文件变更)
+   - [更新日志重要更新](#更新日志-重要更新)
 
 ---
 
@@ -10091,6 +10097,211 @@ v4.3.1 清理了以下冗余：
 - 统一文本配置 (text_config.json)
 - 模型池重构 (统一管理文本/视觉模型)
 - 配置文件冗余清理
+
+---
+
+#### 记忆系统优化 (2026-04)
+
+本更新对弥娅的记忆系统进行了全面的优化和重构，大幅提升了记忆存储、索引和检索的性能。
+
+##### 1. 核心优化
+
+###### 1.1 倒排标签索引 (Inverted Tag Index)
+- **原理**：传统标签查找需要遍历所有记忆，新系统为每个标签维护一个记忆ID列表，实现 O(1) 标签查找
+- **实现**：在 `MiyaMemoryCore` 类中新增 `_tag_index` 字典，键为标签名，值为记忆ID列表
+- **代码位置**：`memory/core.py`
+- **性能提升**：标签查询从 O(n) 降低到 O(1)
+
+```python
+# 倒排索引示例
+self._tag_index = {
+    "用户_佳": ["memory_id_1", "memory_id_5", "memory_id_9"],
+    "喜好_动漫": ["memory_id_2", "memory_id_7"],
+    # ...
+}
+```
+
+###### 1.2 查询缓存 (Query Cache)
+- **原理**：对于频繁执行的相同查询，缓存其结果，避免重复的 I/O 操作
+- **实现**：在 `MiyaMemoryCore` 中新增 `_query_cache` 字典，键为查询的哈希值
+- **缓存策略**：
+  - TTL（Time To Live）：5分钟自动过期
+  - 最大缓存数：100条
+  - 当记忆数据更新时，自动清除相关缓存
+
+```python
+# 查询缓存逻辑
+query_hash = hash(f"{keyword}:{limit}:{tags}")
+if query_hash in self._query_cache:
+    cached_time, cached_result = self._query_cache[query_hash]
+    if (now - cached_time).total_seconds() < 300:  # 5分钟内的缓存
+        return cached_result
+```
+
+###### 1.3 懒加载模式 (Lazy Loading)
+- **原理**：传统模式在启动时加载所有记忆到内存，导致启动缓慢。新模式支持按需加载
+- **实现**：新增配置项 `lazy_load`，默认开启
+- **加载策略**：
+  - 首次查询时加载所需记忆
+  - 后台定时同步最近修改的记忆
+  - 长时间未访问的记忆自动卸载
+
+```yaml
+# config/text_config.json
+memory_system:
+  lazy_load: true
+  load_on_demand: true
+  cache_size: 1000
+```
+
+###### 1.4 语义搜索支持 (Semantic Search with Embeddings)
+- **原理**：传统关键词搜索无法理解语义，新系统支持基于向量的语义搜索
+- **实现**：新增 `semantic_search()` 方法，集成 embedding 模型
+- **配置**：
+
+```yaml
+memory_system:
+  embedding_client: "sentence_transformers"
+  embedding_model: "paraphrase-multilingual-MiniLM-L12-v2"
+  semantic_search:
+    enabled: true
+    top_k: 5
+    similarity_threshold: 0.7
+```
+
+##### 2. 配置集中化
+
+###### 2.1 CognitiveEngine 配置迁移
+将所有硬编码的认知引擎模式迁移到 `config/text_config.json`：
+
+```yaml
+memory_system:
+  cognitive_engine:
+    importance_keywords:
+      high: ["重要", "记住", "关键", "必须"]
+      medium: ["记得", "关注", "主要"]
+      low: ["顺便", "随意", "可忽略"]
+    topic_keywords:
+      工作: ["工作", "上班", "下班", "项目", "任务"]
+      生活: ["吃饭", "睡觉", "休息", "周末"]
+      情感: ["开心", "难过", "生气", "想"]
+    auto_classify:
+      enabled: true
+      rules:
+        - pattern: ".*喜欢.*"
+          category: "喜好"
+          importance: 0.7
+        - pattern: ".*名字是.*"
+          category: "信息"
+          importance: 0.8
+```
+
+###### 2.2 Historian 配置迁移
+将历史学家模块的配置也迁移到统一配置：
+
+```yaml
+historian:
+  memory_triggers:
+    - keywords: ["刚才", "刚刚", "之前", "上次"]
+      action: "recall"
+    - keywords: ["你记得", "你记得吗", "记得吗"]
+      action: "search"
+  patterns:
+    story: ".*讲.*故事.*|.*说了.*什么.*"
+    question: ".*吗.*|.*呢.*|.*?.*"
+  auto_save:
+    enabled: true
+    min_importance: 0.5
+```
+
+##### 3. 主动聊天系统优化
+
+###### 3.1 触发类型独立冷却
+- **原理**：不同类型的触发器需要不同的冷却时间，避免短时间内重复触发
+- **配置位置**：`config/proactive_chat.yaml`
+- **配置项**：
+
+```yaml
+trigger_type_cooldown:
+  context: 60      # 上下文触发后60秒内不再触发
+  emotion: 120     # 情绪触发后120秒内不再触发
+  keyword: 30      # 关键词触发后30秒内不再触发
+  time: 300        # 时间触发后5分钟内不再触发（时段内只发一次）
+  check_in: 1800   # 主动关怀后30分钟内不再触发
+  ai: 180          # AI触发后3分钟内不再触发
+
+# 用户发消息后的冷却（避免在用户刚说话就立即主动发言）
+user_message_cooldown: 5
+```
+
+###### 3.2 消息内容去重机制
+- **原理**：避免发送与最近消息内容相似的主动消息
+- **实现**：
+  - 追踪每种触发类型的最后发送时间
+  - 检查消息前缀是否与最近发送的相同
+  - 保留30分钟内的发送历史
+
+```python
+# 代码实现示例
+def _check_message_content_duplicate(self, target_id: int, message: str) -> bool:
+    if target_id not in self._sent_messages_history:
+        return False
+    
+    msg_prefix = message[:20]  # 比较前20个字符
+    for prev_msg, _ in self._sent_messages_history[target_id]:
+        if prev_msg[:20] == msg_prefix:
+            return True
+    return False
+```
+
+###### 3.3 用户消息冷却
+- **原理**：用户刚发送消息后，短时间内不主动发言，避免打断用户
+- **默认冷却时间**：5秒
+- **可配置**：通过 `user_message_cooldown` 配置项调整
+
+##### 4. 模块清理
+
+###### 4.1 删除的模块
+
+以下模块在本次更新中被删除（因未使用或功能冗余）：
+
+| 模块 | 路径 | 删除原因 |
+|------|------|---------|
+| LifeNet | `webnet/LifeNet/` | 从未初始化使用 |
+| EntertainmentNet | `webnet/EntertainmentNet/` | TRPG/Tavern 游戏模块未使用 |
+| IoTNet | `webnet/iot.py` | IoT 功能未实现 |
+| Bilibili Tools | `webnet/ToolNet/tools/bilibili/` | 未加载到工具系统 |
+| Entertainment Tools | `webnet/ToolNet/tools/entertainment/` | 未加载到工具系统 |
+| Office Tools | `webnet/ToolNet/tools/office/` | 已在其他模块实现 |
+| LifeBook Manager | `memory/lifebook_manager.py` | 空实现，未使用 |
+| Semantic Vectors | `memory/semantic_vectors/` | 空目录 |
+
+###### 4.2 清理的导入
+
+在以下文件中移除了对已删除模块的导入：
+- `webnet/__init__.py` - 移除 LifeNet、IoTNet
+- `webnet/ToolNet/registry.py` - 移除未使用的工具加载器
+- `webnet/ToolNet/tools/__init__.py` - 移除 bilibili、entertainment、office 导入
+
+##### 5. 相关文件变更
+
+###### 5.1 新增/修改的配置文件
+
+| 文件 | 变更类型 | 说明 |
+|------|---------|------|
+| `config/text_config.json` | 修改 | 新增 memory_system、historian 配置节 |
+| `config/proactive_chat.yaml` | 修改 | 新增 trigger_type_cooldown、user_message_cooldown |
+
+###### 5.2 新增/修改的代码文件
+
+| 文件 | 变更类型 | 说明 |
+|------|---------|------|
+| `memory/core.py` | 修改 | 新增倒排索引、查询缓存、懒加载、语义搜索 |
+| `memory/cognitive_engine.py` | 修改 | 配置驱动化 |
+| `memory/historian.py` | 修改 | 使用配置文件中的模式 |
+| `memory/__init__.py` | 修改 | 导出 CognitiveEngine |
+| `core/proactive_chat.py` | 修改 | 添加去重机制、冷却系统 |
+| `core/qq_command_config.py` | 修改 | 使用 text_config.json |
 
 ---
 
