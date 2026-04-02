@@ -174,11 +174,32 @@ class CreateScheduleTaskTool(BaseTool):
 
             # 使用调度器
             if context.memory_engine:
-                # 尝试获取调度器 - 优先从context获取，否则从memory_engine获取
-                scheduler = getattr(context, "scheduler", None)
-                if not scheduler and hasattr(context, "memory_engine"):
-                    # 从memory_engine尝试获取scheduler
+                # 尝试获取调度器 - 多层降级获取
+                scheduler = None
+
+                # 1. 优先从context获取
+                if hasattr(context, "scheduler") and context.scheduler:
+                    scheduler = context.scheduler
+                    logger.info(f"从context获取scheduler成功: {type(scheduler)}")
+
+                # 2. 从memory_engine获取
+                if not scheduler and hasattr(context.memory_engine, "scheduler"):
                     scheduler = getattr(context.memory_engine, "scheduler", None)
+                    logger.info(f"从memory_engine获取scheduler: {scheduler}")
+
+                # 3. 尝试从全局获取
+                if not scheduler:
+                    try:
+                        from hub.scheduler import Scheduler
+
+                        # 检查是否有全局实例
+                        import hub.scheduler as hs
+
+                        if hasattr(hs, "_global_scheduler"):
+                            scheduler = hs._global_scheduler
+                            logger.info("从全局获取scheduler成功")
+                    except Exception as e:
+                        logger.warning(f"尝试获取全局scheduler失败: {e}")
 
                 if scheduler:
                     from hub.scheduler import Task

@@ -513,6 +513,11 @@ class MiyaQQ:
                                 self.qq_net.onebot_client
                             )
 
+                        # 设置全局调度器（用于ToolNet中的工具获取）
+                        from hub.scheduler import set_global_scheduler
+
+                        set_global_scheduler(self.miya.scheduler)
+
                         # 启动调度器
                         await self.miya.scheduler.start()
                         self.logger.info("定时任务调度器已启动")

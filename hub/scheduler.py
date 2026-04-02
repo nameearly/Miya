@@ -340,3 +340,22 @@ class Scheduler:
             del self.completed_tasks[tid]
 
         return len(to_remove)
+
+
+# ==================== 全局单例 ====================
+
+_global_scheduler: Optional["Scheduler"] = None
+
+
+def get_global_scheduler() -> "Scheduler":
+    """获取全局调度器实例"""
+    global _global_scheduler
+    if _global_scheduler is None:
+        _global_scheduler = Scheduler()
+    return _global_scheduler
+
+
+def set_global_scheduler(scheduler: "Scheduler"):
+    """设置全局调度器实例"""
+    global _global_scheduler
+    _global_scheduler = scheduler
