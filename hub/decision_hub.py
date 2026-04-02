@@ -1737,10 +1737,17 @@ class DecisionHub:
                 # 提醒任务
                 from core.text_loader import get_reminder_message
 
+                # 确保 user_id 是正确的类型
+                uid = (
+                    int(user_id)
+                    if isinstance(user_id, (int, str)) and str(user_id).isdigit()
+                    else (int(user_id) if isinstance(user_id, int) else 0)
+                )
+
                 task_args = {
                     "task_type": task_type,
                     "target_type": "private" if platform == "qq" else "group",
-                    "target_id": int(user_id) if user_id.isdigit() else 0,
+                    "target_id": uid,
                     "message": get_reminder_message(content),
                     "schedule_time": scheduled_time,
                     "repeat": "once",
@@ -1751,7 +1758,7 @@ class DecisionHub:
             result = await self.tool_subnet.execute_tool(
                 tool_name="create_schedule_task",
                 args=task_args,
-                user_id=int(user_id) if user_id.isdigit() else 0,
+                user_id=uid,
                 group_id=perception.get("group_id", 0),
                 message_type=perception.get("message_type", "private"),
                 sender_name=sender_name,
