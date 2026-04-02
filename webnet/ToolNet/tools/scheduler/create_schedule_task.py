@@ -79,8 +79,8 @@ class CreateScheduleTaskTool(BaseTool):
 
     async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
         """执行工具"""
-        print(f"[DEBUG CREATE_SCHEDULE] Tool executed! args={args}")
-        print(f"[DEBUG CREATE_SCHEDULE] context={type(context)}")
+        logger.info(f"=== CREATE_SCHEDULE TOOL CALLED === args={args}")
+        logger.info(f"=== CREATE_SCHEDULE context type={type(context)}")
         task_type = args.get("task_type")
         target_type = args.get("target_type", "group")
         target_id = args.get("target_id", context.user_id)  # 默认使用当前用户ID
