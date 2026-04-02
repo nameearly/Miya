@@ -1,6 +1,7 @@
 """
 创建定时任务
 """
+
 from typing import Dict, Any
 import logging
 from datetime import datetime, timedelta
@@ -26,54 +27,54 @@ class CreateScheduleTaskTool(BaseTool):
                     "task_type": {
                         "type": "string",
                         "description": "任务类型：message(发送消息), reminder(提醒用户), action(执行动作如点赞、拍一拍), check(检查系统)。用户说'提醒'时用reminder，说'发送消息'时用message，说'给我点赞'、'拍一拍'等动作时用action",
-                        "enum": ["message", "reminder", "action", "check"]
+                        "enum": ["message", "reminder", "action", "check"],
                     },
                     "target_type": {
                         "type": "string",
                         "description": "目标类型：group(群), private(私聊)。默认为用户当前会话类型",
                         "enum": ["group", "private"],
-                        "default": "group"
+                        "default": "group",
                     },
                     "target_id": {
                         "type": "integer",
-                        "description": "目标ID（群号或用户QQ号），默认为当前用户ID"
+                        "description": "目标ID（群号或用户QQ号），默认为当前用户ID",
                     },
                     "message": {
                         "type": "string",
-                        "description": "要发送的消息内容或提醒内容"
+                        "description": "要发送的消息内容或提醒内容",
                     },
                     "schedule_time": {
                         "type": "string",
-                        "description": "执行时间，格式：HH:MM 或 YYYY-MM-DD HH:MM。也可以是相对时间如'1分钟后'、'5分钟后'，系统会自动计算"
+                        "description": "执行时间，格式：HH:MM 或 YYYY-MM-DD HH:MM。也可以是相对时间如'1分钟后'、'5分钟后'，系统会自动计算",
                     },
                     "repeat": {
                         "type": "string",
                         "description": "重复频率：once(一次性), daily(每天), weekly(每周)。默认为一次性",
                         "enum": ["once", "daily", "weekly"],
-                        "default": "once"
+                        "default": "once",
                     },
                     "priority": {
                         "type": "integer",
                         "description": "优先级 (1-10)，越高越优先",
                         "minimum": 1,
                         "maximum": 10,
-                        "default": 5
+                        "default": 5,
                     },
                     "action_type": {
                         "type": "string",
                         "description": "当task_type为action时，指定要执行的动作类型：qq_like(点赞), send_poke(拍一拍)",
-                        "enum": ["qq_like", "send_poke"]
+                        "enum": ["qq_like", "send_poke"],
                     },
                     "times": {
                         "type": "integer",
                         "description": "动作执行的次数（仅对qq_like有效，1-10）",
                         "minimum": 1,
                         "maximum": 10,
-                        "default": 1
-                    }
+                        "default": 1,
+                    },
                 },
-                "required": ["task_type"]
-            }
+                "required": ["task_type"],
+            },
         }
 
     async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
@@ -92,7 +93,11 @@ class CreateScheduleTaskTool(BaseTool):
             return "❌ 任务类型不能为空"
 
         # 终端模式下，如果 target_id 为 None、无效值或中文，使用默认值
-        if not target_id or not isinstance(target_id, (int, str)) or str(target_id) in ["用户", "user", "None", "null", ""]:
+        if (
+            not target_id
+            or not isinstance(target_id, (int, str))
+            or str(target_id) in ["用户", "user", "None", "null", ""]
+        ):
             target_id = 0  # 默认ID
 
         if task_type == "message" and not message:
@@ -111,26 +116,34 @@ class CreateScheduleTaskTool(BaseTool):
                 try:
                     # 检测相对时间（如"1分钟后"、"5分钟后"）
                     if "分钟后" in schedule_time or "minute" in schedule_time.lower():
-                        match = re.search(r'(\d+)\s*分钟', schedule_time)
+                        match = re.search(r"(\d+)\s*分钟", schedule_time)
                         if match:
                             minutes = int(match.group(1))
                             scheduled_at = datetime.now() + timedelta(minutes=minutes)
-                            logger.info(f"检测到相对时间: {minutes}分钟后，执行时间: {scheduled_at}")
+                            logger.info(
+                                f"检测到相对时间: {minutes}分钟后，执行时间: {scheduled_at}"
+                            )
                     elif "小时后" in schedule_time or "hour" in schedule_time.lower():
-                        match = re.search(r'(\d+)\s*小时', schedule_time)
+                        match = re.search(r"(\d+)\s*小时", schedule_time)
                         if match:
                             hours = int(match.group(1))
                             scheduled_at = datetime.now() + timedelta(hours=hours)
-                            logger.info(f"检测到相对时间: {hours}小时后，执行时间: {scheduled_at}")
+                            logger.info(
+                                f"检测到相对时间: {hours}小时后，执行时间: {scheduled_at}"
+                            )
                     # 绝对时间
                     elif ":" in schedule_time:
                         if len(schedule_time) == 5:
                             # 只有时间，使用今天的日期
                             today = datetime.now().date()
-                            scheduled_at = datetime.strptime(f"{today} {schedule_time}", "%Y-%m-%d %H:%M")
+                            scheduled_at = datetime.strptime(
+                                f"{today} {schedule_time}", "%Y-%m-%d %H:%M"
+                            )
                         else:
                             # 完整日期时间
-                            scheduled_at = datetime.strptime(schedule_time, "%Y-%m-%d %H:%M")
+                            scheduled_at = datetime.strptime(
+                                schedule_time, "%Y-%m-%d %H:%M"
+                            )
                 except ValueError as e:
                     return f"❌ 时间格式错误: {e}。请使用 HH:MM、YYYY-MM-DD HH:MM 或相对时间（如'1分钟后'）"
 
@@ -148,7 +161,9 @@ class CreateScheduleTaskTool(BaseTool):
                 "scheduled_at": scheduled_at.isoformat() if scheduled_at else None,
                 "repeat": repeat,
                 "priority": priority,
-                "created_by": f"user_{context.user_id}" if context.user_id else 'unknown'
+                "created_by": f"user_{context.user_id}"
+                if context.user_id
+                else "unknown",
             }
 
             # 如果是action类型，添加action相关参数
@@ -159,25 +174,35 @@ class CreateScheduleTaskTool(BaseTool):
 
             # 使用调度器
             if context.memory_engine:
-                # 尝试获取调度器
-                scheduler = getattr(context, 'scheduler', None)
+                # 尝试获取调度器 - 优先从context获取，否则从memory_engine获取
+                scheduler = getattr(context, "scheduler", None)
+                if not scheduler and hasattr(context, "memory_engine"):
+                    # 从memory_engine尝试获取scheduler
+                    scheduler = getattr(context.memory_engine, "scheduler", None)
+
                 if scheduler:
                     from hub.scheduler import Task
+
                     task = Task(
                         task_id=task_id,
                         task_type=f"scheduled_{task_type}",
                         priority=priority,
                         data=task_data,
-                        execute_at=scheduled_at
+                        execute_at=scheduled_at,
                     )
                     scheduler.schedule(task)
+                    logger.info(
+                        f"定时任务已添加到调度队列: {task_id}, 执行时间: {scheduled_at}"
+                    )
+                else:
+                    logger.warning("调度器不可用，任务将只存储在记忆中")
 
                 # 同时存储在记忆中
                 context.memory_engine.store_tide(
                     memory_id=f"scheduled_task_{task_id}",
                     content=task_data,
                     priority=priority / 10,
-                    ttl=86400 * 30  # 30天
+                    ttl=86400 * 30,  # 30天
                 )
 
                 # 格式化输出

@@ -504,6 +504,21 @@ class MiyaQQ:
                 # 4. 加载定时任务
                 self.logger.info("加载定时任务...")
 
+                # 启动定时任务调度器
+                if self.miya.scheduler:
+                    try:
+                        # 设置 onebot_client 用于发送消息
+                        if self.qq_net and self.qq_net.onebot_client:
+                            self.miya.scheduler.onebot_client = (
+                                self.qq_net.onebot_client
+                            )
+
+                        # 启动调度器
+                        await self.miya.scheduler.start()
+                        self.logger.info("定时任务调度器已启动")
+                    except Exception as e:
+                        self.logger.warning(f"定时任务调度器启动失败: {e}")
+
                 # 5. 启动消息接收循环
                 self.logger.info("启动消息接收循环...")
 
