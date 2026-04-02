@@ -576,8 +576,14 @@ class OpenAIClient(BaseAIClient):
                         else:
                             tool_args = {}
 
+                    import sys
+
                     logger.info(
                         f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
+                    )
+                    print(
+                        f"[AICLIENT] >>> EXECUTING TOOL: {tool_call.function.name}",
+                        file=sys.stderr,
                     )
 
                     result = await adapter.execute_tool(
