@@ -85,6 +85,16 @@
      - [主动聊天系统优化](#3-主动聊天系统优化)
      - [模块清理](#4-模块清理)
      - [相关文件变更](#5-相关文件变更)
+   - [记忆系统工作原理详解](#记忆系统工作原理详解-2026-04)
+     - [系统架构](#1-系统架构)
+     - [核心模块](#2-核心模块)
+     - [核心数据结构](#3-核心数据结构)
+     - [记忆层级详解](#4-记忆层级详解)
+     - [核心功能](#5-核心功能)
+     - [配置系统](#6-配置系统)
+     - [性能优化](#7-性能优化)
+     - [使用示例](#8-使用示例)
+     - [工具接口](#9-工具接口)
    - [更新日志重要更新](#更新日志-重要更新)
 
 ---
@@ -10296,12 +10306,289 @@ def _check_message_content_duplicate(self, target_id: int, message: str) -> bool
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| `memory/core.py` | 修改 | 新增倒排索引、查询缓存、懒加载、语义搜索 |
+| `memory/core.py` | 修改 | 新增倒排索引、查询缓存、懒加载、语义搜索、批量操作、优先级衰减、定时清理任务 |
 | `memory/cognitive_engine.py` | 修改 | 配置驱动化 |
 | `memory/historian.py` | 修改 | 使用配置文件中的模式 |
 | `memory/__init__.py` | 修改 | 导出 CognitiveEngine |
 | `core/proactive_chat.py` | 修改 | 添加去重机制、冷却系统 |
 | `core/qq_command_config.py` | 修改 | 使用 text_config.json |
+
+###### 5.3 新增功能 (v4.3.1)
+
+**批量操作**：
+```python
+# 批量存储记忆
+memory_ids = await core.store_batch(memories: List[MemoryItem])
+
+# 批量删除记忆
+deleted_count = await core.delete_batch(memory_ids: List[str])
+```
+
+**优先级衰减机制**：
+```python
+# 自动降低长时间未访问的低优先级记忆的优先级
+decayed_count = await core.decay_low_priority_memories(days=90, threshold=0.3)
+# - 默认90天未访问的记忆
+# - 优先级低于0.3的记忆
+# - 每次衰减0.1，最低降至0.1
+```
+
+**定时自动清理任务**：
+```python
+# 启动后台定时清理任务（默认每小时运行一次）
+await core.start_cleanup_task(interval=3600)
+# 清理内容：
+# - 删除过期的短期记忆
+# - 执行优先级衰减
+```
+
+---
+
+#### 记忆系统工作原理详解 (2026-04)
+
+本节详细介绍**灵识海**（弥娅的记忆系统）的架构、原理和使用方法。
+
+##### 命名由来
+
+**灵识海** (Líng Shí Hǎi)
+- **灵** - 智能、意识、灵魂
+- **识** - 认知、理解、识别
+- **海** - 广袤、包容、无限
+
+寓意：弥娅的意识之海，承载无尽记忆与认知。
+
+##### 1. 系统架构
+
+弥娅的记忆系统采用**多层架构**，支持不同类型的记忆存储和检索：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    MiyaMemoryCore (核心)                    │
+├─────────────────────────────────────────────────────────────┤
+│  MemoryLevel.DIALOGUE     - 对话历史 (会话级,自动过期)       │
+│  MemoryLevel.SHORT_TERM   - 短期记忆 (TTL自动过期)          │
+│  MemoryLevel.LONG_TERM   - 长期记忆 (持久化)                │
+│  MemoryLevel.SEMANTIC     - 语义记忆 (向量搜索)             │
+│  MemoryLevel.KNOWLEDGE   - 知识图谱 (Neo4j)                │
+├─────────────────────────────────────────────────────────────┤
+│  存储后端：JSON文件 + Redis + Milvus + Neo4j               │
+│  索引：倒排标签索引 (O(1)查询)                              │
+│  缓存：查询缓存 (5分钟TTL)                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+##### 2. 核心模块
+
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| MiyaMemoryCore | `memory/core.py` | 统一记忆系统核心类 |
+| CognitiveEngine | `memory/cognitive_engine.py` | 认知引擎，自动提取重要信息 |
+| Historian | `memory/historian.py` | 历史记录员，处理对话历史 |
+| PrivacyClassifier | `memory/privacy_classifier.py` | 隐私分类器 |
+| UnifiedMemory | `memory/unified_memory.py` | 统一内存接口 |
+| Adapter | `memory/adapter.py` | 外部接口适配器 |
+
+##### 3. 核心数据结构
+
+```python
+@dataclass
+class MemoryItem:
+    id: str                          # 唯一标识符
+    content: str                    # 记忆内容
+    level: MemoryLevel              # 记忆层级
+    priority: float                 # 优先级 (0-1)
+    user_id: str                    # 用户ID
+    session_id: str                 # 会话ID
+    platform: str                  # 平台
+    source: MemorySource            # 来源
+    tags: List[str]                 # 标签
+    created_at: datetime           # 创建时间
+    updated_at: datetime           # 更新时间
+    metadata: Dict                 # 元数据
+```
+
+##### 4. 记忆层级详解
+
+###### 4.1 对话层级 (DIALOGUE)
+- **用途**：存储当前会话的对话历史
+- **特点**：会话结束后自动清理
+- **存储位置**：`data/conversations/`
+
+###### 4.2 短期记忆 (SHORT_TERM)
+- **用途**：存储临时信息，如最近的活动状态
+- **特点**：TTL（Time To Live）自动过期，默认7天
+- **存储位置**：`data/memory/short_term/`
+
+###### 4.3 长期记忆 (LONG_TERM)
+- **用途**：存储重要的、需要持久化的信息
+- **特点**：手动删除或高重要性自动升级
+- **存储位置**：`data/memory/long_term/{user_id}/`
+
+###### 4.4 语义记忆 (SEMANTIC)
+- **用途**：基于向量相似度的语义搜索
+- **特点**：支持embedding模型集成
+- **存储**：支持Milvus或本地向量
+
+###### 4.5 知识图谱 (KNOWLEDGE)
+- **用途**：存储实体和关系
+- **特点**：Neo4j图数据库
+- **查询**：支持图遍历查询
+
+##### 5. 核心功能
+
+###### 5.1 存储记忆
+
+```python
+from memory import get_memory_core, MemoryLevel, MemorySource
+
+core = await get_memory_core()
+
+# 存储对话
+memory_id = await core.store(
+    content="用户说他喜欢唱歌",
+    level=MemoryLevel.DIALOGUE,
+    user_id="123456",
+    session_id="session_001",
+    source=MemorySource.DIALOGUE,
+    tags=["爱好", "音乐"],
+    priority=0.7
+)
+```
+
+###### 5.2 搜索记忆
+
+```python
+# 关键词搜索
+results = await core.search(
+    keyword="唱歌",
+    user_id="123456",
+    limit=10
+)
+
+# 标签搜索
+results = await core.search_by_tag(
+    tags=["爱好"],
+    user_id="123456"
+)
+
+# 语义搜索（需要配置embedding_client）
+results = await core.semantic_search(
+    query="用户有什么兴趣爱好",
+    user_id="123456",
+    top_k=5
+)
+```
+
+###### 5.3 自动提取
+
+系统会自动从对话中提取重要信息并存储为长期记忆：
+
+```python
+# 自动提取示例
+# 用户说："我最喜欢吃火锅" -> 自动存储为长期记忆，标签["喜好", "食物"]
+# 用户说："我答应你明天打电话" -> 自动存储为长期记忆，标签["承诺", "重要"]
+```
+
+##### 6. 配置系统
+
+所有记忆系统配置集中在 `config/text_config.json` 的 `memory_system` 节：
+
+```json
+{
+  "memory_system": {
+    "importance_patterns": {
+      "explicit_info": [
+        ["我(的最爱|喜欢|讨厌).{2,20}", 0.9],
+        ["我叫.{2,10}", 0.8]
+      ]
+    },
+    "auto_classify": {
+      "strong_emotions": ["愤怒", "恐惧", "悲伤"],
+      "important_keywords": {
+        "生日": 0.9,
+        "电话": 0.85
+      }
+    },
+    "topic_keywords": {
+      "学习": ["上课", "考试", "作业"],
+      "吃饭": ["吃饭", "饿", "外卖"]
+    }
+  },
+  "historian": {
+    "memory_triggers": {
+      "important_info": ["我最喜欢", "我喜欢", "我讨厌"]
+    }
+  }
+}
+```
+
+##### 7. 性能优化
+
+###### 7.1 倒排标签索引
+- 为每个标签维护记忆ID集合
+- 查询复杂度从 O(n) 降到 O(1)
+
+```python
+self._tag_index = {
+    "用户_佳": {"memory_1", "memory_5"},
+    "喜好_动漫": {"memory_2", "memory_7"}
+}
+```
+
+###### 7.2 查询缓存
+- 缓存查询结果，TTL 5分钟
+- 最大缓存100条，自动LRU清理
+
+###### 7.3 懒加载
+- 首次查询时加载所需记忆
+- 长时间未访问的记忆自动卸载
+
+##### 8. 使用示例
+
+```python
+# 完整使用示例
+from memory import MiyaMemory, store_dialogue, store_important, search_memory
+
+# 1. 存储对话
+await store_dialogue(
+    content="今天学习了Python",
+    role="user",
+    user_id="123456",
+    session_id="session_001"
+)
+
+# 2. 存储重要信息
+await store_important(
+    content="用户喜欢二次元游戏",
+    user_id="123456",
+    tags=["爱好", "游戏"],
+    priority=0.8
+)
+
+# 3. 搜索记忆
+results = await search_memory(
+    keyword="游戏",
+    user_id="123456",
+    limit=5
+)
+
+# 4. 获取用户画像
+profile = await get_user_profile("123456")
+print(profile)
+```
+
+##### 9. 工具接口
+
+记忆系统通过 ToolNet 提供工具调用：
+
+| 工具名称 | 功能 |
+|---------|------|
+| memory_add | 添加记忆 |
+| memory_delete | 删除记忆 |
+| memory_update | 更新记忆 |
+| memory_list | 列出记忆 |
+| memory_search | 搜索记忆 |
+| auto_extract_memory | 自动提取记忆 |
 
 ---
 

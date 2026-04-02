@@ -165,6 +165,8 @@ def _normalize_config(raw: dict) -> dict:
             "quiet_hours": quiet_hours,
             "quiet_hours_enabled": True,
         },
+        "trigger_type_cooldown": raw.get("trigger_type_cooldown", {}),
+        "user_message_cooldown": raw.get("user_message_cooldown", 5),
     }
 
 
@@ -188,6 +190,15 @@ def get_default_config() -> dict:
             "quiet_hours": [23, 0, 1, 2, 3, 4, 5, 6],
             "quiet_hours_enabled": True,
         },
+        "trigger_type_cooldown": {
+            "context": 60,
+            "emotion": 120,
+            "keyword": 30,
+            "time": 300,
+            "check_in": 1800,
+            "ai": 180,
+        },
+        "user_message_cooldown": 5,
     }
 
 
@@ -271,6 +282,80 @@ class ProactiveChatSystem:
 
         # 最后检测的期望行为（用于上下文跟进）
         self._last_expectation: dict[int, str] = {}
+
+        # 追踪每种触发类型的最后发送时间
+        self._last_trigger_by_type: dict[int, dict[str, datetime]] = {}
+
+        # 追踪已发送消息的内容，避免重复
+        self._sent_messages_history: dict[int, list[tuple[str, datetime]]] = {}
+
+        # 从配置加载触发类型冷却时间
+        cooldown_config = self._config.get("trigger_type_cooldown", {})
+        self._trigger_type_cooldown = (
+            cooldown_config
+            if cooldown_config
+            else {
+                "context": 60,
+                "emotion": 120,
+                "keyword": 30,
+                "time": 300,
+                "check_in": 1800,
+                "ai": 180,
+            }
+        )
+
+        # 用户发消息后的冷却时间
+        self._user_message_cooldown = self._config.get("user_message_cooldown", 5)
+
+    def _check_trigger_type_cooldown(self, target_id: int, trigger_type: str) -> bool:
+        """检查同类型触发是否在冷却时间内"""
+        min_interval = self._trigger_type_cooldown.get(trigger_type, 60)
+
+        if target_id not in self._last_trigger_by_type:
+            return True  # 没有记录，可以触发
+
+        last_time = self._last_trigger_by_type[target_id].get(trigger_type)
+        if not last_time:
+            return True
+
+        elapsed = (datetime.now() - last_time).total_seconds()
+        return elapsed >= min_interval
+
+    def _record_trigger_by_type(self, target_id: int, trigger_type: str):
+        """记录某类型的触发时间"""
+        if target_id not in self._last_trigger_by_type:
+            self._last_trigger_by_type[target_id] = {}
+        self._last_trigger_by_type[target_id][trigger_type] = datetime.now()
+
+    def _check_message_content_duplicate(self, target_id: int, message: str) -> bool:
+        """检查消息内容是否与最近发送的过于相似"""
+        if target_id not in self._sent_messages_history:
+            return False
+
+        now = datetime.now()
+        # 清理过期记录（保留30分钟内的）
+        self._sent_messages_history[target_id] = [
+            (msg, t)
+            for msg, t in self._sent_messages_history[target_id]
+            if (now - t).total_seconds() < 1800
+        ]
+
+        # 简化比对：检查前20个字符
+        msg_prefix = message[:20] if len(message) > 20 else message
+
+        for prev_msg, _ in self._sent_messages_history[target_id]:
+            prev_prefix = prev_msg[:20] if len(prev_msg) > 20 else prev_msg
+            # 如果前缀相同，认为是重复
+            if msg_prefix == prev_prefix:
+                return True
+
+        return False
+
+    def _record_sent_message(self, target_id: int, message: str):
+        """记录已发送的消息"""
+        if target_id not in self._sent_messages_history:
+            self._sent_messages_history[target_id] = []
+        self._sent_messages_history[target_id].append((message, datetime.now()))
 
         # AI客户端
         self.ai_client = None
@@ -479,6 +564,13 @@ class ProactiveChatSystem:
         if not self._enabled:
             return None
 
+        # 检查用户是否刚发送了消息
+        last_user_msg_time = self._user_last_interaction.get(target_id)
+        if last_user_msg_time:
+            elapsed = (datetime.now() - last_user_msg_time).total_seconds()
+            if elapsed < self._user_message_cooldown:
+                return None
+
         if self._is_in_quiet_hours():
             return None
 
@@ -557,10 +649,20 @@ class ProactiveChatSystem:
         if not responses:
             return None
 
+        # 检查同类型触发冷却
+        if not self._check_trigger_type_cooldown(target_id, "context"):
+            return None
+
         message = random.choice(responses)
+
+        # 检查消息内容是否重复
+        if self._check_message_content_duplicate(target_id, message):
+            return None
 
         if not self._is_duplicate(target_id, message):
             self._record_trigger(target_id)
+            self._record_trigger_by_type(target_id, "context")
+            self._record_sent_message(target_id, message)
 
             # 跟进后清除期望状态
             if target_id in self._last_expectation:
@@ -597,10 +699,20 @@ class ProactiveChatSystem:
         if random.random() > 0.3:  # 30%概率触发，避免太频繁
             return None
 
+        # 检查同类型触发冷却
+        if not self._check_trigger_type_cooldown(target_id, "emotion"):
+            return None
+
         message = random.choice(responses)
+
+        # 检查消息内容是否重复
+        if self._check_message_content_duplicate(target_id, message):
+            return None
 
         if not self._is_duplicate(target_id, message):
             self._record_trigger(target_id)
+            self._record_trigger_by_type(target_id, "emotion")
+            self._record_sent_message(target_id, message)
 
             # 清除情绪状态
             context.detected_emotion = None
@@ -640,8 +752,18 @@ class ProactiveChatSystem:
         else:
             message = "嗯呢，收到啦~"
 
+        # 检查同类型触发冷却
+        if not self._check_trigger_type_cooldown(target_id, "keyword"):
+            return None
+
+        # 检查消息内容是否重复
+        if self._check_message_content_duplicate(target_id, message):
+            return None
+
         if not self._is_duplicate(target_id, message):
             self._record_trigger(target_id)
+            self._record_trigger_by_type(target_id, "keyword")
+            self._record_sent_message(target_id, message)
             return ProactiveResult(
                 should_respond=True,
                 message=message,
@@ -684,10 +806,20 @@ class ProactiveChatSystem:
         if not messages:
             return None
 
+        # 检查同类型触发冷却
+        if not self._check_trigger_type_cooldown(target_id, "time"):
+            return None
+
         message = random.choice(messages)
+
+        # 检查消息内容是否重复
+        if self._check_message_content_duplicate(target_id, message):
+            return None
 
         if not self._is_duplicate(target_id, message):
             self._record_trigger(target_id)
+            self._record_trigger_by_type(target_id, "time")
+            self._record_sent_message(target_id, message)
 
             if self._log_triggers:
                 logger.info(f"[主动聊天] [时间触发] target={target_id}: {message}")
@@ -723,10 +855,20 @@ class ProactiveChatSystem:
         if not messages:
             return None
 
+        # 检查同类型触发冷却
+        if not self._check_trigger_type_cooldown(target_id, "check_in"):
+            return None
+
         message = random.choice(messages)
+
+        # 检查消息内容是否重复
+        if self._check_message_content_duplicate(target_id, message):
+            return None
 
         if not self._is_duplicate(target_id, message):
             self._record_trigger(target_id)
+            self._record_trigger_by_type(target_id, "check_in")
+            self._record_sent_message(target_id, message)
 
             if self._log_triggers:
                 logger.info(f"[主动聊天] [关怀触发] target={target_id}: {message}")
@@ -792,8 +934,18 @@ class ProactiveChatSystem:
             if message.upper() == "SKIP" or not message:
                 return None
 
+            # 检查同类型触发冷却
+            if not self._check_trigger_type_cooldown(target_id, "ai"):
+                return None
+
+            # 检查消息内容是否重复
+            if self._check_message_content_duplicate(target_id, message):
+                return None
+
             if not self._is_duplicate(target_id, message):
                 self._record_trigger(target_id)
+                self._record_trigger_by_type(target_id, "ai")
+                self._record_sent_message(target_id, message)
 
                 if self._log_triggers:
                     logger.info(f"[主动聊天] [AI触发] target={target_id}: {message}")

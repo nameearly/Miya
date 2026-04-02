@@ -41,6 +41,7 @@ from memory.core import (
     MemoryBackend,
     JsonBackend,
 )
+from memory.cognitive_engine import CognitiveEngine, get_cognitive_engine
 
 import logging
 from typing import Dict, List, Optional, Any, Union

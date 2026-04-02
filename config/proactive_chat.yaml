@@ -370,3 +370,17 @@ proactive_chat:
     max_failures: 3
     failure_cooldown: 300
     fallback_action: "skip"
+
+  # 触发类型冷却配置（秒）
+  # 避免同类型触发在短时间内重复
+  trigger_type_cooldown:
+    context: 60      # 上下文触发后60秒内不再触发
+    emotion: 120    # 情绪触发后120秒内不再触发
+    keyword: 5     # 关键词触发后5秒内不再触发
+    time: 300       # 时间触发后5分钟内不再触发（时段内只发一次）
+    check_in: 1800  # 主动关怀后30分钟内不再触发
+    ai: 180         # AI触发后3分钟内不再触发
+
+  # 用户刚发送消息后的冷却（秒）
+  # 避免在用户刚说话后立即主动发言
+  user_message_cooldown: 5

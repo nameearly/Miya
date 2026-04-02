@@ -320,13 +320,12 @@ class MemoryBackend:
 
 
 class JsonBackend(MemoryBackend):
-    """JSON文件后端"""
+    """JSON文件后端 - 优化版"""
 
     def __init__(self, base_dir: Path):
         self.base_dir = base_dir
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
-        # 子目录
         self.dialogue_dir = base_dir / "dialogue"
         self.short_term_dir = base_dir / "short_term"
         self.long_term_dir = base_dir / "long_term"
@@ -342,15 +341,17 @@ class JsonBackend(MemoryBackend):
         ]:
             d.mkdir(parents=True, exist_ok=True)
 
-        # 索引文件
         self.index_file = base_dir / "index.json"
+        self.tag_index_file = base_dir / "tag_index.json"  # 倒排索引
         self._index: Dict[str, Dict] = {}
+        self._tag_index: Dict[str, Set[str]] = defaultdict(set)  # 倒排索引
+        self._query_cache: Dict[str, List[MemoryItem]] = {}  # 查询缓存
+        self._cache_max_size = 100
 
-        # 加载索引
         self._load_index()
+        self._load_tag_index()
 
     def _load_index(self):
-        """加载索引"""
         if self.index_file.exists():
             try:
                 with open(self.index_file, "r", encoding="utf-8") as f:
@@ -360,21 +361,37 @@ class JsonBackend(MemoryBackend):
                 self._index = {}
 
     def _save_index(self):
-        """保存索引"""
         try:
             with open(self.index_file, "w", encoding="utf-8") as f:
                 json.dump(self._index, f, ensure_ascii=False, indent=2)
         except Exception as e:
             logger.error(f"保存索引失败: {e}")
 
+    def _load_tag_index(self):
+        if self.tag_index_file.exists():
+            try:
+                with open(self.tag_index_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    for tag, ids in data.items():
+                        self._tag_index[tag] = set(ids)
+            except Exception as e:
+                logger.warning(f"加载倒排索引失败: {e}")
+
+    def _save_tag_index(self):
+        try:
+            data = {tag: list(ids) for tag, ids in self._tag_index.items()}
+            with open(self.tag_index_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"保存倒排索引失败: {e}")
+
     def _get_dir(self, level: Union[MemoryLevel, List[MemoryLevel]]) -> Path:
         """获取层级目录"""
-        # 如果是列表，取第一个元素
         if isinstance(level, list):
             if level:
                 level = level[0]
             else:
-                level = MemoryLevel.LONG_TERM  # 默认值
+                level = MemoryLevel.LONG_TERM
 
         dirs = {
             MemoryLevel.DIALOGUE: self.dialogue_dir,
@@ -402,13 +419,11 @@ class JsonBackend(MemoryBackend):
         try:
             file_path = self._get_file_path(memory)
 
-            # 异步写入
             async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
                 await f.write(
                     json.dumps(memory.to_dict(), ensure_ascii=False, indent=2)
                 )
 
-            # 更新索引
             self._index[memory.id] = {
                 "level": memory.level.value,
                 "user_id": memory.user_id,
@@ -416,13 +431,41 @@ class JsonBackend(MemoryBackend):
                 "tags": memory.tags,
                 "created_at": memory.created_at,
                 "file_path": str(file_path),
+                "priority": memory.priority,
             }
             self._save_index()
+
+            for tag in memory.tags:
+                self._tag_index[tag].add(memory.id)
+            self._save_tag_index()
+
+            self._invalidate_cache()
 
             return True
         except Exception as e:
             logger.error(f"保存记忆失败: {e}")
             return False
+
+    def _invalidate_cache(self):
+        """使查询缓存失效"""
+        self._query_cache.clear()
+
+    def _get_cache_key(self, query: MemoryQuery) -> str:
+        """生成缓存键"""
+        return f"{query.user_id or ''}:{query.level}:{query.query}:{query.limit}"
+
+    def get_from_cache(self, query: MemoryQuery) -> Optional[List[MemoryItem]]:
+        """从缓存获取"""
+        key = self._get_cache_key(query)
+        return self._query_cache.get(key)
+
+    def put_to_cache(self, query: MemoryQuery, results: List[MemoryItem]):
+        """放入缓存"""
+        if len(self._query_cache) >= self._cache_max_size:
+            first_key = next(iter(self._query_cache))
+            del self._query_cache[first_key]
+        key = self._get_cache_key(query)
+        self._query_cache[key] = results
 
     async def load(self, memory_id: str) -> Optional[MemoryItem]:
         """加载记忆"""
@@ -452,18 +495,38 @@ class JsonBackend(MemoryBackend):
             if file_path.exists():
                 file_path.unlink()
 
+            tags = self._index[memory_id].get("tags", [])
+            for tag in tags:
+                self._tag_index[tag].discard(memory_id)
+
             del self._index[memory_id]
             self._save_index()
+            self._save_tag_index()
+            self._invalidate_cache()
             return True
         except Exception as e:
             logger.error(f"删除记忆失败: {e}")
             return False
 
     async def query(self, query: MemoryQuery) -> List[MemoryItem]:
-        """查询记忆"""
-        results = []
+        """查询记忆 - 优化版"""
+        cached = self.get_from_cache(query)
+        if cached is not None:
+            return cached
 
-        # 决定搜索范围
+        results = []
+        candidate_ids: Optional[Set[str]] = None
+
+        if query.tags:
+            candidate_ids = self._get_candidates_by_tags(query.tags, query.any_tag)
+
+        if query.user_id:
+            user_candidates = self._get_candidates_by_user(query.user_id)
+            if candidate_ids is None:
+                candidate_ids = user_candidates
+            else:
+                candidate_ids = candidate_ids & user_candidates
+
         search_levels = (
             [query.levels]
             if query.levels
@@ -477,9 +540,12 @@ class JsonBackend(MemoryBackend):
             if not level_dir.exists():
                 continue
 
-            # 遍历所有文件
             for file_path in level_dir.rglob("*.json"):
                 try:
+                    memory_id = file_path.stem
+                    if candidate_ids and memory_id not in candidate_ids:
+                        continue
+
                     async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
                         content = await f.read()
                         data = json.loads(content)
@@ -490,11 +556,33 @@ class JsonBackend(MemoryBackend):
                 except:
                     continue
 
-        # 排序
         results = self._sort_results(results, query.sort_by, query.sort_order)
+        paginated = results[query.offset : query.offset + query.limit]
 
-        # 分页
-        return results[query.offset : query.offset + query.limit]
+        self.put_to_cache(query, paginated)
+        return paginated
+
+    def _get_candidates_by_tags(self, tags: List[str], any_tag: bool) -> Set[str]:
+        """通过标签获取候选ID"""
+        if any_tag:
+            result = set()
+            for tag in tags:
+                result.update(self._tag_index.get(tag, set()))
+            return result
+        else:
+            sets = [self._tag_index.get(tag, set()) for tag in tags]
+            if not sets:
+                return set()
+            result = sets[0]
+            for s in sets[1:]:
+                result = result & s
+            return result
+
+    def _get_candidates_by_user(self, user_id: str) -> Set[str]:
+        """通过用户获取候选ID"""
+        return {
+            mid for mid, info in self._index.items() if info.get("user_id") == user_id
+        }
 
     def _match_query(self, memory: Optional[MemoryItem], query: MemoryQuery) -> bool:
         """检查是否匹配查询"""
@@ -626,6 +714,7 @@ class MiyaMemoryCore:
         neo4j_client=None,
         short_term_ttl: int = 3600,
         enable_backup: bool = True,
+        embedding_client=None,
     ):
         self.data_dir = Path(data_dir)
         self.redis_client = redis_client
@@ -633,16 +722,14 @@ class MiyaMemoryCore:
         self.neo4j_client = neo4j_client
         self.short_term_ttl = short_term_ttl
         self.enable_backup = enable_backup
+        self.embedding_client = embedding_client
 
-        # 后端
         self.backend: JsonBackend = JsonBackend(self.data_dir)
 
-        # 内存缓存
         self._cache: Dict[str, MemoryItem] = {}
         self._user_index: Dict[str, Set[str]] = defaultdict(set)
         self._tag_index: Dict[str, Set[str]] = defaultdict(set)
 
-        # 统计
         self._stats = {
             "total_stored": 0,
             "total_retrieved": 0,
@@ -650,22 +737,104 @@ class MiyaMemoryCore:
             "total_updated": 0,
         }
 
-        # 加载索引
         self._loaded = False
+        self._config = None
+        self._load_config()
 
         logger.info(f"[MiyaMemoryCore] 初始化完成, 数据目录: {self.data_dir}")
 
-    async def initialize(self):
-        """初始化"""
+    def _load_config(self):
+        """从配置文件加载记忆系统配置"""
+        try:
+            from core.text_loader import get_text
+
+            config = get_text("memory_system")
+            if config and "auto_classify" in config:
+                self._config = config["auto_classify"]
+            else:
+                self._config = self._get_default_classify_config()
+        except Exception:
+            self._config = self._get_default_classify_config()
+
+    def _get_default_classify_config(self):
+        """获取默认分类配置"""
+        return {
+            "strong_emotions": [
+                "愤怒",
+                "恐惧",
+                "惊讶",
+                "悲伤",
+                "极度兴奋",
+                "创伤",
+                "崩溃",
+                "绝望",
+            ],
+            "long_term_events": [
+                "生日",
+                "纪念日",
+                "毕业",
+                "结婚",
+                "工作面试",
+                "重要决定",
+                "医疗诊断",
+                "法律事务",
+                "分手",
+                "离婚",
+            ],
+            "important_keywords": {
+                "birthday": 0.9,
+                "生日": 0.9,
+                "电话": 0.85,
+                "手机": 0.85,
+                "邮箱": 0.85,
+                "email": 0.85,
+                "地址": 0.8,
+                "住址": 0.8,
+                "微信号": 0.9,
+                "QQ号": 0.85,
+                "名字": 0.8,
+                "我叫": 0.8,
+                "过敏": 0.9,
+                "病史": 0.9,
+                "病情": 0.9,
+                "疾病": 0.85,
+            },
+            "priority_tags": [
+                "重要",
+                "必须记住",
+                "关键信息",
+                "personal",
+                "contact",
+                "health",
+            ],
+            "dialogue_strong_emotions": ["极度愉快", "深度悲伤", "强烈焦虑", "崩溃"],
+            "significance_threshold_for_long_term": 0.8,
+            "dialogue_significance_threshold": 0.6,
+            "manual_significance_threshold": 0.4,
+        }
+
+    def reload_config(self):
+        """重新加载配置"""
+        self._load_config()
+
+    async def initialize(self, lazy_load: bool = True):
+        """初始化 - 支持延迟加载
+
+        Args:
+            lazy_load: True=延迟加载(按需), False=启动时全量加载
+        """
         if self._loaded:
             return
 
-        logger.info("[MiyaMemoryCore] 加载索引...")
+        logger.info("[MiyaMemoryCore] 初始化索引...")
 
-        # 加载所有ID
+        if lazy_load:
+            self._loaded = True
+            logger.info("[MiyaMemoryCore] 延迟加载模式初始化完成")
+            return
+
         all_ids = await self.backend.get_all_ids()
 
-        # 构建索引
         for memory_id in all_ids:
             memory = await self.backend.load(memory_id)
             if memory:
@@ -675,7 +844,7 @@ class MiyaMemoryCore:
                     self._tag_index[tag].add(memory_id)
 
         self._loaded = True
-        logger.info(f"[MiyaMemoryCore] 加载完成, 缓存: {len(self._cache)} 条")
+        logger.info(f"[MiyaMemoryCore] 全量加载完成, 缓存: {len(self._cache)} 条")
 
     # ==================== 核心存储方法 ====================
 
@@ -828,78 +997,51 @@ class MiyaMemoryCore:
         emotional_tone: str = "",
         event_type: str = "",
     ) -> MemoryLevel:
-        """自动分类 - 基于内容、情感、重要性和事件类型"""
+        """自动分类 - 配置化版本"""
+        cfg = self._config
         content_lower = content.lower()
 
-        # 基于主观重要性 - 高重要性直接长期存储
-        if significance >= 0.8:
+        threshold = cfg.get("significance_threshold_for_long_term", 0.8)
+        if significance >= threshold:
             return MemoryLevel.LONG_TERM
 
-        # 基于情感强度 - 强烈情感（无论正面负面）倾向长期记忆
-        strong_emotions = ["愤怒", "恐惧", "惊讶", "悲伤", "极度兴奋", "创伤"]
-        if any(emotion in emotional_tone for emotion in strong_emotions):
-            if significance >= 0.6:  # 情感强且重要性中等以上
-                return MemoryLevel.LONG_TERM
-
-        # 基于事件类型 - 某些事件类型应被长期记住
-        long_term_events = [
-            "生日",
-            "纪念日",
-            "毕业",
-            "结婚",
-            "工作面试",
-            "重要决定",
-            "医疗诊断",
-            "法律事务",
-        ]
-        if any(event in event_type for event in long_term_events):
-            return MemoryLevel.LONG_TERM
-
-        # 重要信息 -> 长期（保持原有逻辑作为后备）
-        important_tags = [
-            "生日",
-            "电话",
-            "邮箱",
-            "地址",
-            "记住",
-            "我叫",
-            "喜欢",
-            "讨厌",
-            "important",
-            "contact",
-            "birthday",
-        ]
-        if tags:
-            for tag in tags:
-                if any(kw in tag.lower() for kw in important_tags):
+        for emotion in cfg.get("strong_emotions", []):
+            if emotion in emotional_tone:
+                if significance >= 0.5:
                     return MemoryLevel.LONG_TERM
 
-        for kw in ["生日", "电话", "邮箱", "地址", "记住", "我叫", "喜欢"]:
-            if kw in content:
+        for event in cfg.get("long_term_events", []):
+            if event in event_type:
                 return MemoryLevel.LONG_TERM
 
-        # 对话 -> 对话层（但带有强情感或高重要性的对话可能升级）
+        for keyword, keyword_importance in cfg.get("important_keywords", {}).items():
+            if keyword in content_lower:
+                if significance >= keyword_importance - 0.2:
+                    return MemoryLevel.LONG_TERM
+
+        priority_tags = set(cfg.get("priority_tags", []))
+        if tags and any(t in priority_tags for t in tags):
+            return MemoryLevel.LONG_TERM
+
         if source == MemorySource.DIALOGUE:
-            # 如果对话有高重要性或强烈情感，考虑升级到长期
-            if significance >= 0.6 or any(
-                emotion in emotional_tone
-                for emotion in ["极度愉快", "深度悲伤", "强烈焦虑"]
-            ):
+            if significance >= cfg.get("dialogue_significance_threshold", 0.6):
                 return MemoryLevel.LONG_TERM
+            for e in cfg.get("dialogue_strong_emotions", []):
+                if e in emotional_tone:
+                    return MemoryLevel.LONG_TERM
             return MemoryLevel.DIALOGUE
 
-        # 自动提取 -> 短期
         if source == MemorySource.AUTO_EXTRACT:
             return MemoryLevel.SHORT_TERM
 
-        # 手动添加 -> 长期（但低重要性可能放在短期）
         if source == MemorySource.MANUAL:
-            if significance >= 0.4:
-                return MemoryLevel.LONG_TERM
-            else:
-                return MemoryLevel.SHORT_TERM
+            threshold = cfg.get("manual_significance_threshold", 0.4)
+            return (
+                MemoryLevel.LONG_TERM
+                if significance >= threshold
+                else MemoryLevel.SHORT_TERM
+            )
 
-        # 默认短期
         return MemoryLevel.SHORT_TERM
 
     # ==================== 检索方法 ====================
@@ -1175,19 +1317,15 @@ class MiyaMemoryCore:
         if not memory:
             return False
 
-        # 从缓存移除
         if memory_id in self._cache:
             del self._cache[memory_id]
 
-        # 从索引移除
         self._user_index[memory.user_id].discard(memory_id)
         for tag in memory.tags:
             self._tag_index[tag].discard(memory_id)
 
-        # 从后端删除
         await self.backend.delete(memory_id)
 
-        # 从Redis删除
         if self.redis_client:
             try:
                 self.redis_client.delete(f"memory:{memory_id}")
@@ -1236,6 +1374,124 @@ class MiyaMemoryCore:
                 pass
 
         logger.info(f"[MiyaMemoryCore] 归档了 {count} 条旧对话")
+        return count
+
+    async def store_batch(self, memories: List[MemoryItem]) -> List[str]:
+        """
+        批量存储记忆
+
+        Args:
+            memories: MemoryItem列表
+
+        Returns:
+            记忆ID列表
+        """
+        memory_ids = []
+        for memory in memories:
+            try:
+                memory_id = await self.store(
+                    content=memory.content,
+                    level=memory.level,
+                    priority=memory.priority,
+                    tags=memory.tags,
+                    user_id=memory.user_id,
+                    session_id=memory.session_id,
+                    platform=memory.platform,
+                    source=memory.source,
+                    role=memory.role,
+                    metadata=memory.metadata,
+                )
+                memory_ids.append(memory_id)
+            except Exception as e:
+                logger.warning(f"[MiyaMemoryCore] 批量存储失败: {e}")
+                memory_ids.append("")
+        return memory_ids
+
+    async def delete_batch(self, memory_ids: List[str]) -> int:
+        """
+        批量删除记忆
+
+        Args:
+            memory_ids: 记忆ID列表
+
+        Returns:
+            成功删除的数量
+        """
+        count = 0
+        for memory_id in memory_ids:
+            try:
+                if await self.delete(memory_id):
+                    count += 1
+            except Exception as e:
+                logger.warning(f"[MiyaMemoryCore] 批量删除失败: {e}")
+        return count
+
+    async def start_cleanup_task(self, interval: int = 3600):
+        """启动定时清理任务"""
+        import asyncio
+
+        async def cleanup_loop():
+            while True:
+                try:
+                    await self.delete_expired()
+                    await self.decay_low_priority_memories(days=90, threshold=0.3)
+                except Exception as e:
+                    logger.warning(f"[MiyaMemoryCore] 清理任务异常: {e}")
+                await asyncio.sleep(interval)
+
+        asyncio.create_task(cleanup_loop())
+        logger.info(f"[MiyaMemoryCore] 定时清理任务已启动, 间隔: {interval}秒")
+
+    async def decay_low_priority_memories(
+        self, days: int = 90, threshold: float = 0.3
+    ) -> int:
+        """
+        优先级衰减 - 长时间未访问的低优先级记忆降低优先级
+
+        Args:
+            days: 天数阈值
+            threshold: 优先级阈值
+
+        Returns:
+            衰减的记录数
+        """
+        count = 0
+        cutoff = datetime.now() - timedelta(days=days)
+
+        all_ids = await self.backend.get_all_ids()
+
+        for memory_id in all_ids[:1000]:  # 每次处理最多1000条
+            try:
+                memory = await self.get_by_id(memory_id)
+                if not memory:
+                    continue
+
+                # 只处理低优先级的长期记忆
+                if memory.level != MemoryLevel.LONG_TERM:
+                    continue
+                if memory.priority >= threshold:
+                    continue
+
+                # 检查最后访问时间
+                last_access = getattr(memory, "last_accessed", None)
+                if not last_access:
+                    continue
+
+                try:
+                    last_time = datetime.fromisoformat(last_access)
+                    if (datetime.now() - last_time).days >= days:
+                        # 降低优先级
+                        memory.priority = max(0.1, memory.priority - 0.1)
+                        await self.backend.save(memory)
+                        count += 1
+                except:
+                    pass
+            except:
+                pass
+
+        if count > 0:
+            logger.info(f"[MiyaMemoryCore] 优先级衰减了 {count} 条记忆")
+
         return count
 
     # ==================== 用户画像 ====================
@@ -1411,7 +1667,7 @@ class MiyaMemoryCore:
             logger.warning(f"[MiyaMemoryCore] 备份失败: {e}")
 
     def _simple_embed(self, text: str) -> List[float]:
-        """生成伪向量"""
+        """生成伪向量（回退用）"""
         import math
         from hashlib import sha256
 
@@ -1429,6 +1685,71 @@ class MiyaMemoryCore:
 
         return vector
 
+    async def get_embedding(self, text: str) -> Optional[List[float]]:
+        """获取文本的语义向量"""
+        if self.embedding_client:
+            try:
+                if hasattr(self.embedding_client, "encode"):
+                    return await self.embedding_client.encode(text)
+                elif hasattr(self.embedding_client, "get_embedding"):
+                    return await self.embedding_client.get_embedding(text)
+                elif hasattr(self.embedding_client, "embeddings") and hasattr(
+                    self.embedding_client.embeddings, "create"
+                ):
+                    resp = await self.embedding_client.embeddings.create(
+                        model="text-embedding-3-small", input=text
+                    )
+                    return resp.data[0].embedding
+            except Exception as e:
+                logger.warning(f"生成嵌入向量失败: {e}")
+
+        return self._simple_embed(text)
+
+    async def semantic_search(
+        self,
+        query: str,
+        user_id: Optional[str] = None,
+        limit: int = 10,
+        threshold: float = 0.7,
+    ) -> List[MemoryItem]:
+        """语义搜索 - 基于向量相似度"""
+        if not self.milvus_client:
+            logger.warning("Milvus未初始化，使用关键词搜索")
+            return await self.retrieve(
+                query=query,
+                user_id=user_id,
+                limit=limit,
+            )
+
+        try:
+            query_vector = await self.get_embedding(query)
+
+            results = self.milvus_client.search(
+                query_vector=query_vector,
+                top_k=limit * 2,
+            )
+
+            memory_ids = [
+                r["id"] for r in results if r.get("distance", 0) >= (1 - threshold)
+            ]
+
+            memories = []
+            for mid in memory_ids:
+                memory = await self.get_by_id(mid)
+                if memory and (not user_id or memory.user_id == user_id):
+                    memories.append(memory)
+                    if len(memories) >= limit:
+                        break
+
+            return memories
+        except Exception as e:
+            logger.warning(f"语义搜索失败: {e}")
+            return await self.retrieve(
+                query=query,
+                user_id=user_id,
+                limit=limit,
+            )
+
 
 # ==================== 全局单例 ====================
 
@@ -1440,6 +1761,7 @@ async def get_memory_core(
     redis_client=None,
     milvus_client=None,
     neo4j_client=None,
+    embedding_client=None,
 ) -> MiyaMemoryCore:
     """获取全局核心实例"""
     global _global_core
@@ -1450,6 +1772,7 @@ async def get_memory_core(
             redis_client=redis_client,
             milvus_client=milvus_client,
             neo4j_client=neo4j_client,
+            embedding_client=embedding_client,
         )
         await _global_core.initialize()
 
