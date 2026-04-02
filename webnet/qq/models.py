@@ -56,6 +56,13 @@ class QQMessage:
     reply: Optional[ReplySegment] = None
     files: List[FileSegment] = field(default_factory=list)
     has_media: bool = False
+    # 新增：图片分析相关属性
+    image_data: Optional[bytes] = None
+    image_info: Optional[Dict[str, Any]] = None
+    image_analysis: Optional[Dict[str, Any]] = None
+    has_image: bool = False
+    # 新增：图片分析回复（用于直接发送而不经过decision_hub）
+    image_response: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -98,6 +105,8 @@ class QQMessage:
             if self.files
             else [],
             "has_media": self.has_media,
+            "has_image": self.has_image,
+            "image_analysis": self.image_analysis,
         }
 
     @classmethod

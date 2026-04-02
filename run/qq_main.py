@@ -290,6 +290,8 @@ class MiyaQQ:
                 if qq_message.files
                 else [],
                 "has_media": qq_message.has_media,
+                "has_image": qq_message.has_image,
+                "image_analysis": qq_message.image_analysis,
             }
 
             # 【修复】检查消息是否已有图片分析回复，如果有则直接发送

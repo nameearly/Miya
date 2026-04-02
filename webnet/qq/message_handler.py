@@ -677,16 +677,23 @@ class QQMessageHandler:
 
         try:
             # 使用图片处理器处理
+            logger.info("[QQMessageHandler] 调用 image_handler.handle_image_message")
             enhanced_message = await self.image_handler.handle_image_message(event)
+            logger.info(
+                f"[QQMessageHandler] handle_image_message 返回: {enhanced_message}"
+            )
             if enhanced_message:
                 logger.info(f"[QQMessageHandler] 图片消息处理完成")
                 return enhanced_message
             else:
                 # 即使图片处理失败，也返回基本消息
+                logger.warning(
+                    "[QQMessageHandler] handle_image_message 返回 None，提取基本消息"
+                )
                 return await self._extract_basic_message(event)
 
         except Exception as e:
-            logger.error(f"[QQMessageHandler] 图片消息处理失败: {e}")
+            logger.error(f"[QQMessageHandler] 图片消息处理失败: {e}", exc_info=True)
             # 失败时返回基本消息
             return await self._extract_basic_message(event)
 

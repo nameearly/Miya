@@ -1,68 +1,86 @@
 """
-简化版QQ图片处理器
-仅使用智谱GLM-4.6V-Flash视觉模型API
+统一版QQ图片处理器
+使用模型池中的多模型视觉分析系统，支持智能路由和故障转移
 """
 
 import asyncio
 import base64
 import hashlib
-import httpx
 import logging
 import os
-import tempfile
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+# 禁用SSL警告
+warnings.filterwarnings("ignore", message="Unverified HTTPS request")
+
+import httpx
+
 from .models import QQMessage
-from core.system_config import get_api_url
 
 logger = logging.getLogger(__name__)
 
+MULTI_MODEL_AVAILABLE = False
+_vision_analyzer = None
+
+
+async def get_vision_analyzer():
+    """获取视觉分析器实例"""
+    global _vision_analyzer
+    if _vision_analyzer is None:
+        from core.multi_vision_analyzer import get_vision_analyzer as _get_analyzer
+
+        _vision_analyzer = await _get_analyzer()
+    return _vision_analyzer
+
 
 class QQImageHandler:
-    """简化版QQ图片处理器 - 仅使用视觉模型API"""
+    """统一版QQ图片处理器 - 使用多模型视觉分析系统"""
 
-    def __init__(self, qq_net):
+    def __init__(self, qq_net, personality=None):
         self.qq_net = qq_net
-        # 注释: 图片分析结果缓存已迁移到QQCacheManager
-        # 旧实现: self.image_cache = {}, cache_expire_hours = 24
-        # 新实现: 使用 qq_net.cache_manager.set_image_analysis() 和 get_image_analysis()
+        self.personality = personality
+        # 禁用SSL验证（Windows环境需要）
+        self.http_client = httpx.AsyncClient(
+            timeout=60.0, verify=False, headers={"User-Agent": "Miya/1.0"}
+        )
+        self._analyzer = None
+        logger.info("[QQImageHandler] 初始化完成 - 使用多模型视觉分析系统")
 
-        # HTTP客户端
-        self.http_client = httpx.AsyncClient(timeout=30.0)
-
-        logger.info("[QQImageHandler] 初始化完成 - 仅使用智谱GLM-4.6V-Flash视觉模型")
+    async def _get_analyzer(self):
+        """获取或初始化视觉分析器"""
+        if self._analyzer is None:
+            self._analyzer = await get_vision_analyzer()
+        return self._analyzer
 
     def configure(self, enable_ocr: bool = False, enable_ai_analysis: bool = True):
-        """配置处理器 - 仅支持视觉模型"""
-        logger.info("[QQImageHandler] 配置完成 - 使用GLM-4.6V-Flash视觉模型")
+        """配置处理器"""
+        logger.info("[QQImageHandler] 配置完成 - 使用多模型视觉分析系统")
 
     async def handle_image_message(self, event: Dict) -> Optional[QQMessage]:
         """处理图片消息"""
         try:
-            # 提取图片信息
             image_info = self._extract_image_info(event)
             if not image_info:
                 logger.warning("[QQImageHandler] 无法提取图片信息")
                 return None
 
-            # 下载图片
             image_data = await self._download_image(image_info)
             if not image_data:
                 logger.warning("[QQImageHandler] 图片下载失败")
                 return None
 
-            # 计算图片ID用于缓存
             image_id = hashlib.md5(image_data).hexdigest()
 
-            # 使用视觉模型分析图片
-            analysis_result = await self._analyze_with_vision_model(image_data)
+            analysis_result = await self._analyze_image(image_data)
 
-            # 缓存分析结果到QQCacheManager
             self._cache_image(image_id, analysis_result)
 
-            # 构建增强的消息对象
+            # 自动保存表情包
+            await self._auto_save_emoji(event, image_data, image_info)
+
             message = QQMessage.from_dict(event)
             message.image_data = image_data
             message.image_info = image_info
@@ -76,6 +94,38 @@ class QQImageHandler:
         except Exception as e:
             logger.error(f"[QQImageHandler] 处理图片消息失败: {e}", exc_info=True)
             return None
+
+    async def _auto_save_emoji(self, event: Dict, image_data: bytes, image_info: Dict):
+        """自动保存用户发送的表情包"""
+        try:
+            from utils.auto_emoji_saver import get_auto_emoji_saver
+
+            # 获取发送者ID
+            user_id = event.get("user_id") or event.get("sender_id")
+            if not user_id:
+                logger.debug("[QQImageHandler] 无法获取用户ID，跳过自动保存")
+                return
+
+            # 获取自动保存服务
+            auto_saver = get_auto_emoji_saver()
+            if not auto_saver or not auto_saver.is_enabled():
+                logger.debug("[QQImageHandler] 自动保存功能未启用")
+                return
+
+            # 执行自动保存
+            save_result = await auto_saver.auto_save_emoji(
+                user_id=user_id, image_data=image_data, image_info=image_info
+            )
+
+            if save_result.get("success"):
+                logger.info(f"[QQImageHandler] 用户 {user_id} 的表情包已自动保存")
+            else:
+                logger.debug(
+                    f"[QQImageHandler] 自动保存跳过: {save_result.get('message', '')}"
+                )
+
+        except Exception as e:
+            logger.warning(f"[QQImageHandler] 自动保存表情包失败: {e}")
 
     def _extract_image_info(self, event: Dict) -> Optional[Dict[str, Any]]:
         """从事件中提取图片信息"""
@@ -104,12 +154,10 @@ class QQImageHandler:
             return None
 
         try:
-            # 如果是本地文件
             if file_path and os.path.exists(file_path):
                 with open(file_path, "rb") as f:
                     return f.read()
 
-            # 如果是网络URL
             if url:
                 response = await self.http_client.get(url)
                 if response.status_code == 200:
@@ -126,307 +174,129 @@ class QQImageHandler:
             logger.error(f"[QQImageHandler] 下载图片失败: {e}")
             return None
 
-    async def _analyze_with_vision_model(self, image_data: bytes) -> Dict[str, Any]:
-        """使用视觉模型分析图片"""
+    async def _analyze_image(self, image_data: bytes) -> Dict[str, Any]:
+        """使用多模型视觉分析系统分析图片"""
         try:
-            # 从模型池获取视觉模型
-            from core.model_pool import get_model_pool
+            analyzer = await self._get_analyzer()
 
-            pool = get_model_pool()
-            vision_model = pool.select_model_for_task("image_description", "qq")
+            from core.multi_vision_analyzer import ImageAnalysisResult
 
-            if not vision_model or not vision_model.api_key:
-                logger.error("[QQImageHandler] 模型池无可用视觉模型")
-                return self._create_empty_result()
+            result = await analyzer.analyze_image(image_data, max_retries=3)
 
-            # 将图片转换为base64
-            image_base64 = base64.b64encode(image_data).decode("utf-8")
-
-            # 根据模型提供商调用不同的API
-            model_name = vision_model.name
-            if "glm" in model_name.lower():
-                result = await self._call_zhipu_vision_api(
-                    vision_model.api_key, image_base64
-                )
-            elif "qwen" in model_name.lower():
-                result = await self._call_qwen_vision_api(
-                    vision_model.api_key, image_base64, model_name
-                )
-            elif "gpt" in model_name.lower():
-                result = await self._call_openai_vision_api(
-                    vision_model.api_key, image_base64, model_name
-                )
+            if result.success:
+                return {
+                    "success": True,
+                    "has_text": result.has_text,
+                    "text": result.text or "",
+                    "text_confidence": result.text_confidence,
+                    "description": result.description or "",
+                    "labels": result.labels or [],
+                    "nsfw_score": result.nsfw_score,
+                    "size_kb": result.size_kb,
+                    "format": result.format,
+                    "model": result.model_used,
+                    "provider": result.provider,
+                    "confidence": result.confidence,
+                    "processing_time_ms": result.processing_time_ms,
+                    "api_call": result.model_used != "简单分析",
+                }
             else:
-                # 默认使用智谱
-                result = await self._call_zhipu_vision_api(
-                    vision_model.api_key, image_base64
-                )
+                return self._create_fallback_result(image_data)
+
+        except Exception as e:
+            logger.error(f"[QQImageHandler] 视觉模型分析失败: {e}")
+            return self._create_fallback_result(image_data)
+
+    def _create_fallback_result(self, image_data: bytes) -> Dict[str, Any]:
+        """创建fallback结果（使用本地简单分析）"""
+        try:
+            from PIL import Image
+            import io
+            import json
+            from pathlib import Path
+
+            # 加载配置
+            config_path = (
+                Path(__file__).parent.parent.parent / "config" / "text_config.json"
+            )
+            with open(config_path, "r", encoding="utf-8") as f:
+                full_config = json.load(f)
+            vision_config = full_config.get("vision", {})
+            simple_config = vision_config.get("simple_analysis", {})
+            fallback_config = vision_config.get("fallback", {})
+
+            image_format = self._detect_image_format(image_data)
+            size_kb = len(image_data) / 1024
+
+            image = Image.open(io.BytesIO(image_data))
+            width, height = image.size
+
+            desc_template = simple_config.get(
+                "description_template",
+                "这是一张{format}格式的图片，尺寸为{width}×{height}像素，大小约{size_kb:.1f}KB。",
+            )
+            description = desc_template.format(
+                format=image_format.upper(), width=width, height=height, size_kb=size_kb
+            )
+
+            labels = [image_format.upper(), "图片"]
+            size_tags = simple_config.get("size_tags", {})
+            if width <= 200 and height <= 200:
+                labels.append(size_tags.get("small", "小图"))
+            elif width >= 800 or height >= 800:
+                labels.append(size_tags.get("large", "大图"))
 
             return {
                 "success": True,
                 "has_text": False,
                 "text": "",
                 "text_confidence": 0.0,
-                "description": result.get("description", ""),
-                "labels": result.get("labels", []),
-                "nsfw_score": result.get("nsfw_score", 0.0),
+                "description": description,
+                "labels": labels,
+                "nsfw_score": 0.0,
+                "size_kb": size_kb,
+                "format": image_format,
+                "model": "本地分析",
+                "provider": "local",
+                "confidence": 0.3,
+                "api_call": False,
+            }
+
+        except Exception as e:
+            logger.warning(f"[QQImageHandler] Fallback分析也失败: {e}")
+            import json
+            from pathlib import Path
+
+            config_path = (
+                Path(__file__).parent.parent.parent / "config" / "text_config.json"
+            )
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    full_config = json.load(f)
+                fallback_desc = (
+                    full_config.get("vision", {})
+                    .get("fallback", {})
+                    .get("api_error", "图片分析失败")
+                )
+                error_desc = fallback_desc.format(error=str(e)[:50])
+            except:
+                error_desc = "图片分析失败"
+
+            return {
+                "success": False,
+                "has_text": False,
+                "text": "",
+                "text_confidence": 0.0,
+                "description": error_desc,
+                "labels": ["分析失败"],
+                "nsfw_score": 0.0,
                 "size_kb": len(image_data) / 1024,
-                "format": self._detect_image_format(image_data),
-                "model": vision_model.name,
-                "provider": vision_model.provider.value,
-                "api_call": True,
-            }
-
-        except Exception as e:
-            logger.error(f"[QQImageHandler] 视觉模型分析失败: {e}")
-            return self._create_empty_result()
-
-    async def _call_zhipu_vision_api(
-        self, api_key: str, image_base64: str
-    ) -> Dict[str, Any]:
-        """调用智谱视觉API"""
-        url = get_api_url("zhipu", "/chat/completions")
-
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-
-        payload = {
-            "model": "glm-4.6v-flash",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "请详细描述这张图片的内容，包括场景、物体、颜色、文字等所有你能看到的信息。",
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
-                            },
-                        },
-                    ],
-                }
-            ],
-            "max_tokens": 500,
-        }
-
-        try:
-            response = await self.http_client.post(url, json=payload, headers=headers)
-
-            if response.status_code == 200:
-                result = response.json()
-                content = (
-                    result.get("choices", [{}])[0].get("message", {}).get("content", "")
-                )
-
-                # 简单提取标签
-                labels = self._extract_labels_from_description(content)
-
-                return {
-                    "description": content,
-                    "labels": labels,
-                    "nsfw_score": 0.0,
-                    "confidence": 0.8,
-                }
-            elif response.status_code == 429:
-                # 限流错误，返回友好的错误消息
-                logger.warning(f"[QQImageHandler] 智谱API限流，返回备选分析")
-                return {
-                    "description": "图片已收到，但智谱视觉模型当前访问量过大，暂时无法详细分析。这是一个通用图片，包含视觉元素。",
-                    "labels": ["图片", "视觉内容"],
-                    "nsfw_score": 0.0,
-                    "confidence": 0.3,
-                }
-            else:
-                logger.error(
-                    f"[QQImageHandler] 智谱API调用失败: {response.status_code}, {response.text}"
-                )
-                return {
-                    "description": f"图片分析服务暂时不可用（HTTP {response.status_code}）",
-                    "labels": ["服务不可用"],
-                    "nsfw_score": 0.0,
-                    "confidence": 0.0,
-                }
-
-        except Exception as e:
-            logger.error(f"[QQImageHandler] 智谱API调用异常: {e}")
-            return {
-                "description": f"API调用异常: {str(e)}",
-                "labels": ["网络错误"],
-                "nsfw_score": 0.0,
+                "format": "unknown",
+                "model": "none",
+                "provider": "none",
                 "confidence": 0.0,
+                "api_call": False,
             }
-
-    async def _call_qwen_vision_api(
-        self, api_key: str, image_base64: str, model_name: str
-    ) -> Dict[str, Any]:
-        """调用Qwen视觉API"""
-        url = get_api_url("siliconflow", "/chat/completions")
-
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-
-        payload = {
-            "model": model_name,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "请详细描述这张图片的内容，包括场景、物体、颜色、文字等所有你能看到的信息。",
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
-                            },
-                        },
-                    ],
-                }
-            ],
-            "max_tokens": 500,
-        }
-
-        try:
-            response = await self.http_client.post(url, json=payload, headers=headers)
-
-            if response.status_code == 200:
-                result = response.json()
-                content = (
-                    result.get("choices", [{}])[0].get("message", {}).get("content", "")
-                )
-                labels = self._extract_labels_from_description(content)
-                return {
-                    "description": content,
-                    "labels": labels,
-                    "nsfw_score": 0.0,
-                    "confidence": 0.8,
-                }
-            else:
-                logger.error(
-                    f"[QQImageHandler] Qwen API调用失败: {response.status_code}"
-                )
-                return {
-                    "description": f"图片分析服务暂时不可用（HTTP {response.status_code}）",
-                    "labels": ["服务不可用"],
-                    "nsfw_score": 0.0,
-                    "confidence": 0.0,
-                }
-        except Exception as e:
-            logger.error(f"[QQImageHandler] Qwen API调用异常: {e}")
-            return {
-                "description": f"API调用异常: {str(e)}",
-                "labels": ["网络错误"],
-                "nsfw_score": 0.0,
-                "confidence": 0.0,
-            }
-
-    async def _call_openai_vision_api(
-        self, api_key: str, image_base64: str, model_name: str
-    ) -> Dict[str, Any]:
-        """调用OpenAI视觉API"""
-        url = get_api_url("openai", "/chat/completions")
-
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-
-        payload = {
-            "model": model_name,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "请详细描述这张图片的内容，包括场景、物体、颜色、文字等所有你能看到的信息。",
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
-                            },
-                        },
-                    ],
-                }
-            ],
-            "max_tokens": 500,
-        }
-
-        try:
-            response = await self.http_client.post(url, json=payload, headers=headers)
-
-            if response.status_code == 200:
-                result = response.json()
-                content = (
-                    result.get("choices", [{}])[0].get("message", {}).get("content", "")
-                )
-                labels = self._extract_labels_from_description(content)
-                return {
-                    "description": content,
-                    "labels": labels,
-                    "nsfw_score": 0.0,
-                    "confidence": 0.8,
-                }
-            else:
-                logger.error(
-                    f"[QQImageHandler] OpenAI API调用失败: {response.status_code}"
-                )
-                return {
-                    "description": f"图片分析服务暂时不可用（HTTP {response.status_code}）",
-                    "labels": ["服务不可用"],
-                    "nsfw_score": 0.0,
-                    "confidence": 0.0,
-                }
-        except Exception as e:
-            logger.error(f"[QQImageHandler] OpenAI API调用异常: {e}")
-            return {
-                "description": f"API调用异常: {str(e)}",
-                "labels": ["网络错误"],
-                "nsfw_score": 0.0,
-                "confidence": 0.0,
-            }
-
-    def _extract_labels_from_description(self, description: str) -> list:
-        """从描述中提取标签"""
-        labels = []
-
-        # 简单关键词匹配
-        keywords = {
-            "人物": ["人", "人脸", "肖像", "表情", "动作", "人物"],
-            "自然": ["风景", "山水", "树木", "花草", "天空", "海洋", "自然"],
-            "建筑": ["建筑", "房屋", "大楼", "桥梁", "道路", "建筑"],
-            "动物": ["动物", "宠物", "鸟类", "鱼类", "昆虫", "动物"],
-            "文字": ["文字", "文本", "文字内容", "文档", "截图", "文字"],
-            "食物": ["食物", "餐饮", "水果", "蔬菜", "饮料", "食物"],
-            "车辆": ["车辆", "汽车", "飞机", "船只", "交通", "车辆"],
-            "电子": ["电子", "设备", "屏幕", "界面", "科技", "电子"],
-        }
-
-        description_lower = description.lower()
-
-        for category, words in keywords.items():
-            for word in words:
-                if word in description_lower:
-                    labels.append(category)
-                    break
-
-        # 去重
-        labels = list(set(labels))
-
-        # 如果没有标签，添加通用标签
-        if not labels:
-            labels = ["图片", "视觉内容"]
-
-        return labels
 
     def _detect_image_format(self, image_data: bytes) -> str:
         """检测图片格式"""
@@ -447,38 +317,16 @@ class QQImageHandler:
             return "unknown"
 
     def _cache_image(self, image_id: str, image_analysis: Dict[str, Any]):
-        """缓存图片分析结果到QQCacheManager
-
-        注意: 本方法现在缓存分析结果而非原始图片数据
-        旧实现将原始图片数据存储在内存中 (低效)
-        新实现只缓存分析结果 (高效)
-        """
+        """缓存图片分析结果"""
         try:
-            self.qq_net.cache_manager.set_image_analysis(image_id, image_analysis)
+            if (
+                hasattr(self, "qq_net")
+                and self.qq_net
+                and hasattr(self.qq_net, "cache_manager")
+            ):
+                self.qq_net.cache_manager.set_image_analysis(image_id, image_analysis)
         except Exception as e:
             logger.warning(f"[QQImageHandler] 缓存分析结果失败: {e}")
-
-    # 已删除 _cleanup_cache() 方法
-    # 原因: 缓存过期管理已由QQCacheManager自动处理
-    # 旧实现需要手动检查并删除过期项
-    # 新实现由cache_manager统一处理，更高效且正确
-
-    def _create_empty_result(self) -> Dict[str, Any]:
-        """创建空结果"""
-        return {
-            "success": False,
-            "has_text": False,
-            "text": "",
-            "text_confidence": 0.0,
-            "description": "分析失败",
-            "labels": [],
-            "nsfw_score": 0.0,
-            "size_kb": 0,
-            "format": "unknown",
-            "model": "none",
-            "provider": "none",
-            "api_call": False,
-        }
 
     async def cleanup(self):
         """清理资源"""

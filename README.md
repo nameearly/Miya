@@ -9522,56 +9522,56 @@ stats = await manager.generate_ai_tags_for_all(batch_size=3, delay=2.0)
 
 ### 2. 模型池配置
 
-视觉模型通过统一模型池管理，支持自动故障转移。
+视觉模型通过统一模型池管理（`config/multi_model_config.json`），支持自动故障转移。
 
-#### 2.1 unified_model_config.yaml 配置
+#### 2.1 multi_model_config.json 配置
 
-```yaml
-models:
-  # 视觉模型配置
-  siliconflow_qwen_vl:
-    name: "Qwen/Qwen2.5-VL-72B-Instruct"
-    type: "vision"
-    provider: "openai"
-    base_url: "https://api.siliconflow.cn/v1"
-    api_key: "${SILICONFLOW_API_KEY}"
-    capabilities:
-      - "image_description"
-      - "vision_understanding"
-  
-  zhipu_glm_46v_flash:
-    name: "glm-4.6v-flash"
-    type: "vision"
-    provider: "zhipu"
-    base_url: "https://open.bigmodel.cn/api/paas/v4"
-    api_key: "${ZHIPU_API_KEY}"
-    capabilities:
-      - "image_description"
-  
-  minicpm_v:
-    name: "openbmb/MiniCPM-V-2_6"
-    type: "vision"
-    provider: "openai"
-    base_url: "https://api.siliconflow.cn/v1"
-    api_key: "${SILICONFLOW_API_KEY}"
-    capabilities:
-      - "image_description"
+```json
+{
+  "models": {
+    "siliconflow_qwen_vl": {
+      "name": "Qwen/Qwen3-VL-32B-Instruct",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-xxx",
+      "type": "vision",
+      "description": "Qwen3-VL-32B 视觉模型（硅基流动）",
+      "capabilities": ["image_description", "vision_understanding"],
+      "cost_per_1k_tokens": {"input": 0.002, "output": 0.002},
+      "latency": "medium",
+      "quality": "excellent"
+    },
+    "zhipu_glm_46v_flash": {
+      "name": "glm-4.6v-flash",
+      "provider": "zhipu",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "api_key": "xxx",
+      "type": "vision",
+      "description": "智谱GLM-4.6V-Flash 视觉模型",
+      "capabilities": ["image_description", "vision_understanding"],
+      "latency": "fast",
+      "quality": "good"
+    }
+  },
+  "routing_strategy": {
+    "image_description": {
+      "primary": "siliconflow_qwen_vl",
+      "secondary": "zhipu_glm_46v_flash",
+      "fallback": "simple_analysis"
+    }
+  }
+}
 ```
 
 #### 2.2 模型路由配置
 
-```python
-# core/model_pool.py
-default_routes = {
-    "image_description": ModelRoute(
-        task_type="image_description",
-        primary="siliconflow_qwen_vl",    # 优先使用付费模型
-        secondary="minicpm_v",
-        fallback="zhipu_glm_46v_flash",
-    ),
-    ...
-}
-```
+模型池自动从配置加载路由策略，支持三层故障转移：
+
+| 层级 | 说明 |
+|------|------|
+| primary | 主模型，优先使用 |
+| secondary | 备用模型，主模型失败时使用 |
+| fallback | 兜底方案，所有模型失败时使用本地简单分析 |
 
 ### 3. 文本配置系统
 
@@ -9960,9 +9960,116 @@ formatted = greeting.format(name="弥娅")
 
 ## 更新日志 (重要更新)
 
-### v4.3.x 更新内容
+### v4.3.1 更新内容 (2026-04-02)
+
+#### 模型池系统重构 (统一配置入口)
+
+弥娅 v4.3.1 对模型池系统进行了重大重构，实现所有模型配置统一管理：
+
+##### 1. 统一配置文件
+
+所有模型（文本模型、视觉模型、OCR等）的配置统一放在 `config/multi_model_config.json`：
+
+```json
+{
+  "models": {
+    "deepseek_v3_official": {
+      "name": "deepseek-chat",
+      "provider": "openai",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key": "sk-xxx",
+      "type": "text",
+      "capabilities": ["simple_chat", "chinese_understanding", "tool_calling"]
+    },
+    "siliconflow_qwen_vl": {
+      "name": "Qwen/Qwen3-VL-32B-Instruct",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-xxx",
+      "type": "vision",
+      "capabilities": ["image_description", "vision_understanding"]
+    },
+    "zhipu_glm_46v_flash": {
+      "name": "glm-4.6v-flash",
+      "provider": "zhipu",
+      "type": "vision",
+      "capabilities": ["image_description", "vision_understanding"]
+    }
+  },
+  "routing_strategy": {
+    "image_description": {
+      "primary": "siliconflow_qwen_vl",
+      "secondary": "zhipu_glm_46v_flash",
+      "fallback": "simple_analysis"
+    }
+  }
+}
+```
+
+##### 2. 模型类型支持
+
+| type 值 | 说明 |
+|---------|------|
+| `text` | 文本模型（默认） |
+| `vision` | 视觉模型 |
+| `ocr` | OCR 模型 |
+| `safety` | 安全模型 |
+| `local` | 本地模型 |
+
+##### 3. 路由策略配置
+
+在 `routing_strategy` 中配置任务路由：
+
+- `simple_chat` - 简单对话
+- `complex_reasoning` - 复杂推理
+- `chinese_understanding` - 中文理解
+- `image_description` - 图片描述
+- 等等...
+
+每个任务支持 `primary`（主模型）、`secondary`（备用）、`fallback`（兜底）三层配置。
+
+##### 4. 核心模块说明
+
+| 模块 | 位置 | 说明 |
+|------|------|------|
+| ModelPool | `core/model_pool.py` | 统一模型池管理器 |
+| ModelConfig | `core/model_pool.py` | 模型配置数据类 |
+| ModelRoute | `core/model_pool.py` | 路由配置数据类 |
+| ModelProvider | `core/model_pool.py` | 提供商枚举 |
+| ModelType | `core/model_pool.py` | 模型类型枚举 |
+
+##### 5. 使用示例
+
+```python
+from core.model_pool import get_model_pool, ModelType, ModelProvider
+
+# 获取模型池单例
+pool = get_model_pool()
+
+# 获取所有模型
+all_models = pool.list_all_models()
+
+# 按类型获取
+vision_models = pool.get_models_by_type(ModelType.VISION)
+
+# 获取任务路由
+route = pool.get_route("image_description")
+
+# 为任务选择最佳模型
+model = pool.select_model_for_task("image_description", priority="quality")
+```
+
+##### 6. 清理冗余配置
+
+v4.3.1 清理了以下冗余：
+- ❌ 移除 `text_config.json` 中的 `vision` 配置块（视觉配置已移至 multi_model_config.json）
+- ❌ 移除 `model_pool.py` 中的硬编码视觉模型
+- ✅ 统一由 `multi_model_config.json` 管理
+
+---
 
 #### 图片识别与回复系统
+
 - 多模型视觉分析 (MultiVisionAnalyzer)
 - 模型池集成 (ModelPool)
 - AI人格化回复生成
@@ -9972,6 +10079,7 @@ formatted = greeting.format(name="弥娅")
 - 图片回复直接发送机制
 
 #### 智能表情包系统
+
 - 语义标签系统 (SemanticTagger)
 - 智能检索 (SmartEmojiManager)
 - 本地表情包支持
@@ -9979,6 +10087,7 @@ formatted = greeting.format(name="弥娅")
 - 拍一拍自动回复
 
 #### 配置系统
+
 - 统一文本配置 (text_config.json)
 - 模型池重构 (统一管理文本/视觉模型)
 - 配置文件冗余清理

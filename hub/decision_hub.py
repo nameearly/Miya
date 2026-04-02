@@ -370,7 +370,7 @@ class DecisionHub:
                         f"[决策层] [主动聊天] 发送到群 {group_id_to_send}: {result.message}"
                     )
                     if self.onebot_client:
-                        await self.onebot_client.send_group_msg(
+                        await self.onebot_client.send_group_message(
                             group_id_to_send, result.message
                         )
                 else:
@@ -381,7 +381,7 @@ class DecisionHub:
                         f"[决策层] [主动聊天] 发送到用户 {user_id_to_send}: {result.message}"
                     )
                     if self.onebot_client:
-                        await self.onebot_client.send_private_msg(
+                        await self.onebot_client.send_private_message(
                             user_id_to_send, result.message
                         )
 
@@ -547,8 +547,20 @@ class DecisionHub:
         """
         perception = message.content
 
-        # 提取感知信息
-        content = perception.get("content", perception.get("input", ""))
+        # 提取感知信息 - 处理图片等非文本消息
+        raw_content = perception.get("content", perception.get("input", ""))
+        # 如果是list（图片消息等），转换为字符串
+        if isinstance(raw_content, list):
+            content = ""
+            for item in raw_content:
+                if isinstance(item, dict):
+                    if item.get("type") == "image":
+                        content = "[图片]"
+                    elif item.get("type") == "text":
+                        content = item.get("data", {}).get("text", "")
+                        break
+        else:
+            content = raw_content
         sender_name = perception.get("sender_name", "用户")
         message_type = perception.get("message_type", "")
         # 兼容多种来源：source字段或platform字段
@@ -583,6 +595,18 @@ class DecisionHub:
         logger.warning(
             f"[决策层] ========== 命令检测 START ========== content={content[:30]}, personality={type(self.personality) if self.personality else None}"
         )
+
+        # 检查是否是图片消息并返回分析结果
+        has_image = perception.get("has_image", False)
+        image_analysis = perception.get("image_analysis")
+
+        if has_image and image_analysis and image_analysis.get("success"):
+            logger.info(
+                f"[决策层] 检测到图片消息，分析结果: {image_analysis.get('description', '')[:50]}"
+            )
+            # 将图片分析结果添加到上下文中
+            perception["_image_analysis"] = image_analysis
+
         quick_response = self._handle_quick_commands(content, platform, perception)
         if quick_response:
             logger.warning(
@@ -930,6 +954,19 @@ class DecisionHub:
             has_media = context.get("has_media", False)
             media_context = "\n[图片消息]" if has_media else ""
 
+            # 获取图片分析结果
+            image_analysis = context.get("image_analysis")
+            image_context = ""
+            if image_analysis and image_analysis.get("success"):
+                description = image_analysis.get("description", "")
+                labels = image_analysis.get("labels", [])
+                model = image_analysis.get("model", "未知")
+                image_context = f"\n[图片描述] {description}"
+                if labels:
+                    image_context += f"\n[图片标签] {', '.join(labels)}"
+                image_context += f"\n(分析模型: {model})"
+                logger.info(f"[决策层] 图片分析结果已添加到上下文: {description[:50]}")
+
             prompt_info = self.prompt_manager.build_full_prompt(
                 user_input=content,
                 memory_context=conversation_context,
@@ -957,6 +994,7 @@ class DecisionHub:
                     "reply_context": reply_context,
                     "files_context": files_context,
                     "media_context": media_context,
+                    "image_context": image_context,
                 },
             )
 

@@ -429,6 +429,7 @@ class PromptManager:
             reply_context = additional_context.get("reply_context", "")
             files_context = additional_context.get("files_context", "")
             media_context = additional_context.get("media_context", "")
+            image_context = additional_context.get("image_context", "")
 
             extra_context = ""
             if reply_context:
@@ -437,10 +438,14 @@ class PromptManager:
                 extra_context += files_context + "\n"
             if media_context:
                 extra_context += media_context + "\n"
+            if image_context:
+                extra_context += image_context + "\n"
 
             if extra_context:
                 user_prompt = extra_context + user_prompt
-                logger.info("[PromptManager] 已添加消息上下文（引用/文件/媒体）")
+                logger.info(
+                    "[PromptManager] 已添加消息上下文（引用/文件/媒体/图片分析）"
+                )
 
         return {"system": system_prompt, "user": user_prompt}
 

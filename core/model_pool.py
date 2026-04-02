@@ -11,15 +11,15 @@
 5. 预算控制和监控
 """
 
-import os
-import yaml
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union
+
 from dataclasses import dataclass, field
 from enum import Enum
-import os
+from dotenv import load_dotenv
 
 from core.system_config import get_api_url
 
@@ -120,6 +120,9 @@ class ModelPool:
         if self._initialized:
             return
 
+        # 加载环境变量
+        load_dotenv()
+
         self._project_root = Path(__file__).parent.parent
         self._config = {}
         self._models: Dict[str, ModelConfig] = {}
@@ -131,276 +134,112 @@ class ModelPool:
         self._initialized = True
 
     def _load_config(self):
-        """加载模型配置"""
+        """加载模型配置 - 优先从JSON文件加载"""
         try:
-            # 1. 首先加载JSON配置（multi_model_config.json，包含实际API密钥）
+            # 从 multi_model_config.json 加载模型配置
             json_config = self._load_json_config()
-
             if json_config:
                 self._config = json_config
-                self._parse_legacy_config(json_config)
-                logger.info("[ModelPool] 从JSON加载模型配置")
-
-                # 2. 尝试加载YAML配置作为补充（统一模型池配置）
-                yaml_config = self._load_yaml_config()
-                if yaml_config:
-                    # 合并YAML中的额外模型和路由
-                    self._merge_yaml_config(yaml_config)
-                    logger.info("[ModelPool] 合并YAML配置补充")
-
+                self._parse_json_config(json_config)
+                logger.info("[ModelPool] 从multi_model_config.json加载模型配置")
                 return
 
-            # 3. 如果没有JSON，尝试加载YAML配置
-            yaml_config = self._load_yaml_config()
-
-            if yaml_config:
-                self._config = yaml_config
-                self._parse_config(yaml_config)
-                logger.info("[ModelPool] 从YAML加载统一模型配置")
-                return
-
-            # 4. 使用默认配置
+            # 没有JSON则使用默认配置
             self._set_default_config()
-            logger.warning("[ModelPool] 使用默认模型配置")
+            logger.info("[ModelPool] 使用默认模型配置")
 
         except Exception as e:
             logger.error(f"[ModelPool] 加载配置失败: {e}")
             self._set_default_config()
 
-    def _load_yaml_config(self) -> Optional[Dict]:
-        """加载YAML配置"""
-        try:
-            yaml_paths = [
-                self._project_root / "config" / "unified_model_config.yaml",
-                self._project_root / "unified_model_config.yaml",
-            ]
-
-            for yaml_path in yaml_paths:
-                if yaml_path.exists():
-                    with open(yaml_path, "r", encoding="utf-8") as f:
-                        config = yaml.safe_load(f)
-
-                    logger.info(f"[ModelPool] 从 {yaml_path} 加载YAML配置")
-                    return config
-
-            return None
-
-        except Exception as e:
-            logger.error(f"[ModelPool] 加载YAML配置失败: {e}")
-            return None
-
     def _load_json_config(self) -> Optional[Dict]:
         """加载JSON配置"""
         try:
-            json_paths = [
-                self._project_root / "config" / "multi_model_config.json",
-                self._project_root / "multi_model_config.json",
-            ]
-
-            for json_path in json_paths:
-                if json_path.exists():
-                    with open(json_path, "r", encoding="utf-8") as f:
-                        config = json.load(f)
-
-                    logger.info(f"[ModelPool] 从 {json_path} 加载JSON配置")
-                    return config
-
+            json_path = self._project_root / "config" / "multi_model_config.json"
+            if json_path.exists():
+                with open(json_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                logger.info(f"[ModelPool] 从 {json_path} 加载JSON配置")
+                return config
             return None
-
         except Exception as e:
             logger.error(f"[ModelPool] 加载JSON配置失败: {e}")
             return None
 
-    def _parse_config(self, config: Dict):
-        """解析统一配置"""
+    def _parse_json_config(self, config: Dict):
+        """解析JSON配置"""
         try:
-            # 解析模型
             if "models" in config:
                 for model_id, model_data in config["models"].items():
-                    self._parse_model_config(model_id, model_data)
+                    # 优先使用配置的type字段
+                    type_str = model_data.get("type", "")
+                    if type_str == "vision":
+                        model_type = ModelType.VISION
+                    elif type_str == "ocr":
+                        model_type = ModelType.OCR
+                    elif type_str == "safety":
+                        model_type = ModelType.SAFETY
+                    elif type_str == "local":
+                        model_type = ModelType.LOCAL
+                    else:
+                        # 从capabilities推断类型
+                        capabilities = model_data.get("capabilities", [])
+                        if (
+                            "image_description" in capabilities
+                            or "vision_understanding" in capabilities
+                        ):
+                            model_type = ModelType.VISION
+                        elif (
+                            "text_extraction" in capabilities
+                            or "chinese_ocr" in capabilities
+                        ):
+                            model_type = ModelType.OCR
+                        elif (
+                            "content_safety" in capabilities
+                            or "nsfw_detection" in capabilities
+                        ):
+                            model_type = ModelType.SAFETY
+                        else:
+                            model_type = ModelType.TEXT
 
-            # 解析路由
-            if "model_routing" in config:
-                routing_config = config["model_routing"]
-
-                # 解析任务路由
-                if "tasks" in routing_config:
-                    for task_type, route_data in routing_config["tasks"].items():
-                        self._parse_route_config(task_type, route_data)
-
-                # 解析端配置
-                if "endpoints" in routing_config:
-                    for endpoint_id, endpoint_data in routing_config[
-                        "endpoints"
-                    ].items():
-                        self._parse_endpoint_config(endpoint_id, endpoint_data)
-
-            logger.info(f"[ModelPool] 解析完成，共 {len(self._models)} 个模型")
-
-        except Exception as e:
-            logger.error(f"[ModelPool] 解析配置失败: {e}")
-            raise
-
-    def _merge_yaml_config(self, yaml_config: Dict):
-        """合并YAML配置到已加载的JSON配置中
-
-        用于补充JSON中没有的模型和路由配置
-        """
-        try:
-            # 合并模型（只添加JSON中不存在的模型）
-            if "models" in yaml_config:
-                for model_id, model_data in yaml_config["models"].items():
-                    if model_id not in self._models:
-                        self._parse_model_config(model_id, model_data)
-                        logger.info(f"[ModelPool] 从YAML添加模型: {model_id}")
-
-            # 合并路由
-            if "model_routing" in yaml_config:
-                routing_config = yaml_config["model_routing"]
-
-                # 合并任务路由
-                if "tasks" in routing_config:
-                    for task_type, route_data in routing_config["tasks"].items():
-                        if task_type not in self._routes:
-                            self._parse_route_config(task_type, route_data)
-
-                # 合并端配置
-                if "endpoints" in routing_config:
-                    for endpoint_id, endpoint_data in routing_config[
-                        "endpoints"
-                    ].items():
-                        if endpoint_id not in self._endpoints:
-                            self._parse_endpoint_config(endpoint_id, endpoint_data)
-
-            logger.info(
-                f"[ModelPool] YAML配置合并完成，当前共 {len(self._models)} 个模型"
-            )
-
-        except Exception as e:
-            logger.error(f"[ModelPool] 合并YAML配置失败: {e}")
-
-    def _parse_model_config(self, model_id: str, model_data: Dict):
-        """解析单个模型配置"""
-        try:
-            # 处理API密钥的环境变量，支持 ${VAR} 和 ${VAR:-default} 格式
-            api_key = model_data.get("api_key", "")
-            if api_key and api_key.startswith("${") and api_key.endswith("}"):
-                env_var = api_key[2:-1]
-                if ":-" in env_var:
-                    var_name, default_value = env_var.split(":-", 1)
-                    api_key = os.getenv(var_name, default_value)
-                else:
-                    api_key = os.getenv(env_var, "")
-
-            base_url = model_data.get("base_url", "")
-            if base_url and base_url.startswith("${") and base_url.endswith("}"):
-                env_part = base_url[2:-1]
-                if ":-" in env_part:
-                    var_name, default_value = env_part.split(":-", 1)
-                    base_url = os.getenv(var_name, default_value)
-                else:
-                    base_url = os.getenv(env_part, "")
-
-            # 处理模型名称的环境变量
-            model_name = model_data.get("name", model_id)
-            if model_name and model_name.startswith("${") and model_name.endswith("}"):
-                env_part = model_name[2:-1]
-                if ":-" in env_part:
-                    var_name, default_value = env_part.split(":-", 1)
-                    model_name = os.getenv(var_name, default_value)
-                else:
-                    model_name = os.getenv(env_part, model_name)
-
-            # 创建模型配置
-            config = ModelConfig(
-                id=model_id,
-                name=model_name,
-                type=ModelType(model_data.get("type", "text")),
-                provider=ModelProvider(model_data.get("provider", "local")),
-                base_url=base_url or None,
-                api_key=api_key or None,
-                description=model_data.get("description", ""),
-                capabilities=model_data.get("capabilities", []),
-                cost_per_1k_tokens=model_data.get("cost_per_1k_tokens"),
-                latency=model_data.get("latency", "medium"),
-                quality=model_data.get("quality", "good"),
-                max_tokens=model_data.get("max_tokens", 4096),
-                max_image_size=model_data.get("max_image_size"),
-                supported_formats=model_data.get("supported_formats", []),
-                languages=model_data.get("languages", []),
-                use_gpu=model_data.get("use_gpu", False),
-                timeout_seconds=model_data.get("timeout_seconds", 30),
-                model_path=model_data.get("model_path"),
-            )
-
-            self._models[model_id] = config
-
-        except Exception as e:
-            logger.error(f"[ModelPool] 解析模型 {model_id} 失败: {e}")
-
-    def _parse_route_config(self, task_type: str, route_data: Dict):
-        """解析路由配置"""
-        try:
-            route = ModelRoute(
-                task_type=task_type,
-                primary=route_data.get("primary"),
-                secondary=route_data.get("secondary"),
-                fallback=route_data.get("fallback"),
-                cost_priority=route_data.get("cost_priority", 1.0),
-                speed_priority=route_data.get("speed_priority", 1.0),
-                quality_priority=route_data.get("quality_priority", 1.0),
-            )
-
-            self._routes[task_type] = route
-
-        except Exception as e:
-            logger.error(f"[ModelPool] 解析路由 {task_type} 失败: {e}")
-
-    def _parse_endpoint_config(self, endpoint_id: str, endpoint_data: Dict):
-        """解析端配置"""
-        try:
-            endpoint = EndpointConfig(
-                endpoint_id=endpoint_id,
-                enabled_models=endpoint_data.get("enabled_models", []),
-                default_models=endpoint_data.get("defaults", {}),
-            )
-
-            self._endpoints[endpoint_id] = endpoint
-
-        except Exception as e:
-            logger.error(f"[ModelPool] 解析端配置 {endpoint_id} 失败: {e}")
-
-    def _parse_legacy_config(self, config: Dict):
-        """解析旧的JSON配置"""
-        try:
-            # 解析模型
-            if "models" in config:
-                for model_id, model_data in config["models"].items():
-                    # 转换旧格式到新格式
-                    legacy_model = {
-                        "name": model_data.get("name", model_id),
-                        "type": "text",  # 旧配置只有文本模型
-                        "provider": model_data.get("provider", "openai"),
-                        "base_url": model_data.get("base_url", ""),
-                        "api_key": model_data.get("api_key", ""),
-                        "description": model_data.get("description", ""),
-                        "capabilities": model_data.get("capabilities", []),
-                        "cost_per_1k_tokens": model_data.get("cost_per_1k_tokens"),
-                        "latency": model_data.get("latency", "medium"),
-                        "quality": model_data.get("quality", "good"),
+                    # 确定提供商
+                    provider_name = model_data.get("provider", "openai")
+                    provider_map = {
+                        "openai": ModelProvider.OPENAI,
+                        "siliconflow": ModelProvider.SILICONFLOW,
+                        "zhipu": ModelProvider.ZHIPU,
+                        "deepseek": ModelProvider.DEEPSEEK,
                     }
+                    provider = provider_map.get(provider_name, ModelProvider.OPENAI)
 
-                    self._parse_model_config(model_id, legacy_model)
+                    model_config = ModelConfig(
+                        id=model_id,
+                        name=model_data.get("name", model_id),
+                        type=model_type,
+                        provider=provider,
+                        base_url=model_data.get("base_url", ""),
+                        api_key=model_data.get("api_key", ""),
+                        description=model_data.get("description", ""),
+                        capabilities=capabilities,
+                        cost_per_1k_tokens=model_data.get("cost_per_1k_tokens"),
+                        latency=model_data.get("latency", "medium"),
+                        quality=model_data.get("quality", "good"),
+                    )
+                    self._models[model_id] = model_config
 
-            # 解析路由
-            if "model_routing" in config:
-                for task_type, route_data in config["model_routing"].items():
-                    self._parse_route_config(task_type, route_data)
-
-            logger.info(f"[ModelPool] 解析旧配置完成，共 {len(self._models)} 个模型")
-
+            logger.info(f"[ModelPool] JSON配置解析完成，共 {len(self._models)} 个模型")
         except Exception as e:
-            logger.error(f"[ModelPool] 解析旧配置失败: {e}")
+            logger.error(f"[ModelPool] 解析JSON配置失败: {e}")
+
+    # YAML配置已废弃
+    def _load_yaml_config(self) -> Optional[Dict]:
+        """加载YAML配置 - 已废弃，统一使用默认配置"""
+        return None
+
+    # 以下方法已废弃，统一使用默认配置
+    # def _parse_config(self, config: Dict): ...
+    # def _merge_yaml_config(self, yaml_config: Dict): ...
+    # def _parse_legacy_config(self, config: Dict): ...
 
     def _set_default_config(self):
         """设置默认配置"""
@@ -422,6 +261,23 @@ class ModelPool:
                     ],
                     cost_per_1k_tokens={"input": 0.00014, "output": 0.00028},
                 ),
+                "qwen_27b": ModelConfig(
+                    id="qwen_27b",
+                    name="Qwen/Qwen3-30B-A3B",
+                    type=ModelType.TEXT,
+                    provider=ModelProvider.SILICONFLOW,
+                    base_url=os.getenv("SILICONFLOW_API_BASE")
+                    or get_api_url("siliconflow"),
+                    api_key=os.getenv("SILICONFLOW_API_KEY", ""),
+                    description="硅基流动 Qwen3-30B-A3B 高性能模型",
+                    capabilities=[
+                        "simple_chat",
+                        "chinese_understanding",
+                        "tool_calling",
+                        "reasoning",
+                    ],
+                    cost_per_1k_tokens={"input": 0.0003, "output": 0.0003},
+                ),
                 "paddleocr": ModelConfig(
                     id="paddleocr",
                     name="paddleocr",
@@ -432,41 +288,6 @@ class ModelPool:
                     languages=["ch", "en"],
                     use_gpu=False,
                     timeout_seconds=30,
-                ),
-                "zhipu_glm_46v_flash": ModelConfig(
-                    id="zhipu_glm_46v_flash",
-                    name="glm-4.6v-flash",
-                    type=ModelType.VISION,
-                    provider=ModelProvider.ZHIPU,
-                    base_url=os.getenv("ZHIPU_API_BASE") or get_api_url("zhipu"),
-                    api_key=os.getenv("ZHIPU_API_KEY", ""),
-                    description="智谱GLM-4.6V-Flash 视觉模型",
-                    capabilities=["image_description", "vision_understanding"],
-                    supported_formats=["jpg", "png", "gif", "webp"],
-                    max_tokens=800,
-                ),
-                "siliconflow_qwen_vl": ModelConfig(
-                    id="siliconflow_qwen_vl",
-                    name="Qwen/Qwen2.5-VL-72B-Instruct",
-                    type=ModelType.VISION,
-                    provider=ModelProvider.SILICONFLOW,
-                    base_url=os.getenv("SILICONFLOW_API_BASE")
-                    or get_api_url("siliconflow"),
-                    api_key=os.getenv("SILICONFLOW_API_KEY", ""),
-                    description="硅基流动 Qwen-VL 视觉模型",
-                    capabilities=["image_description", "vision_understanding"],
-                    supported_formats=["jpg", "png", "gif", "webp"],
-                    max_tokens=500,
-                ),
-                "minicpm_v": ModelConfig(
-                    id="minicpm_v",
-                    name="MiniCPM-V",
-                    type=ModelType.VISION,
-                    provider=ModelProvider.LOCAL,
-                    description="本地 MiniCPM-V 视觉模型",
-                    capabilities=["image_description", "vision_understanding"],
-                    supported_formats=["jpg", "png"],
-                    max_tokens=500,
                 ),
             }
 
@@ -488,9 +309,9 @@ class ModelPool:
                 ),
                 "image_description": ModelRoute(
                     task_type="image_description",
-                    primary="zhipu_glm_46v_flash",
-                    secondary="siliconflow_qwen_vl",
-                    fallback="minicpm_v",
+                    primary="siliconflow_qwen_vl",
+                    secondary="zhipu_glm_46v_flash",
+                    fallback="simple_analysis",
                 ),
             }
 
