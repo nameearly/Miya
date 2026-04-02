@@ -701,6 +701,16 @@ class DecisionHub:
 
         # 6. 生成响应（委托给响应生成器）
         content = perception.get("content", "")
+
+        # 【新增】手动检测定时任务关键词，直接调用工具
+        timer_result = await self._detect_and_process_timer_task(
+            perception, platform, content, user_id, sender_name
+        )
+        if timer_result:
+            logger.info(f"[决策层] 定时任务已处理: {timer_result[:50]}")
+            # 定时任务有结果，直接返回，不走AI
+            return timer_result
+
         response = await self._generate_response_cross_platform(
             content, platform, perception
         )
