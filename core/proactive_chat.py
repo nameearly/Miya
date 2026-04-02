@@ -25,25 +25,147 @@ logger = logging.getLogger(__name__)
 
 
 def load_config() -> dict:
-    """从 _base.yaml 加载主动聊天配置"""
+    """从 config/proactive_chat.yaml 加载主动聊天配置"""
     try:
-        from core.personality_loader import get_personality_loader
+        import yaml
+        from pathlib import Path
 
-        loader = get_personality_loader()
-        base_config = loader._load_base_config()
-        config = loader.get_proactive_chat_config(base_config)
+        config_path = Path(__file__).parent.parent / "config" / "proactive_chat.yaml"
 
-        if config:
-            logger.info("[主动聊天] 从 _base.yaml 加载配置成功")
-            return config
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                raw_config = yaml.safe_load(f)
+
+            if raw_config and "proactive_chat" in raw_config:
+                logger.info("[主动聊天] 从 config/proactive_chat.yaml 加载配置成功")
+                return _normalize_config(raw_config["proactive_chat"])
+            else:
+                logger.warning(
+                    "[主动聊天] config/proactive_chat.yaml 中无 proactive_chat 配置，使用默认配置"
+                )
+                return get_default_config()
         else:
-            logger.warning(
-                "[主动聊天] _base.yaml 中无 proactive_chat 配置，使用默认配置"
-            )
+            logger.warning("[主动聊天] config/proactive_chat.yaml 不存在，使用默认配置")
+            return get_default_config()
+    except ImportError:
+        logger.warning("[主动聊天] PyYAML 未安装，尝试从 _base.yaml 加载")
+        try:
+            from core.personality_loader import get_personality_loader
+
+            loader = get_personality_loader()
+            base_config = loader._load_base_config()
+            raw_config = loader.get_proactive_chat_config(base_config)
+
+            if raw_config:
+                logger.info("[主动聊天] 从 _base.yaml 加载配置成功")
+                return _normalize_config(raw_config)
+            else:
+                return get_default_config()
+        except Exception as e:
+            logger.warning(f"[主动聊天] 配置加载失败: {e}，使用默认配置")
             return get_default_config()
     except Exception as e:
         logger.warning(f"[主动聊天] 配置加载失败: {e}，使用默认配置")
         return get_default_config()
+
+
+def _normalize_config(raw: dict) -> dict:
+    """将 _base.yaml 的配置格式转换为代码期望的格式"""
+    default = get_default_config()
+
+    enabled = raw.get("enabled", default["enabled"])
+    quiet_hours = raw.get("quiet_hours", default["limits"]["quiet_hours"])
+    max_daily = raw.get("max_daily_messages", default["limits"]["max_daily_per_target"])
+
+    # 上下文触发
+    ctx_trigger = raw.get("context_trigger", {})
+    expectations = {}
+    raw_expectations = ctx_trigger.get("expectations", {})
+    if raw_expectations:
+        expectations["enabled"] = True
+        follow_responses = {}
+        for key, responses in raw_expectations.items():
+            follow_responses[key] = responses
+        expectations["follow_responses"] = follow_responses
+    else:
+        expectations = default["triggers"]["context"]
+
+    # 情绪感知
+    emotion_perc = raw.get("emotion_perception", {})
+    emotion_cfg = {
+        "enabled": emotion_perc.get(
+            "enabled", default["triggers"]["emotion"]["enabled"]
+        ),
+        "emotion_keywords": emotion_perc.get("emotion_keywords", {}),
+        "emotion_responses": emotion_perc.get("emotion_responses", {}),
+    }
+
+    # 关键词触发
+    kw_trigger = raw.get("keyword_trigger", {})
+    keyword_cfg = {
+        "enabled": kw_trigger.get("enabled", default["triggers"]["keyword"]["enabled"]),
+        "keywords": kw_trigger.get("keywords", []),
+        "responses": kw_trigger.get("responses", []),
+    }
+
+    # 主动关怀
+    check_in = raw.get("check_in", {})
+    check_in_cfg = {
+        "enabled": check_in.get("enabled", default["triggers"]["check_in"]["enabled"]),
+        "check_interval": check_in.get("check_interval", 3600),
+        "messages": check_in.get("messages", []),
+    }
+
+    # AI触发
+    ai_trigger = raw.get("ai_trigger", {})
+    ai_cfg = {
+        "enabled": ai_trigger.get("enabled", default["triggers"]["ai"]["enabled"]),
+        "cooldown": ai_trigger.get("cooldown", 300),
+        "check_interval": ai_trigger.get("check_interval", 60),
+        "max_per_hour": ai_trigger.get("max_per_hour", 3),
+        "system_prompt": ai_trigger.get("system_prompt", ""),
+    }
+
+    # 时间感知
+    time_aware = raw.get("time_awareness", {})
+    greetings = {}
+    if time_aware.get("enabled", True):
+        time_slots = time_aware.get("time_slots", {})
+        for slot_name, slot_data in time_slots.items():
+            greetings[slot_name] = {
+                "messages": [
+                    t
+                    for topic in slot_data.get("topics", [])
+                    for t in topic.get("templates", [])
+                ]
+            }
+    time_cfg = {
+        "enabled": time_aware.get("enabled", default["triggers"]["time"]["enabled"]),
+        "check_interval": raw.get("check_interval", 60),
+        "greetings": greetings,
+    }
+
+    return {
+        "enabled": enabled,
+        "triggers": {
+            "keyword": keyword_cfg,
+            "time": time_cfg,
+            "context": expectations,
+            "emotion": emotion_cfg,
+            "check_in": check_in_cfg,
+            "ai": ai_cfg,
+        },
+        "limits": {
+            "global_cooldown": 300,
+            "max_daily_per_target": max_daily,
+            "max_hourly_per_target": raw.get(
+                "max_hourly_messages", default["limits"]["max_hourly_per_target"]
+            ),
+            "duplicate_window": 60,
+            "quiet_hours": quiet_hours,
+            "quiet_hours_enabled": True,
+        },
+    }
 
 
 def get_default_config() -> dict:

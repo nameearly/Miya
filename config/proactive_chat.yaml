@@ -1,0 +1,372 @@
+# 弥娅主动聊天系统配置
+# 包含时间感知、情绪感知、关键词触发、上下文触发、AI触发
+# 支持所有终端：QQ群聊、QQ私聊、终端等
+proactive_chat:
+  # 基本配置
+  enabled: true
+  check_interval: 60  # 检查间隔（秒）
+  max_daily_messages: 10  # 每日最大消息数
+  quiet_hours: [23, 0, 1, 2, 3, 4, 5, 6]  # 静默时段
+
+  # 支持的终端类型
+  platforms:
+    - qq_group      # QQ群聊
+    - qq_private    # QQ私聊
+    - terminal      # 终端
+    - web           # Web API
+
+  # 上下文触发 - 行为期望跟进
+  context_trigger:
+    enabled: true
+    # 用户行为完成后的跟进回复
+    expectations:
+      吃完:
+        - "吃完了？好吃吗。"
+        - "吃饱了吗？"
+        - "吃得怎么样？"
+      睡完:
+        - "睡好了？怎么样？"
+        - "睡够了吗？"
+        - "休息好了吗？"
+      锻炼完:
+        - "锻炼完了？累吗。"
+        - "运动完啦？累不累？"
+        - "锻炼怎么样？"
+      看完:
+        - "看完了？怎么样。"
+        - "看完啦？感觉如何？"
+        - "怎么样？好看吗？"
+      看完医生:
+        - "看完了？医生怎么说。"
+        - "医生怎么说的？"
+        - "检查结果怎么样？"
+      醒来:
+        - "醒了？休息好了吗。"
+        - "睡醒啦？"
+        - "起来啦？"
+      回来:
+        - "回来了？今天怎么样。"
+        - "回来啦？"
+        - "到家了吗？"
+      下班:
+        - "下班了？今天辛苦了。"
+        - "下班啦？"
+        - "辛苦啦~"
+      放学:
+        - "放学啦？回家了吗？"
+        - "放学啦~"
+        - "今天学习怎么样？"
+      泡面好了:
+        - "泡面好了。去吃吧。"
+        - "泡面好了哦~快去吃吧"
+      default:
+        - "怎么样了？"
+        - "完成了吗？"
+        - "怎么样？"
+
+  # 情绪感知配置
+  emotion_perception:
+    enabled: true
+    sensitivity: "high"
+    inherit_emotions: true
+    
+    # 情绪关键词
+    emotion_keywords:
+      happy:
+        keywords: ["开心", "高兴", "快乐", "棒", "不错", "好", "喜欢", "爱", "兴奋", "激动", "爽", "舒服"]
+        response_strategy: "share_joy"
+      sad:
+        keywords: ["难过", "伤心", "失落", "沮丧", "失望", "郁闷", "低落", "抑郁", "想哭"]
+        response_strategy: "comfort"
+      tired:
+        keywords: ["累", "疲惫", "困", "疲劳", "困倦", "没精神", "没力气", "好累"]
+        response_strategy: "rest"
+      anxious:
+        keywords: ["焦虑", "担心", "紧张", "不安", "害怕", "恐惧"]
+        response_strategy: "calm"
+      angry:
+        keywords: ["生气", "愤怒", "恼火", "烦躁", "气愤", "不爽", "气"]
+        response_strategy: "soothe"
+      lonely:
+        keywords: ["孤独", "寂寞", "孤单", "一个人", "没人陪"]
+        response_strategy: "accompany"
+    
+    # 情绪回应
+    emotion_responses:
+      happy:
+        - "真好~我也很开心！"
+        - "哇，太好了！"
+        - "我也为你高兴！"
+        - "太好了！"
+      sad:
+        - "抱抱你~我在呢"
+        - "怎么啦？跟我说说"
+        - "难过的话，我陪你"
+        - "心疼你..."
+      tired:
+        - "辛苦了~休息一下吧"
+        - "累的话就休息，不用硬撑"
+        - "我陪你~"
+        - "累了就歇歇~"
+      anxious:
+        - "别担心，有我在"
+        - "先深呼吸，慢慢来"
+        - "我陪着你~"
+        - "放轻松~"
+      angry:
+        - "谁惹你生气啦？"
+        - "消消气~我在"
+        - "怎么啦？跟我说说"
+      lonely:
+        - "我一直都在~"
+        - "寂寞了吗？我陪你"
+        - "我在呢~"
+
+  # 关键词触发
+  keyword_trigger:
+    enabled: true
+    keywords:
+      - "在吗"
+      - "干嘛"
+      - "忙吗"
+      - "忙啥"
+      - "睡觉"
+      - "睡"
+      - "吃饭"
+      - "吃"
+      - "学习"
+      - "下班"
+      - "下班了"
+      - "放学"
+      - "回来"
+      - "回家"
+      - "起床"
+      - "醒了"
+      - "锻炼"
+      - "运动"
+    responses:
+      - "在的~有什么事吗？"
+      - "嗯呢，收到啦！"
+      - "怎么啦？"
+      - "我在的~"
+      - "怎么啦？想说啥？"
+
+  # 主动关怀
+  check_in:
+    enabled: true
+    check_interval: 3600
+    messages:
+      - "在干嘛呢？"
+      - "最近怎么样？"
+      - "有什么想聊的吗？"
+      - "有没有好好吃饭？"
+      - "睡得好吗？"
+      - "今天过得怎么样？"
+      - "在想什么呢？"
+
+  # AI触发 - AI自主判断
+  ai_trigger:
+    enabled: true
+    check_interval: 60
+    max_per_hour: 3
+    cooldown: 300
+    system_prompt: |
+      你需要判断是否应该主动和用户聊天。
+      聊天信息：
+      - 终端类型: {chat_type}
+      - 群名称: {group_name}
+      - 用户最后活跃: {last_active}
+      - 最近话题: {recent_topics}
+      
+      如果需要回复，请生成一句简短温暖的话（不超过20字）。
+      如果不需要回复，请回复"SKIP"。
+
+  # 时间感知配置
+  time_awareness:
+    enabled: true
+    inherit_check_in: true
+    time_slots:
+      morning:
+        start: 6
+        end: 9
+        greeting_keywords: ["早", "早上好", "早安"]
+        topics:
+          - category: "health"
+            weight: 0.3
+            templates: ["睡得好吗？", "今天感觉怎么样？"]
+          - category: "plan"
+            weight: 0.4
+            templates: ["今天有什么计划？", "今天要做什么？"]
+          - category: "mood"
+            weight: 0.3
+            templates: ["今天心情怎么样？", "新的一天开始了"]
+      
+      afternoon:
+        start: 12
+        end: 14
+        greeting_keywords: ["午", "午安", "下午好"]
+        topics:
+          - category: "health"
+            weight: 0.4
+            templates: ["吃过午饭了吗？", "休息一下吧"]
+          - category: "work"
+            weight: 0.3
+            templates: ["下午工作顺利吗？", "工作累了吗？"]
+          - category: "mood"
+            weight: 0.3
+            templates: ["下午心情怎么样？", "午休了吗？"]
+      
+      evening:
+        start: 17
+        end: 21
+        greeting_keywords: ["晚", "晚上好", "傍晚"]
+        topics:
+          - category: "health"
+            weight: 0.3
+            templates: ["吃过晚饭了吗？", "今天累吗？"]
+          - category: "summary"
+            weight: 0.4
+            templates: ["今天过得怎么样？", "今天有什么收获吗？"]
+          - category: "plan"
+            weight: 0.3
+            templates: ["明天有什么计划？", "晚上有什么安排？"]
+      
+      night:
+        start: 21
+        end: 6
+        greeting_keywords: ["晚安", "夜深了", "该睡了"]
+        topics:
+          - category: "health"
+            weight: 0.5
+            templates: ["该休息了", "早点睡吧", "晚安"]
+          - category: "reflection"
+            weight: 0.3
+            templates: ["今天辛苦了", "好好休息"]
+          - category: "tomorrow"
+            weight: 0.2
+            templates: ["明天见", "做个好梦"]
+
+  # 兴趣学习配置
+  interest_learning:
+    enabled: true
+    inherit_interests: true
+    categories:
+      health:
+        name: "健康"
+        keywords: ["累", "困", "休息", "睡觉", "健康", "身体"]
+        weight: 0.9
+        topics: ["睡眠", "饮食", "运动", "休息"]
+      diet:
+        name: "饮食"
+        keywords: ["吃", "饭", "饿", "渴", "咖啡", "茶"]
+        weight: 0.7
+        topics: ["早餐", "午餐", "晚餐", "零食", "饮料"]
+      hobbies:
+        name: "爱好"
+        keywords: ["游戏", "小说", "代码", "编程", "学习", "看书"]
+        weight: 0.8
+        topics: ["游戏进度", "学习进展", "创作灵感"]
+      work:
+        name: "工作"
+        keywords: ["工作", "上班", "下班", "开会", "项目", "任务"]
+        weight: 0.8
+        topics: ["工作进度", "工作压力", "工作成就"]
+      relationships:
+        name: "人际关系"
+        keywords: ["朋友", "家人", "同学", "同事", "聊天"]
+        weight: 0.6
+        topics: ["朋友近况", "家庭关系", "社交活动"]
+    
+    learning_params:
+      decay_days: 30
+      max_interests: 20
+      min_confidence: 0.3
+  
+  # 上下文感知配置
+  context_awareness:
+    enabled: true
+    inherit_context: true
+    context_types:
+      activity:
+        name: "活动"
+        patterns:
+          - regex: "(去|上)(课|学|学校|教室)"
+            follow_ups: ["下课了？", "学完了？"]
+          - regex: "(去|上)(班|工作)"
+            follow_ups: ["下班了吗？", "今天工作怎么样？"]
+          - regex: "(去|吃)(饭|午餐|晚餐|早饭|早餐)"
+            follow_ups: ["吃完了？", "好吃吗？"]
+          - regex: "(去|做|锻炼|跑步|健身|打球)"
+            follow_ups: ["锻炼完了？", "累吗？"]
+          - regex: "(睡|休息|午休|小憩)"
+            follow_ups: ["醒了？", "休息好了吗？"]
+      
+      plan:
+        name: "计划"
+        patterns:
+          - regex: "(要|准备|打算|计划)(去|做)"
+            follow_ups: ["事情怎么样了？", "执行了吗？"]
+          - regex: "(待会|等会|一会儿)(去|做|吃)"
+            follow_ups: ["做了吗？", "怎么样了？"]
+      
+      reminder:
+        name: "提醒"
+        patterns:
+          - regex: "(\\d+)\\s*(分钟|分|秒|小时后)(?:提醒|叫我|通知)"
+            follow_ups: ["提醒时间到了", "时间到了"]
+          - regex: "(泡面|泡|煮|做)(?:好了|完了|完成)?(?:后|)?(?:提醒|叫我|通知)"
+            follow_ups: ["泡面好了", "该吃了"]
+    
+    follow_up_params:
+      max_delay_hours: 24
+      min_delay_minutes: 30
+  
+  # 生成策略配置
+  generation_strategies:
+    inherit_strategies: true
+    strategies:
+      time_based:
+        name: "时间驱动"
+        enabled: true
+        weight: 0.3
+        priority: 1
+      context_based:
+        name: "上下文驱动"
+        enabled: true
+        weight: 0.4
+        priority: 2
+      interest_based:
+        name: "兴趣驱动"
+        enabled: true
+        weight: 0.2
+        priority: 3
+      emotion_based:
+        name: "情绪驱动"
+        enabled: true
+        weight: 0.1
+        priority: 4
+    
+    selection_params:
+      min_confidence: 0.6
+      require_multiple_signals: true
+      fallback_strategy: "time_based"
+  
+  # 消息生成配置
+  message_generation:
+    inherit_quotes: true
+    format:
+      max_length: 100
+      min_length: 2
+      style: "natural"
+    
+    validation:
+      check重复: true
+      check敏感词: true
+      max重复次数: 3
+  
+  # 失败处理配置
+  failure_handling:
+    log_errors: true
+    max_failures: 3
+    failure_cooldown: 300
+    fallback_action: "skip"
