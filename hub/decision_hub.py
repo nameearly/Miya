@@ -1079,20 +1079,24 @@ class DecisionHub:
                 logger.warning(f"[意识感知] 注入失败: {e}")
                 logger.warning(traceback.format_exc())
 
-            # 【谛听】注入群聊上下文摘要
+            # 【工作记忆】注入折叠后的群聊上下文（前台折叠 + 后台全量）
             group_chat_context = ""
             if message_type == "group" and context.get("group_id"):
-                from memory.diteng_listener import get_diting
+                from memory.working_memory import get_working_memory
 
-                diteng = get_diting()
-                group_summary = diteng.get_group_context(
-                    str(context.get("group_id")), max_snippets=10
+                wm = get_working_memory()
+                group_id_str = str(context.get("group_id"))
+                wm.add_message(
+                    group_id=group_id_str,
+                    sender=context.get("sender_name", "未知"),
+                    content=content,
+                    is_at_bot=context.get("is_at_bot", False),
                 )
-                if group_summary:
-                    group_chat_context = (
-                        f"\n\n[群聊上下文] 以下是最近群里的对话：\n{group_summary}"
+                group_chat_context = wm.build_prompt_context(group_id_str)
+                if group_chat_context:
+                    logger.warning(
+                        f"[工作记忆] 注入群聊上下文: {len(group_chat_context)} 字符"
                     )
-                    logger.debug(f"[决策层] 注入群聊上下文: {len(group_summary)} 字符")
 
             prompt_info = self.prompt_manager.build_full_prompt(
                 user_input=content,

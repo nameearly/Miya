@@ -261,6 +261,66 @@ class DiTingListener:
 
         return "\n".join(lines)
 
+    def compress_and_archive(self, group_id: str) -> Optional[Dict]:
+        """
+        压缩并归档群聊消息（方案 A：定期压缩归档）
+
+        将内存中的原始消息压缩成摘要，返回摘要数据供外部存储到记忆系统。
+
+        Returns:
+            摘要字典，如果没有新消息则返回 None
+        """
+        snippets = self._group_snippets.get(group_id, [])
+        if not snippets:
+            return None
+
+        # 提取关键信息
+        senders = set(s.sender_name for s in snippets)
+        msg_count = len(snippets)
+        first_time = snippets[0].timestamp
+        last_time = snippets[-1].timestamp
+        duration = last_time - first_time
+
+        # 提取关键词
+        all_content = " ".join(s.content for s in snippets)
+        keywords = set()
+        for s in snippets:
+            for word in s.content:
+                if (
+                    len(word) >= 2
+                    and word not in "的了是在我你他她它有和或但而就也都这不"
+                ):
+                    keywords.add(word)
+
+        # 生成摘要
+        first_msg = snippets[0]
+        last_msg = snippets[-1]
+        summary = (
+            f"[{first_time:.0f}-{last_time:.0f}] "
+            f"群聊 {msg_count} 条消息，参与者：{', '.join(senders)}。"
+            f"开始：{first_msg.sender_name}: {first_msg.content[:30]}... "
+            f"最后：{last_msg.sender_name}: {last_msg.content[:30]}..."
+        )
+
+        result = {
+            "group_id": group_id,
+            "summary": summary,
+            "message_count": msg_count,
+            "senders": list(senders),
+            "start_time": first_time,
+            "end_time": last_time,
+            "duration_seconds": duration,
+            "keywords": list(keywords)[:20],
+            "raw_snippets": [
+                {"sender": s.sender_name, "content": s.content, "time": s.timestamp}
+                for s in snippets[-10:]  # 保留最后 10 条原始消息供查询
+            ],
+        }
+
+        logger.info(f"[谛听归档] group={group_id}, 压缩 {msg_count} 条消息 → 摘要")
+
+        return result
+
     def cleanup_expired(self, max_age_seconds: int = 3600):
         """清理过期数据"""
         cutoff = time.time() - max_age_seconds
