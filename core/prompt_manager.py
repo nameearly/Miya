@@ -438,7 +438,7 @@ class PromptManager:
             if awareness_text:
                 extra_context += awareness_text + "\n"
             if search_context:
-                extra_context += f"\n【联网搜索结果】\n{search_context}\n"
+                extra_context += f"\n【重要：以下是刚刚为你搜索到的实时信息，请直接使用这些信息回答用户的问题，不要再说“我去查一下”或“稍等”】\n{search_context}\n"
             if reply_context:
                 extra_context += reply_context + "\n"
             if files_context:
