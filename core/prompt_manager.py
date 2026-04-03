@@ -432,10 +432,13 @@ class PromptManager:
             image_context = additional_context.get("image_context", "")
             group_chat_context = additional_context.get("group_chat_context", "")
             awareness_text = additional_context.get("awareness_text", "")
+            search_context = additional_context.get("search_context", "")
 
             extra_context = ""
             if awareness_text:
                 extra_context += awareness_text + "\n"
+            if search_context:
+                extra_context += f"\n【联网搜索结果】\n{search_context}\n"
             if reply_context:
                 extra_context += reply_context + "\n"
             if files_context:
@@ -450,7 +453,7 @@ class PromptManager:
             if extra_context:
                 user_prompt = extra_context + user_prompt
                 logger.info(
-                    "[PromptManager] 已添加消息上下文（感知/引用/文件/媒体/图片/群聊）"
+                    "[PromptManager] 已添加消息上下文（感知/搜索/引用/文件/媒体/图片/群聊）"
                 )
 
         return {"system": system_prompt, "user": user_prompt}
