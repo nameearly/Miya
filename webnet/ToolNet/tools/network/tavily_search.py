@@ -78,14 +78,15 @@ class TavilyAISearch:
             payload["exclude_domains"] = exclude_domains
 
         try:
-            response = httpx.post(
-                self.base_url,
-                json=payload,
-                timeout=self.timeout,
-                headers={"Content-Type": "application/json"},
-            )
-            response.raise_for_status()
-            data = response.json()
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    self.base_url,
+                    json=payload,
+                    timeout=self.timeout,
+                    headers={"Content-Type": "application/json"},
+                )
+                response.raise_for_status()
+                data = response.json()
 
             # 解析结果
             results = []
