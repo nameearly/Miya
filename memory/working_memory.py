@@ -12,40 +12,26 @@ import logging
 import time
 import hashlib
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 
-# 低信息量词汇（短消息检测）
-LOW_INFO_WORDS = [
-    "不是",
-    "是的",
-    "对",
-    "对的对的",
-    "嗯",
-    "嗯嗯",
-    "哦",
-    "好",
-    "行",
-    "哈哈",
-    "呵呵",
-    "233",
-    "草",
-    "6",
-    "9",
-    "1",
-    "0",
-    "（",
-    "）",
-    "(",
-    ")",
-    "？",
-    "?",
-    "！",
-    "!",
-]
+def _load_working_memory_config() -> dict:
+    """从 text_config.json 加载工作记忆配置"""
+    try:
+        from pathlib import Path
+        import json
+
+        config_path = Path(__file__).parent.parent / "config" / "text_config.json"
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            return config.get("working_memory", {})
+    except Exception as e:
+        logger.warning(f"[工作记忆] 配置加载失败: {e}")
+    return {}
 
 
 @dataclass
@@ -78,93 +64,99 @@ class TopicDriftDetector:
     """话题漂移检测器"""
 
     def __init__(self, drift_threshold: float = 0.4, window_size: int = 3):
-        self.drift_threshold = drift_threshold  # 相似度低于此值判定为话题切换
-        self.window_size = window_size  # 检测窗口大小
-        self._keyword_history: Dict[str, List[set]] = defaultdict(list)
+        self.drift_threshold = drift_threshold
+        self.window_size = window_size
+        self._keyword_history: Dict[str, List[Set[str]]] = defaultdict(list)
+        self._stopwords: Set[str] = set()
+        self._load_stopwords()
 
-    def extract_keywords(self, text: str) -> set:
-        """提取文本关键词（简易版）"""
-        # 过滤停用词和低信息量词
-        stopwords = {
-            "的",
-            "了",
-            "是",
-            "在",
-            "我",
-            "你",
-            "他",
-            "她",
-            "它",
-            "有",
-            "和",
-            "与",
-            "或",
-            "但",
-            "而",
-            "就",
-            "都",
-            "也",
-            "不",
-            "没",
-            "很",
-            "太",
-            "最",
-            "更",
-            "还",
-            "又",
-            "这",
-            "那",
-            "什么",
-            "怎么",
-            "为什么",
-            "呢",
-            "啊",
-            "吧",
-            "（",
-            "）",
-            "(",
-            ")",
-            "【",
-            "】",
-            "[",
-            "]",
-            "！",
-            "!",
-            "？",
-            "?",
-            "。",
-            ".",
-            "，",
-            ",",
-            "…",
-            "…",
-            "一个",
-            "一些",
-            "一下",
-            "一直",
-            "一起",
-            "一样",
-            "对的对的",
-            "不是",
-            "是的",
-            "嗯嗯",
-            "哈哈",
-            "呵呵",
-        }
+    def _load_stopwords(self):
+        """从配置加载停用词"""
+        config = _load_working_memory_config()
+        self._stopwords = set(config.get("stopwords", []))
+        # 默认停用词（配置为空时使用）
+        if not self._stopwords:
+            self._stopwords = {
+                "的",
+                "了",
+                "是",
+                "在",
+                "我",
+                "你",
+                "他",
+                "她",
+                "它",
+                "有",
+                "和",
+                "与",
+                "或",
+                "但",
+                "而",
+                "就",
+                "都",
+                "也",
+                "不",
+                "没",
+                "很",
+                "太",
+                "最",
+                "更",
+                "还",
+                "又",
+                "这",
+                "那",
+                "什么",
+                "怎么",
+                "为什么",
+                "呢",
+                "啊",
+                "吧",
+                "（",
+                "）",
+                "(",
+                ")",
+                "【",
+                "】",
+                "[",
+                "]",
+                "！",
+                "!",
+                "？",
+                "?",
+                "。",
+                ".",
+                "，",
+                ",",
+                "…",
+                "一个",
+                "一些",
+                "一下",
+                "一直",
+                "一起",
+                "一样",
+                "对的对的",
+                "不是",
+                "是的",
+                "嗯嗯",
+                "哈哈",
+                "呵呵",
+            }
+
+    def extract_keywords(self, text: str) -> Set[str]:
+        """提取文本关键词（从配置加载停用词）"""
         words = []
         i = 0
         while i < len(text):
-            # 优先提取 2-4 字词语
             for length in range(4, 1, -1):
                 if i + length <= len(text):
                     word = text[i : i + length]
                     if (
-                        word not in stopwords
+                        word not in self._stopwords
                         and not word.isdigit()
                         and len(word.strip()) > 0
                     ):
                         words.append(word)
-                        i += length - 1  # 跳过已提取的字符
+                        i += length - 1
                         break
             i += 1
         return set(words)
@@ -338,13 +330,15 @@ class WorkingMemoryManager:
         }
 
     def _is_low_info(self, content: str) -> bool:
-        """检测是否为低信息量输入"""
+        """检测是否为低信息量输入（从配置加载）"""
         content = content.strip()
         # 短消息检测
         if len(content) <= 3:
             return True
-        # 低信息量词汇检测
-        for word in LOW_INFO_WORDS:
+        # 低信息量词汇检测（从配置加载）
+        config = _load_working_memory_config()
+        low_info_words = config.get("low_info_words", [])
+        for word in low_info_words:
             if content == word:
                 return True
         return False
