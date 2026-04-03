@@ -16,7 +16,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.system_config import get_api_url, get_constant
+from core.system_config import get_constant
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +53,9 @@ def _get_vision_prompt(prompt_type: str = "image_analysis") -> str:
 class VisionModelType(Enum):
     """视觉模型类型枚举"""
 
-    GLM_46V_FLASH = "glm-4.6v-flash"  # 智谱免费多模态模型
-    GLM_4V = "glm-4v"  # 智谱GLM-4V
-    QWEN_VL = "qwen-vl"  # 通义千问视觉模型
-    OPENAI_GPT4O = "gpt-4o-mini"  # OpenAI GPT-4o mini
-    DEEPSEEK_VISION = "deepseek-vision"  # DeepSeek视觉模型
-    SILICONFLOW_VL = "siliconflow-vl"  # 硅基流动视觉模型
-    LOCAL_CLIP = "clip-local"  # 本地CLIP模型（备选）
-    SIMPLE_ANALYSIS = "simple-analysis"  # 简单分析（无API）
+    SILICONFLOW_VL = "siliconflow-vl"  # 硅基流动/通义千问等视觉模型
+    ZHIPU_VL = "zhipu-vl"  # 智谱视觉模型
+    SIMPLE_ANALYSIS = "simple-analysis"  # 本地简单分析
 
 
 @dataclass
@@ -161,19 +156,27 @@ class MultiVisionAnalyzer:
                     logger.info(f"[MultiVisionAnalyzer] {model_id} 已禁用")
                     continue
 
-                # 从环境变量获取API密钥
-                api_key = os.getenv("SILICONFLOW_API_KEY", "")
+                # 从模型配置直接获取 API key（不再依赖环境变量）
+                api_key = model_cfg.get("api_key", "")
                 if not api_key:
                     logger.warning(f"[MultiVisionAnalyzer] {model_id} 无API密钥，跳过")
                     continue
 
                 provider = model_cfg.get("provider", "siliconflow")
+                api_base = model_cfg.get("base_url", "")
+                if not api_base:
+                    logger.warning(
+                        f"[MultiVisionAnalyzer] {model_id} 无 base_url，跳过"
+                    )
+                    continue
 
                 # 选择模型类型
-                if "qwen" in model_cfg.get("name", "").lower():
-                    v_model_type = VisionModelType.SILICONFLOW_VL
-                elif "glm" in model_cfg.get("name", "").lower():
-                    v_model_type = VisionModelType.SILICONFLOW_VL
+                model_name = model_cfg.get("name", "").lower()
+                if any(kw in model_name for kw in ["qwen", "glm", "internvl", "llava"]):
+                    if "glm" in model_name:
+                        v_model_type = VisionModelType.ZHIPU_VL
+                    else:
+                        v_model_type = VisionModelType.SILICONFLOW_VL
                 else:
                     v_model_type = VisionModelType.SIMPLE_ANALYSIS
 
@@ -181,9 +184,9 @@ class MultiVisionAnalyzer:
                     name=model_cfg.get("name", model_id),
                     model_type=v_model_type,
                     provider=provider,
-                    api_base=get_api_url("siliconflow"),
+                    api_base=api_base,
                     api_key=api_key,
-                    api_key_env="SILICONFLOW_API_KEY",
+                    api_key_env="",
                     enabled=True,
                     max_tokens=model_cfg.get("max_tokens", 500),
                     timeout=quality_settings.get("timeout_seconds", 30),
@@ -215,9 +218,10 @@ class MultiVisionAnalyzer:
                     model_config.provider.value, model_config.provider.value
                 )
 
-                if model_id == "zhipu_glm_46v_flash":
-                    v_model_type = VisionModelType.GLM_46V_FLASH
-                elif "qwen" in model_config.name.lower():
+                model_name = model_config.name.lower()
+                if "glm" in model_name:
+                    v_model_type = VisionModelType.ZHIPU_VL
+                elif any(kw in model_name for kw in ["qwen", "internvl", "llava"]):
                     v_model_type = VisionModelType.SILICONFLOW_VL
                 else:
                     v_model_type = VisionModelType.SIMPLE_ANALYSIS
@@ -482,11 +486,10 @@ class MultiVisionAnalyzer:
             }
 
         elif model_config.provider == "dashscope":
-            # 通义千问格式 - 使用环境变量中的模型名称
-            qwen_vl_model = os.getenv("DASHSCOPE_QWEN_VL_MODEL", "qwen-vl-plus")
+            # 通义千问格式 - 使用模型配置中的名称
             url = f"{model_config.api_base}/chat/completions"
             payload = {
-                "model": qwen_vl_model,
+                "model": model_config.name,
                 "input": {
                     "messages": [
                         {

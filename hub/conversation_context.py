@@ -174,11 +174,13 @@ class ConversationContextManager:
         self, session_id: str, current_input: str = ""
     ) -> List[Dict]:
         """
-        获取对话历史上下文（限制token消耗）
+        获取对话历史上下文（动态智能加载）
 
         智能记忆策略：
-        - 短期对话：只加载最近3条，确保连贯性
-        - 长期记忆：只有用户明确问"你还记得..."时才加载历史，否则不干扰
+        - 短期对话：加载最近5-8条，确保连贯性
+        - 群聊讨论：检测到深度讨论时加载更多
+        - 长期记忆：只有用户明确问"你还记得..."时才加载历史
+        - 话题连续性：检测话题变化，保持同一话题的上下文
 
         Args:
             session_id: 会话ID
@@ -196,13 +198,19 @@ class ConversationContextManager:
         # 检测用户是否在问关于过去的问题
         needs_recall = self.check_needs_recall(current_input)
 
-        # 根据是否需要回忆决定加载数量
+        # 检测是否是深度讨论（长消息、多个话题词、问题形式）
+        is_deep_discussion = self._is_deep_discussion(current_input)
+
+        # 根据情况决定加载数量
         if needs_recall:
             max_messages = 30
             logger.info(f"[对话上下文] 用户正在回忆过去，加载历史对话: {session_id}")
+        elif is_deep_discussion:
+            max_messages = 15
+            logger.debug(f"[对话上下文] 检测到深度讨论，加载15条: {session_id}")
         else:
             max_messages = 8
-            logger.debug(f"[对话上下文] 正常对话，加载最近8条: {session_id}")
+            logger.debug(f"[对话上下文] 正常对话，加载8条: {session_id}")
 
         try:
             messages = await self.memory_net.conversation_history.get_history(
@@ -215,15 +223,23 @@ class ConversationContextManager:
             if not messages:
                 return context
 
-            # 根据是否需要回忆选择加载数量
+            # 根据情况选择加载数量
             if needs_recall:
                 recent_messages = (
                     messages[-max_messages:]
                     if len(messages) > max_messages
                     else messages
                 )
+            elif is_deep_discussion:
+                # 深度讨论时加载更多上下文
+                recent_messages = (
+                    messages[-max_messages:]
+                    if len(messages) > max_messages
+                    else messages
+                )
             else:
-                recent_messages = messages[-3:] if len(messages) > 3 else messages
+                # 正常对话加载最近5条（从3条增加到5条）
+                recent_messages = messages[-5:] if len(messages) > 5 else messages
 
             logger.debug(f"[对话上下文] 加载对话历史: {len(recent_messages)} 条")
 
@@ -246,6 +262,59 @@ class ConversationContextManager:
         except Exception as e:
             logger.error(f"[对话上下文] 获取对话历史失败: {e}")
             return []
+
+    def _is_deep_discussion(self, user_input: str) -> bool:
+        """
+        检测是否是深度讨论
+
+        Args:
+            user_input: 用户输入
+
+        Returns:
+            是否是深度讨论
+        """
+        if not user_input or not isinstance(user_input, str):
+            return False
+
+        # 长消息通常是深度讨论
+        if len(user_input) > 50:
+            return True
+
+        # 包含多个话题词
+        from memory.cognitive_engine import TOPIC_KEYWORDS
+
+        topic_count = 0
+        for topic, keywords in TOPIC_KEYWORDS.items():
+            if any(kw in user_input for kw in keywords):
+                topic_count += 1
+
+        if topic_count >= 2:
+            return True
+
+        # 问题形式（包含多个问号或疑问词）
+        if user_input.count("?") + user_input.count("？") >= 2:
+            return True
+
+        # 包含讨论相关词汇
+        discussion_words = [
+            "为什么",
+            "怎么",
+            "如何",
+            "什么",
+            "哪",
+            "吗",
+            "呢",
+            "讨论",
+            "分析",
+            "解释",
+        ]
+        if (
+            any(word in user_input for word in discussion_words)
+            and len(user_input) > 20
+        ):
+            return True
+
+        return False
 
     async def get_lifebook_summary(self) -> str:
         """

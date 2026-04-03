@@ -179,7 +179,7 @@ def reload_config():
 
 
 def get_text(key: str, default: str = "") -> str:
-    """获取文本"""
+    """获取文本配置"""
     config = _load_config()
     keys = key.split(".")
     value = config

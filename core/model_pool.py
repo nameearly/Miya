@@ -14,8 +14,9 @@
 import json
 import logging
 import os
+import re
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, Tuple
 
 from dataclasses import dataclass, field
 from enum import Enum
@@ -24,6 +25,21 @@ from dotenv import load_dotenv
 from core.system_config import get_api_url
 
 logger = logging.getLogger(__name__)
+
+
+class TaskType(str, Enum):
+    """任务类型枚举"""
+
+    SIMPLE_CHAT = "simple_chat"
+    COMPLEX_REASONING = "complex_reasoning"
+    CODE_ANALYSIS = "code_analysis"
+    CODE_GENERATION = "code_generation"
+    TOOL_CALLING = "tool_calling"
+    CREATIVE_WRITING = "creative_writing"
+    CHINESE_UNDERSTANDING = "chinese_understanding"
+    SUMMARIZATION = "summarization"
+    MULTIMODAL = "multimodal"
+    TASK_PLANNING = "task_planning"
 
 
 class ModelType(str, Enum):
@@ -134,7 +150,7 @@ class ModelPool:
         self._initialized = True
 
     def _load_config(self):
-        """加载模型配置 - 优先从JSON文件加载"""
+        """加载模型配置 - 从 multi_model_config.json 加载模型，从 text_config.json 加载任务分类"""
         try:
             # 从 multi_model_config.json 加载模型配置
             json_config = self._load_json_config()
@@ -142,15 +158,27 @@ class ModelPool:
                 self._config = json_config
                 self._parse_json_config(json_config)
                 logger.info("[ModelPool] 从multi_model_config.json加载模型配置")
-                return
 
-            # 没有JSON则使用默认配置
-            self._set_default_config()
-            logger.info("[ModelPool] 使用默认模型配置")
+            # 从 text_config.json 加载任务分类配置
+            self._load_task_classification()
 
         except Exception as e:
             logger.error(f"[ModelPool] 加载配置失败: {e}")
             self._set_default_config()
+
+    def _load_task_classification(self):
+        """从 text_config.json 加载任务分类配置"""
+        try:
+            tc_path = self._project_root / "config" / "text_config.json"
+            if tc_path.exists():
+                with open(tc_path, "r", encoding="utf-8") as f:
+                    tc = json.load(f)
+                task_config = tc.get("task_classification", {})
+                if task_config:
+                    self._config["task_classification"] = task_config
+                    logger.info("[ModelPool] 从text_config.json加载任务分类配置")
+        except Exception as e:
+            logger.debug(f"[ModelPool] 任务分类配置加载失败: {e}")
 
     def _load_json_config(self) -> Optional[Dict]:
         """加载JSON配置"""
@@ -242,104 +270,10 @@ class ModelPool:
     # def _parse_legacy_config(self, config: Dict): ...
 
     def _set_default_config(self):
-        """设置默认配置"""
-        try:
-            # 添加默认的文本模型
-            default_models = {
-                "deepseek_v3": ModelConfig(
-                    id="deepseek_v3",
-                    name="deepseek-chat",
-                    type=ModelType.TEXT,
-                    provider=ModelProvider.DEEPSEEK,
-                    base_url=os.getenv("DEEPSEEK_API_BASE") or get_api_url("deepseek"),
-                    api_key=os.getenv("DEEPSEEK_API_KEY", ""),
-                    description="DeepSeek V3 官方模型",
-                    capabilities=[
-                        "simple_chat",
-                        "chinese_understanding",
-                        "tool_calling",
-                    ],
-                    cost_per_1k_tokens={"input": 0.00014, "output": 0.00028},
-                ),
-                "qwen_27b": ModelConfig(
-                    id="qwen_27b",
-                    name="Qwen/Qwen3-30B-A3B",
-                    type=ModelType.TEXT,
-                    provider=ModelProvider.SILICONFLOW,
-                    base_url=os.getenv("SILICONFLOW_API_BASE")
-                    or get_api_url("siliconflow"),
-                    api_key=os.getenv("SILICONFLOW_API_KEY", ""),
-                    description="硅基流动 Qwen3-30B-A3B 高性能模型",
-                    capabilities=[
-                        "simple_chat",
-                        "chinese_understanding",
-                        "tool_calling",
-                        "reasoning",
-                    ],
-                    cost_per_1k_tokens={"input": 0.0003, "output": 0.0003},
-                ),
-                "paddleocr": ModelConfig(
-                    id="paddleocr",
-                    name="paddleocr",
-                    type=ModelType.OCR,
-                    provider=ModelProvider.LOCAL,
-                    description="百度PaddleOCR",
-                    capabilities=["text_extraction", "chinese_ocr"],
-                    languages=["ch", "en"],
-                    use_gpu=False,
-                    timeout_seconds=30,
-                ),
-            }
-
-            self._models.update(default_models)
-
-            # 添加默认路由
-            default_routes = {
-                "simple_chat": ModelRoute(
-                    task_type="simple_chat",
-                    primary="deepseek_v3",
-                    secondary="deepseek_v3",
-                    fallback="deepseek_v3",
-                ),
-                "text_extraction": ModelRoute(
-                    task_type="text_extraction",
-                    primary="paddleocr",
-                    secondary="paddleocr",
-                    fallback="paddleocr",
-                ),
-                "image_description": ModelRoute(
-                    task_type="image_description",
-                    primary="siliconflow_qwen_vl",
-                    secondary="zhipu_glm_46v_flash",
-                    fallback="simple_analysis",
-                ),
-            }
-
-            self._routes.update(default_routes)
-
-            # 添加默认端配置
-            default_endpoints = {
-                "qq": EndpointConfig(
-                    endpoint_id="qq",
-                    enabled_models=[
-                        "deepseek_v3",
-                        "paddleocr",
-                        "zhipu_glm_46v_flash",
-                        "siliconflow_qwen_vl",
-                        "minicpm_v",
-                    ],
-                    default_models={
-                        "chat": "deepseek_v3",
-                        "ocr": "paddleocr",
-                        "vision": "zhipu_glm_46v_flash",
-                    },
-                )
-            }
-
-            self._endpoints.update(default_endpoints)
-
-        except Exception as e:
-            logger.error(f"[ModelPool] 设置默认配置失败: {e}")
+        """设置默认配置 - 所有模型必须从 multi_model_config.json 加载"""
+        # 不再设置任何硬编码默认模型
+        # 所有模型配置、路由、端点都必须从 multi_model_config.json 加载
+        pass
 
     # ========== 公共API ==========
 
@@ -546,6 +480,193 @@ class ModelPool:
         self._routes.clear()
         self._endpoints.clear()
         self._load_config()
+
+    # ========== 任务分类 ==========
+
+    def _classify_by_keywords(self, user_input: str) -> TaskType:
+        """关键词分类（快速回退方案）"""
+        tc = self._config.get("task_classification", {})
+
+        if not isinstance(user_input, str):
+            return TaskType.SIMPLE_CHAT
+
+        if not user_input:
+            return TaskType.SIMPLE_CHAT
+
+        input_lower = user_input.lower()
+
+        if any(kw in input_lower for kw in tc.get("tool_calling", [])):
+            return TaskType.TOOL_CALLING
+
+        code_kws = tc.get("code_keywords", [])
+        if any(kw in input_lower for kw in code_kws):
+            gen_triggers = tc.get("code_generation_triggers", [])
+            if any(kw in input_lower for kw in gen_triggers):
+                return TaskType.CODE_GENERATION
+            return TaskType.CODE_ANALYSIS
+
+        reasoning_kws = tc.get("complex_reasoning", [])
+        indicators = tc.get("complex_indicators", [])
+        if any(kw in input_lower for kw in reasoning_kws + indicators):
+            return TaskType.COMPLEX_REASONING
+
+        if any(kw in input_lower for kw in tc.get("creative_writing", [])):
+            return TaskType.CREATIVE_WRITING
+
+        if any(kw in input_lower for kw in tc.get("summarization", [])):
+            return TaskType.SUMMARIZATION
+
+        if any(kw in input_lower for kw in tc.get("task_planning", [])):
+            return TaskType.TASK_PLANNING
+
+        threshold = tc.get("chinese_ratio_threshold", 0.5)
+        chinese_chars = len(re.findall(r"[\u4e00-\u9fff]", user_input))
+        if chinese_chars > len(user_input) * threshold:
+            return TaskType.CHINESE_UNDERSTANDING
+
+        return TaskType(tc.get("default_task", "simple_chat"))
+
+    async def classify_task(self, user_input: str, context: Dict = None) -> TaskType:
+        """
+        分类任务类型（LLM 智能分类 + 关键词回退）
+
+        Args:
+            user_input: 用户输入
+            context: 上下文信息
+
+        Returns:
+            任务类型
+        """
+        tc = self._config.get("task_classification", {})
+
+        # 处理非字符串输入
+        if not isinstance(user_input, str):
+            if isinstance(user_input, list):
+                content_str = ""
+                for item in user_input:
+                    if isinstance(item, dict):
+                        if item.get("type") == "text":
+                            content_str += item.get("data", {}).get("text", "")
+                        elif item.get("type") == "image":
+                            return TaskType.SIMPLE_CHAT
+                    elif isinstance(item, str):
+                        content_str += item
+                user_input = content_str if content_str else ""
+            else:
+                user_input = str(user_input)
+
+        if not user_input:
+            return TaskType.SIMPLE_CHAT
+
+        # 检查是否启用 LLM 分类
+        mode = tc.get("mode", "keyword")
+        if mode == "llm":
+            try:
+                llm_model_id = tc.get("llm_model", "qwen_7b")
+                model_config = self.get_model(llm_model_id)
+
+                if model_config and model_config.api_key and model_config.base_url:
+                    from core.ai_client import AIClientFactory
+
+                    client = AIClientFactory.create_client(
+                        provider=model_config.provider.value,
+                        api_key=model_config.api_key,
+                        model=model_config.name,
+                        base_url=model_config.base_url,
+                    )
+
+                    if client and hasattr(client, "client") and client.client:
+                        task_names = [t.value for t in TaskType]
+                        prompt = (
+                            f"请将以下用户输入分类为以下任务类型之一。\n"
+                            f"任务类型: {', '.join(task_names)}\n\n"
+                            f"用户输入: {user_input}\n\n"
+                            f"只返回任务类型名称，不要其他内容。"
+                        )
+
+                        import asyncio
+
+                        timeout = tc.get("llm_timeout", 10)
+                        response = await asyncio.wait_for(
+                            client.client.chat.completions.create(
+                                model=client.model,
+                                messages=[{"role": "user", "content": prompt}],
+                                max_tokens=50,
+                                temperature=0.1,
+                            ),
+                            timeout=timeout,
+                        )
+
+                        result = response.choices[0].message.content.strip()
+                        if result in task_names:
+                            logger.debug(
+                                f"[ModelPool] LLM 分类: {user_input[:30]}... → {result}"
+                            )
+                            return TaskType(result)
+                        else:
+                            logger.debug(
+                                f"[ModelPool] LLM 返回未知类型: {result}，回退到关键词"
+                            )
+            except Exception as e:
+                logger.debug(f"[ModelPool] LLM 分类失败: {e}，回退到关键词")
+
+        # 关键词回退
+        return self._classify_by_keywords(user_input)
+
+    # ========== 使用统计 ==========
+
+    def __init__(self):
+        if self._initialized:
+            return
+
+        load_dotenv()
+
+        self._project_root = Path(__file__).parent.parent
+        self._config = {}
+        self._models: Dict[str, ModelConfig] = {}
+        self._routes: Dict[str, ModelRoute] = {}
+        self._endpoints: Dict[str, EndpointConfig] = {}
+        self._usage_stats: Dict[str, Dict] = {}
+        self._initialized = False
+
+        self._load_config()
+        self._initialized = True
+
+    def record_usage(self, model_key: str, input_tokens: int, output_tokens: int):
+        """记录模型使用情况"""
+        if model_key not in self._usage_stats:
+            self._usage_stats[model_key] = {
+                "requests": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cost": 0.0,
+            }
+
+        stats = self._usage_stats[model_key]
+        stats["requests"] += 1
+        stats["input_tokens"] += input_tokens
+        stats["output_tokens"] += output_tokens
+
+        model_info = self._config.get("models", {}).get(model_key, {})
+        pricing = model_info.get("cost_per_1k_tokens", {})
+        cost = (
+            input_tokens * pricing.get("input", 0)
+            + output_tokens * pricing.get("output", 0)
+        ) / 1000
+        stats["cost"] += cost
+
+    def get_usage_stats(self) -> Dict:
+        """获取使用统计"""
+        return self._usage_stats
+
+    def get_total_cost(self) -> float:
+        """获取总成本"""
+        return sum(stats["cost"] for stats in self._usage_stats.values())
+
+    def reset_stats(self):
+        """重置统计"""
+        self._usage_stats = {}
+        logger.info("[ModelPool] 模型使用统计已重置")
 
 
 # 全局实例和便捷函数

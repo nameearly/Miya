@@ -185,7 +185,75 @@
       },
       "latency": "fast",
       "quality": "excellent"
+    },
+    "siliconflow_bge_large": {
+      "name": "BAAI/bge-large-zh-v1.5",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-bdkzuyoohrlmxkmzzxkjkgnyuinotvrguqvmupngurhwxioo",
+      "description": "BGE Large Zh v1.5 - 中文语义向量模型（硅基流动）",
+      "type": "embedding",
+      "capabilities": [
+        "semantic_search",
+        "memory_embedding",
+        "chinese_understanding"
+      ],
+      "dimension": 1024,
+      "cost_per_1k_tokens": {
+        "input": 0.0007,
+        "output": 0
+      },
+      "latency": "fast",
+      "quality": "excellent"
+    },
+    "qwen3_embedding_8b": {
+      "name": "Qwen/Qwen3-Embedding-8B",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-bdkzuyoohrlmxkmzzxkjkgnyuinotvrguqvmupngurhwxioo",
+      "description": "Qwen3-Embedding-8B - 高质量语义向量模型（硅基流动）",
+      "type": "embedding",
+      "capabilities": [
+        "semantic_search",
+        "memory_embedding",
+        "chinese_understanding",
+        "multilingual"
+      ],
+      "dimension": 4096,
+      "cost_per_1k_tokens": {
+        "input": 0.00126,
+        "output": 0
+      },
+      "latency": "medium",
+      "quality": "excellent"
+    },
+    "deepseek_embedding": {
+      "name": "deepseek-embedding",
+      "provider": "openai",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key": "sk-c3e2611d73c04263bf0cb65cbaae7e04",
+      "description": "DeepSeek Embedding - 语义向量模型",
+      "type": "embedding",
+      "capabilities": [
+        "semantic_search",
+        "memory_embedding"
+      ],
+      "dimension": 1536,
+      "cost_per_1k_tokens": {
+        "input": 0.0007,
+        "output": 0
+      },
+      "latency": "fast",
+      "quality": "excellent"
     }
+  },
+  "embedding_config": {
+    "enabled": false,
+    "primary": "qwen3_embedding_8b",
+    "fallback": "siliconflow_bge_large",
+    "auto_generate_on_store": true,
+    "auto_generate_levels": ["long_term", "semantic", "knowledge"],
+    "batch_size": 32
   },
   "routing_strategy": {
     "simple_chat": {

@@ -117,6 +117,24 @@ TOPIC_KEYWORDS = {
         "高铁",
         "飞机",
     ],
+    "科幻": [
+        "三体",
+        "阶梯计划",
+        "云天明",
+        "程心",
+        "二向箔",
+        "曲率",
+        "黑洞",
+        "光速",
+        "饕餮",
+        "童话",
+        "群星",
+        "战锤",
+        "蜂巢",
+        "进化",
+        "科幻",
+        "小说",
+    ],
 }
 
 
@@ -156,6 +174,7 @@ class CognitiveEngine:
     - 智能检索相关记忆
     - 融合多种检索策略
     - 生成记忆上下文
+    - 记忆关联度学习
     """
 
     def __init__(self, memory_core=None):
@@ -168,6 +187,52 @@ class CognitiveEngine:
 
         self.memory_core = memory_core
         self._memory_core_initialized = False
+
+        # 记忆关联度学习
+        self._co_occurrence: Dict[
+            str, Dict[str, int]
+        ] = {}  # memory_id -> {related_id: count}
+        self._access_frequency: Dict[str, int] = {}  # memory_id -> access count
+        self._last_retrieved_ids: List[str] = []  # 上次检索到的记忆ID列表
+
+    def _record_co_occurrence(self, memory_ids: List[str]):
+        """记录记忆共现关系，用于关联度学习"""
+        for i, mid1 in enumerate(memory_ids):
+            self._access_frequency[mid1] = self._access_frequency.get(mid1, 0) + 1
+            for j, mid2 in enumerate(memory_ids):
+                if i != j:
+                    if mid1 not in self._co_occurrence:
+                        self._co_occurrence[mid1] = {}
+                    self._co_occurrence[mid1][mid2] = (
+                        self._co_occurrence[mid1].get(mid2, 0) + 1
+                    )
+
+        # 限制共现关系表大小
+        if len(self._co_occurrence) > 500:
+            # 移除访问频率最低的条目
+            sorted_items = sorted(
+                self._co_occurrence.items(),
+                key=lambda x: self._access_frequency.get(x[0], 0),
+            )
+            to_remove = sorted_items[:100]
+            for key, _ in to_remove:
+                del self._co_occurrence[key]
+
+    def _get_relevance_boost(self, memory_id: str, current_ids: List[str]) -> float:
+        """获取关联度提升分数"""
+        boost = 0.0
+
+        # 1. 共现提升：与当前检索到的记忆共现频率
+        for related_id in current_ids:
+            if memory_id in self._co_occurrence.get(related_id, {}):
+                boost += self._co_occurrence[related_id][memory_id] * 0.05
+
+        # 2. 频率提升：高频访问的记忆权重更高
+        freq = self._access_frequency.get(memory_id, 0)
+        if freq > 0:
+            boost += min(0.2, freq * 0.02)
+
+        return min(0.5, boost)  # 最多提升0.5
 
     async def _ensure_memory_core_initialized(self):
         """确保内存核心已初始化"""
@@ -329,13 +394,31 @@ class CognitiveEngine:
 
         all_memories = await self.memory_core.retrieve(query)
 
+        # 3. 如果标签搜索无结果，尝试内容搜索（关键词直接匹配记忆内容）
+        if not all_memories and (current_topics or keywords):
+            search_terms = current_topics + keywords
+            for term in search_terms:
+                fallback_query = MemoryQuery(
+                    query=term,
+                    user_id=user_id,
+                    group_id=group_id,
+                    limit=limit * 2,
+                )
+                fallback_results = await self.memory_core.retrieve(fallback_query)
+                if fallback_results:
+                    all_memories.extend(fallback_results)
+                    break  # 找到一个匹配就够了
+
         if not all_memories:
             return []
 
-        # 3. 计算相关度并排序
+        # 3. 计算相关度并排序（加入关联度学习）
         scored_memories = []
         for memory in all_memories:
             relevance = self._calculate_relevance(memory, current_topics, keywords)
+            # 关联度提升
+            boost = self._get_relevance_boost(memory.id, [m.id for m in all_memories])
+            relevance += boost
             if relevance > 0.1:  # 过滤低相关度
                 scored_memories.append((memory, relevance))
 
@@ -344,6 +427,12 @@ class CognitiveEngine:
 
         # 4. 返回 top N
         results = [m for m, _ in scored_memories[:limit]]
+
+        # 5. 记录共现关系（用于关联度学习）
+        retrieved_ids = [m.id for m in results]
+        if retrieved_ids:
+            self._record_co_occurrence(retrieved_ids)
+            self._last_retrieved_ids = retrieved_ids
 
         logger.info(f"[认知引擎] 检索到 {len(results)} 条相关记忆")
 

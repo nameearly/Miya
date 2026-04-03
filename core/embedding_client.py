@@ -57,24 +57,16 @@ class EmbeddingClient:
         self.base_url = base_url
         self._client = None
 
-        # 根据提供商设置默认模型
+        # 模型必须由调用方指定，不再设置默认值
         if self.model is None:
-            self.model = self._get_default_model()
+            raise ValueError(
+                "[EmbeddingClient] model 参数必须提供，请检查 multi_model_config.json"
+            )
 
         logger.info(
             f"[EmbeddingClient] 初始化完成 - "
             f"provider={provider.value}, model={self.model}"
         )
-
-    def _get_default_model(self) -> str:
-        """获取默认模型"""
-        defaults = {
-            EmbeddingProvider.OPENAI: "text-embedding-3-small",
-            EmbeddingProvider.DEEPSEEK: "deepseek-embedding",
-            EmbeddingProvider.SILICONFLOW: "BAAI/bge-large-zh-v1.5",
-            EmbeddingProvider.SENTENCE_TRANSFORMERS: "paraphrase-multilingual-MiniLM-L12-v2",
-        }
-        return defaults.get(self.provider, "text-embedding-3-small")
 
     async def initialize(self):
         """初始化客户端"""
@@ -100,6 +92,30 @@ class EmbeddingClient:
         try:
             from openai import AsyncOpenAI
 
+            if not self.base_url:
+                raise ValueError("[EmbeddingClient] OpenAI base_url 必须提供")
+            self._client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        except ImportError:
+            raise ImportError("请安装openai包: pip install openai")
+
+    async def _init_deepseek(self):
+        """初始化DeepSeek客户端"""
+        try:
+            from openai import AsyncOpenAI
+
+            if not self.base_url:
+                raise ValueError("[EmbeddingClient] DeepSeek base_url 必须提供")
+            self._client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        except ImportError:
+            raise ImportError("请安装openai包: pip install openai")
+
+    async def _init_siliconflow(self):
+        """初始化硅基流动客户端"""
+        try:
+            from openai import AsyncOpenAI
+
+            if not self.base_url:
+                raise ValueError("[EmbeddingClient] SiliconFlow base_url 必须提供")
             self._client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         except ImportError:
             raise ImportError("请安装openai包: pip install openai")

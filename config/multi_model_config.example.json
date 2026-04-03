@@ -76,23 +76,41 @@
       "latency": "medium",
       "quality": "excellent"
     },
-    "glm_4_9b": {
-      "name": "THUDM/glm-4-9b-chat",
-      "provider": "openai",
-      "base_url": "https://api.siliconflow.cn/v1",
-      "api_key": "sk-siliconflow-api-key-here",
-      "description": "GLM-4 9B - 清华智谱（代码能力强，硅基流动）",
+    "zhipu_glm_46v_flash": {
+      "name": "glm-4.6v-flash",
+      "provider": "zhipu",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "api_key": "zhipu-api-key-here",
+      "description": "GLM-4.6V-Flash - 智谱免费多模态模型",
       "capabilities": [
-        "code_generation",
-        "code_analysis",
-        "chinese_understanding",
+        "image_description",
+        "vision_understanding",
         "simple_chat"
       ],
       "cost_per_1k_tokens": {
-        "input": 0.00015,
-        "output": 0.00030
+        "input": 0.0,
+        "output": 0.0
       },
       "latency": "fast",
+      "quality": "good"
+    },
+    "siliconflow_qwen_vl": {
+      "name": "Qwen/Qwen3-VL-32B-Instruct",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-siliconflow-api-key-here",
+      "description": "Qwen3-VL-32B - 视觉理解模型（硅基流动）",
+      "type": "vision",
+      "capabilities": [
+        "image_description",
+        "vision_understanding",
+        "ocr"
+      ],
+      "cost_per_1k_tokens": {
+        "input": 0.00126,
+        "output": 0.00126
+      },
+      "latency": "medium",
       "quality": "excellent"
     },
     "internlm_7b": {
@@ -166,6 +184,66 @@
       },
       "latency": "fast",
       "quality": "excellent"
+    },
+    "siliconflow_bge_large": {
+      "name": "BAAI/bge-large-zh-v1.5",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-siliconflow-api-key-here",
+      "description": "BGE Large Zh v1.5 - 中文语义向量模型（硅基流动）",
+      "type": "embedding",
+      "capabilities": [
+        "semantic_search",
+        "memory_embedding",
+        "chinese_understanding"
+      ],
+      "dimension": 1024,
+      "cost_per_1k_tokens": {
+        "input": 0.0007,
+        "output": 0
+      },
+      "latency": "fast",
+      "quality": "excellent"
+    },
+    "qwen3_embedding_8b": {
+      "name": "Qwen/Qwen3-Embedding-8B",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-siliconflow-api-key-here",
+      "description": "Qwen3-Embedding-8B - 高质量语义向量模型（硅基流动）",
+      "type": "embedding",
+      "capabilities": [
+        "semantic_search",
+        "memory_embedding",
+        "chinese_understanding",
+        "multilingual"
+      ],
+      "dimension": 4096,
+      "cost_per_1k_tokens": {
+        "input": 0.00126,
+        "output": 0
+      },
+      "latency": "medium",
+      "quality": "excellent"
+    },
+    "deepseek_embedding": {
+      "name": "deepseek-embedding",
+      "provider": "openai",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key": "sk-deepseek-api-key-here",
+      "description": "DeepSeek Embedding - 语义向量模型",
+      "type": "embedding",
+      "capabilities": [
+        "semantic_search",
+        "memory_embedding"
+      ],
+      "dimension": 1536,
+      "cost_per_1k_tokens": {
+        "input": 0.0007,
+        "output": 0
+      },
+      "latency": "fast",
+      "quality": "excellent"
     }
   },
   "routing_strategy": {
@@ -186,7 +264,7 @@
       "quality_priority": 1.0
     },
     "code_analysis": {
-      "primary": "glm_4_9b",
+      "primary": "zhipu_glm_46v_flash",
       "secondary": "deepseek_v3_official",
       "fallback": "deepseek_r1_distill_7b",
       "cost_priority": 0.6,
@@ -194,7 +272,7 @@
       "quality_priority": 0.9
     },
     "code_generation": {
-      "primary": "glm_4_9b",
+      "primary": "zhipu_glm_46v_flash",
       "secondary": "deepseek_v3_official",
       "fallback": "gemma_2_9b",
       "cost_priority": 0.2,
@@ -233,21 +311,10 @@
       "speed_priority": 0.8,
       "quality_priority": 0.9
     },
-    "multimodal": {
-      "primary": "deepseek_v3_official",
-      "secondary": "qwen_72b",
-      "fallback": "qwen_7b",
-      "cost_priority": 1.0,
-      "speed_priority": 0.5,
-      "quality_priority": 1.0
-    },
-    "task_planning": {
-      "primary": "qwen_72b",
-      "secondary": "deepseek_v3_official",
-      "fallback": "deepseek_r1_official",
-      "cost_priority": 0.3,
-      "speed_priority": 0.7,
-      "quality_priority": 0.9
+    "image_description": {
+      "primary": "siliconflow_qwen_vl",
+      "secondary": "zhipu_glm_46v_flash",
+      "fallback": "simple_analysis"
     }
   },
   "budget_control": {

@@ -82,7 +82,7 @@ class ResponseGenerator:
         prompt_manager: Optional[Any] = None,
         tool_subnet: Optional[Any] = None,
         memory_engine: Optional[Any] = None,
-        multi_model_manager: Optional[Any] = None,
+        model_pool: Optional[Any] = None,
         identity: Optional[Any] = None,
     ):
         """
@@ -94,7 +94,7 @@ class ResponseGenerator:
             prompt_manager: Prompt管理器
             tool_subnet: 工具子网
             memory_engine: 记忆引擎
-            multi_model_manager: 多模型管理器
+            model_pool: 多模型管理器
             identity: 身份系统
         """
         self.ai_client = ai_client
@@ -102,7 +102,7 @@ class ResponseGenerator:
         self.prompt_manager = prompt_manager
         self.tool_subnet = tool_subnet
         self.memory_engine = memory_engine
-        self.multi_model_manager = multi_model_manager
+        self.model_pool = model_pool
         self.identity = identity
 
         # 对话历史上下文配置
@@ -199,16 +199,16 @@ class ResponseGenerator:
 
                 # 使用多模型管理器
                 ai_client_to_use = self.ai_client
-                if self.multi_model_manager:
-                    from core.multi_model_manager import TaskType
+                if self.model_pool:
+                    from core.model_pool import TaskType
 
-                    task_type = await self.multi_model_manager.classify_task(
+                    task_type = await self.model_pool.classify_task(
                         content, context
                     )
                     (
                         model_key,
                         selected_client,
-                    ) = await self.multi_model_manager.select_model(task_type)
+                    ) = await self.model_pool.select_model(task_type)
                     if selected_client:
                         ai_client_to_use = selected_client
                         selected_client.set_tool_context(tool_context)
@@ -251,16 +251,16 @@ class ResponseGenerator:
             else:
                 # 不使用工具
                 ai_client_to_use = self.ai_client
-                if self.multi_model_manager:
-                    from core.multi_model_manager import TaskType
+                if self.model_pool:
+                    from core.model_pool import TaskType
 
-                    task_type = await self.multi_model_manager.classify_task(
+                    task_type = await self.model_pool.classify_task(
                         content, context
                     )
                     (
                         model_key,
                         selected_client,
-                    ) = await self.multi_model_manager.select_model(task_type)
+                    ) = await self.model_pool.select_model(task_type)
                     if selected_client:
                         ai_client_to_use = selected_client
 

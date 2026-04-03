@@ -183,86 +183,49 @@ class MiyaTerminalAI:
         self.last_command_output: str = ""  # 上次命令输出
 
     def _ensure_ai_client_initialized(self):
-        """确保AI客户端已初始化（延迟初始化）"""
+        """确保AI客户端已初始化 - 所有模型从 multi_model_config.json 加载"""
         if not self.ai_client_initialized and self._init_needed:
             try:
-                provider = os.getenv("AI_PROVIDER", "deepseek").lower()
+                # 从模型池获取默认模型
+                from core.model_pool import get_model_pool
 
-                # 根据不同的提供商获取对应的 API Key
-                api_key = None
-                model = None
-                base_url = None
+                pool = get_model_pool()
+                model_configs = pool.get_model_configs_for_manager()
 
-                if provider == "siliconflow":
-                    api_key = os.getenv("SILICONFLOW_API_KEY")
-                    base_url = os.getenv(
-                        "SILICONFLOW_BASE_URL", "https://api.siliconflow.cn/v1"
-                    )
-                    model = os.getenv("SILICONFLOW_DEEPSEEK_V3_MODEL") or os.getenv(
-                        "SILICONFLOW_QWEN_7B_MODEL", "Qwen/Qwen2.5-7B-Instruct"
-                    )
-                elif provider == "deepseek":
-                    api_key = os.getenv("DEEPSEEK_API_KEY")
-                    base_url = os.getenv(
-                        "DEEPSEEK_API_BASE", "https://api.deepseek.com/v1"
-                    )
-                    model = os.getenv("DEEPSEEK_V3_MODEL", "deepseek-chat")
-                elif provider == "openai":
-                    api_key = os.getenv("OPENAI_API_KEY")
-                    base_url = None
-                    model = os.getenv("OPENAI_MODEL", "gpt-4")
-                elif provider == "zhipu":
-                    api_key = os.getenv("ZHIPU_API_KEY")
-                    base_url = os.getenv(
-                        "ZHIPU_API_BASE", "https://open.bigmodel.cn/api/paas/v4"
-                    )
-                    model = os.getenv("ZHIPU_GLM_4_MODEL", "glm-4")
-                elif provider == "dashscope":
-                    api_key = os.getenv("DASHSCOPE_API_KEY")
-                    base_url = os.getenv(
-                        "DASHSCOPE_API_BASE",
-                        "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                    )
-                    model = os.getenv("DASHSCOPE_QWEN_TEXT_MODEL", "qwen-max")
-                else:
-                    # 默认回退到 deepseek
-                    api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv(
-                        "OPENAI_API_KEY"
-                    )
-                    model = os.getenv("AI_MODEL", "deepseek-chat")
-                    base_url = os.getenv(
-                        "DEEPSEEK_API_BASE", "https://api.deepseek.com/v1"
-                    )
-                    provider = "deepseek"
-
-                if not api_key:
+                if not model_configs:
                     self.ai_enabled = False
-                    logger.info("[弥娅] 未配置AI API密钥,使用基础交互模式")
+                    logger.info("[弥娅] 模型池为空，使用基础交互模式")
                     return
 
-                # 尝试使用工厂创建客户端，如果失败则回退
+                # 使用第一个可用模型
+                first_key = next(iter(model_configs))
+                model_config = model_configs[first_key]
+
+                api_key = model_config.api_key
+                if not api_key:
+                    self.ai_enabled = False
+                    logger.info("[弥娅] 未配置API密钥，使用基础交互模式")
+                    return
+
                 try:
                     self.ai_client = AIClientFactory.create_client(
-                        provider=provider,
+                        provider=model_config.provider.value,
                         api_key=api_key,
-                        model=model,
+                        model=model_config.name,
                         personality=None,
                     )
                 except ValueError:
-                    # 工厂不支持该提供商，使用 OpenAI 客户端（兼容）
                     from core.ai_client import OpenAIClient
 
                     self.ai_client = OpenAIClient(
                         api_key=api_key,
-                        model=model,
-                        base_url=base_url,
+                        model=model_config.name,
+                        base_url=model_config.base_url,
                     )
                     provider = "openai-compatible"
 
                 self.ai_client_initialized = True
-                logger.info(
-                    f"[弥娅] AI系统初始化完成 (提供商: {provider}, 模型: {model})"
-                )
+                logger.info(f"[弥娅] AI系统初始化完成 (模型: {model_config.name})")
             except Exception as e:
                 self.ai_enabled = False
                 logger.warning(f"[警告] AI客户端初始化失败: {e}, 使用基础交互模式")

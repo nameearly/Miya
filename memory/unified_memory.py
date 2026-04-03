@@ -68,6 +68,15 @@ class UnifiedMemory:
         results = await get_user_memories(user_id, limit=limit)
         return [{"content": r.content, "tags": r.tags} for r in results]
 
+    async def add_short_term(
+        self, content: str, user_id: str, ttl: int = 3600, **kwargs
+    ) -> str:
+        """添加短期记忆"""
+        from memory import store_auto
+
+        tags = kwargs.get("tags", [])
+        return await store_auto(content, user_id, tags=tags)
+
 
 _unified_memory_instance: Optional[UnifiedMemory] = None
 

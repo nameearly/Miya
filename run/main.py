@@ -273,9 +273,7 @@ class Miya:
             onebot_client=None,
             game_mode_adapter=None,
             identity=self.identity,
-            multi_model_manager=getattr(
-                self, "multi_model_manager", None
-            ),  # 传递多模型管理器
+            model_pool=getattr(self, "model_pool", None),  # 传递模型池
             miya_instance=self,  # 传递miya实例，用于获取系统状态
             unified_memory=getattr(
                 self, "unified_memory", None
@@ -523,114 +521,59 @@ class Miya:
                 self.logger.error(f"[记忆] 统一记忆系统初始化失败: {e}")
 
     def _init_ai_client(self):
-        """初始化AI客户端（支持多模型）"""
+        """初始化AI客户端 - 所有模型从 multi_model_config.json 加载"""
+        import os
+        from dotenv import load_dotenv
+
+        load_dotenv(Path(__file__).parent.parent / "config" / ".env")
+
+        # 尝试初始化多模型管理器
         try:
-            import os
-            from dotenv import load_dotenv
+            from core.model_pool import get_model_pool, ModelConfig
 
-            load_dotenv(Path(__file__).parent.parent / "config" / ".env")
+            pool = get_model_pool()
+            model_configs = pool.get_model_configs_for_manager()
 
-            # 尝试初始化多模型管理器
-            try:
-                from core.multi_model_manager import MultiModelManager
-                from core.model_pool import get_model_pool
+            if model_configs:
+                model_clients = {}
+                from core.ai_client import AIClientFactory
 
-                # 从模型池获取所有有有效API密钥的模型配置
-                pool = get_model_pool()
-                model_configs = pool.get_model_configs_for_manager()
-
-                if model_configs:
-                    # 创建模型客户端
-                    model_clients = {}
-                    from core.ai_client import AIClientFactory
-
-                    for model_key, model_config in model_configs.items():
-                        try:
-                            client = AIClientFactory.create_client(
-                                provider=model_config.provider.value,
-                                api_key=model_config.api_key,
-                                model=model_config.name,
-                                base_url=model_config.base_url,
-                                temperature=float(os.getenv("AI_TEMPERATURE", "0.7")),
-                                max_tokens=int(os.getenv("AI_MAX_TOKENS", "2000")),
-                            )
-
-                            if (
-                                client
-                                and hasattr(client, "client")
-                                and client.client is not None
-                            ):
-                                model_clients[model_key] = client
-                                self.logger.info(
-                                    f"  [多模型] {model_key}: {model_config.name} ({model_config.base_url})"
-                                )
-                        except Exception as e:
-                            self.logger.warning(
-                                f"  [多模型] {model_key} 初始化失败: {e}"
-                            )
-
-                    # 如果成功创建了多个模型，使用多模型管理器
-                    if model_clients:
-                        self.multi_model_manager = MultiModelManager(
-                            model_clients=model_clients
-                        )
-                        self.logger.info(
-                            f"多模型管理器初始化成功，已加载 {len(model_clients)} 个模型"
+                for model_key, model_config in model_configs.items():
+                    try:
+                        client = AIClientFactory.create_client(
+                            provider=model_config.provider.value,
+                            api_key=model_config.api_key,
+                            model=model_config.name,
+                            base_url=model_config.base_url,
+                            temperature=float(os.getenv("AI_TEMPERATURE", "0.7")),
+                            max_tokens=int(os.getenv("AI_MAX_TOKENS", "2000")),
                         )
 
-                        # 使用 qwen_72b 作为默认模型（硅基流动，稳定支持工具调用）
-                        # DeepSeek API 可能需要更新或已失效
-                        default_client = model_clients.get(
-                            "qwen_72b"
-                        ) or model_clients.get("deepseek_v3_official")
-                        if default_client:
-                            self.logger.info(f"默认模型: {default_client.model}")
-                            return default_client
+                        if (
+                            client
+                            and hasattr(client, "client")
+                            and client.client is not None
+                        ):
+                            model_clients[model_key] = client
+                            self.logger.info(
+                                f"  [多模型] {model_key}: {model_config.name} ({model_config.base_url})"
+                            )
+                    except Exception as e:
+                        self.logger.warning(f"  [多模型] {model_key} 初始化失败: {e}")
 
-            except Exception as e:
-                self.logger.warning(f"多模型管理器初始化失败，使用单一模型: {e}")
+                if model_clients:
+                    self.model_pool = pool
+                    self.logger.info(
+                        f"模型池初始化成功，已加载 {len(model_clients)} 个模型"
+                    )
 
-            # 降级到单一模型模式
-            api_key = os.getenv("AI_API_KEY", "")
-            base_url = os.getenv("AI_API_BASE_URL", "")
-            model = os.getenv("AI_MODEL", "")
-
-            if not api_key:
-                self.logger.warning("未配置 AI_API_KEY，将使用简化回复")
-                return None
-
-            if not base_url:
-                self.logger.warning("未配置 AI_API_BASE_URL，将使用简化回复")
-                return None
-
-            if not model:
-                self.logger.warning("未配置 AI_MODEL，将使用简化回复")
-                return None
-
-            # 使用统一的 OpenAI 格式客户端
-            temperature = float(os.getenv("AI_TEMPERATURE", "0.7"))
-            max_tokens = int(os.getenv("AI_MAX_TOKENS", "2000"))
-
-            from core.ai_client import OpenAIClient
-
-            client = OpenAIClient(
-                api_key=api_key,
-                model=model,
-                base_url=base_url,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-
-            # 验证客户端是否初始化成功
-            if not hasattr(client, "client") or client.client is None:
-                self.logger.warning("AI客户端初始化失败，将使用简化回复")
-                return None
-
-            self.logger.info(f"AI客户端初始化成功: {model} ({base_url})")
-            return client
+                    default_client = next(iter(model_clients.values()), None)
+                    if default_client:
+                        self.logger.info(f"默认模型: {default_client.model}")
+                        return default_client
 
         except Exception as e:
-            self.logger.warning(f"AI客户端初始化失败: {e}，将使用简化回复")
+            self.logger.warning(f"多模型管理器初始化失败: {e}")
             return None
 
     def _init_vector_system(self):

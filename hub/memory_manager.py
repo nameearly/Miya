@@ -78,7 +78,11 @@ class MemoryManager:
 
             # 存储到 MemoryNet 对话历史（用metadata标签区分群聊/私聊）
             if self.memory_net and self.memory_net.conversation_history:
-                session_id = f"qq_{user_id}"
+                # 群聊 session_id 包含 group_id，避免不同群的对话混合
+                if message_type == "group" and group_id:
+                    session_id = f"qq_{group_id}_{user_id}"
+                else:
+                    session_id = f"qq_{user_id}"
 
                 # 在metadata中添加标签，不影响内容识别
                 metadata = {

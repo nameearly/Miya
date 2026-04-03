@@ -20,15 +20,7 @@ from .unified_config import get_qq_config, get_connection_config, get_multimedia
 
 logger = logging.getLogger(__name__)
 
-# 使用增强版图片处理器（支持多模型）
-try:
-    from .enhanced_image_handler import QQImageHandler
-
-    logger.info("[QQNet] 使用增强版多模型图片处理器")
-except ImportError:
-    from .image_handler import QQImageHandler
-
-    logger.warning("[QQNet] 使用简化版图片处理器，多模型系统不可用")
+from .image_handler import QQImageHandler
 
 
 class QQNet:

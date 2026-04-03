@@ -165,7 +165,7 @@
         "firefly": "流萤态",
         "feixiao": "飞霄态",
         "xiaodie": "遐蝶态",
-        "raiden": "黄泉军态",
+        "raiden": "黄泉态",
         "yae": "神子态",
         "kandrela": "坎特雷拉态",
         "alpha": "阿尔法态",
@@ -617,5 +617,108 @@
             },
             "block_high_risk": false
         }
+    },
+
+    "sqlite_backend": {
+        "enabled": false,
+        "db_path": "data/memory/miya_memory.db",
+        "pragma": {
+            "journal_mode": "WAL",
+            "foreign_keys": true,
+            "synchronous": "NORMAL",
+            "cache_size": -64000,
+            "temp_store": "MEMORY"
+        },
+        "table": {
+            "name": "memories",
+            "fts_enabled": true,
+            "fts_name": "memories_fts",
+            "fts_columns": ["content", "tags"]
+        },
+        "indexes": [
+            {"name": "idx_memories_user_id", "column": "user_id"},
+            {"name": "idx_memories_group_id", "column": "group_id"},
+            {"name": "idx_memories_level", "column": "level"},
+            {"name": "idx_memories_created_at", "column": "created_at"},
+            {"name": "idx_memories_priority", "column": "priority"}
+        ],
+        "defaults": {
+            "priority": 0.5,
+            "significance": 0.5,
+            "source": "auto_extract",
+            "role": "user",
+            "user_id": "",
+            "session_id": "",
+            "group_id": "",
+            "platform": "",
+            "event_type": "",
+            "location": "",
+            "conversation_partner": "",
+            "emotional_tone": "",
+            "subject": "",
+            "predicate": "",
+            "obj": ""
+        },
+        "query": {
+            "default_order": "priority DESC, created_at DESC",
+            "like_pattern_prefix": "%",
+            "like_pattern_suffix": "%"
+        }
+    },
+
+    "vision": {
+        "prompts": {
+            "image_analysis": "请详细描述这张图片的内容，包括场景、人物、物体、颜色、文字等所有可见元素。"
+        },
+        "simple_analysis": {
+            "description_template": "这是一张{format}格式的图片，尺寸为{width}×{height}像素，大小约{size_kb:.1f}KB。",
+            "size_tags": {
+                "small": "小图",
+                "large": "大图"
+            }
+        },
+        "labels": {
+            "keyword_mapping": {
+                "人物": ["人", "脸", "女孩", "男孩", "角色", "自拍", "头像"],
+                "自然": ["风景", "山", "海", "天空", "云", "树", "花", "草", "日落", "日出"],
+                "动物": ["猫", "狗", "鸟", "鱼", "动物", "宠物"],
+                "食物": ["美食", "饭", "菜", "甜点", "饮料", "水果"],
+                "建筑": ["建筑", "城市", "街道", "房子", "桥", "塔"],
+                "艺术": ["画", "插画", "设计", "动漫", "二次元", "卡通"]
+            },
+            "default_labels": ["图片", "视觉内容"]
+        },
+        "fallback": {
+            "api_error": "暂时无法详细分析这张图片，请稍后再试~"
+        }
+    },
+
+    "task_classification": {
+        "mode": "keyword",
+        "llm_model": "qwen_7b",
+        "llm_timeout": 10,
+        "fallback_to_keywords": true,
+        "tool_calling": [
+            "执行", "运行", "打开", "关闭", "文件", "目录",
+            "搜索", "查找", "!", ">>", "terminal"
+        ],
+        "code_keywords": [
+            "代码", "函数", "类", "编程", "python", "javascript",
+            "调试", "bug", "解析", "实现", "理解代码"
+        ],
+        "code_generation_triggers": ["生成", "写"],
+        "complex_reasoning": [
+            "分析", "推理", "解释", "为什么", "如何",
+            "比较", "评估", "理解", "思考", "逻辑"
+        ],
+        "complex_indicators": ["深入", "详细", "全面", "系统", "框架"],
+        "creative_writing": [
+            "写", "创作", "故事", "诗歌", "小说",
+            "创意", "想象", "生成", "设计"
+        ],
+        "summarization": ["总结", "摘要", "概括", "归纳", "简述"],
+        "task_planning": ["帮我", "任务", "计划", "规划", "步骤"],
+        "default_task": "simple_chat",
+        "chinese_ratio_threshold": 0.5
     }
 }

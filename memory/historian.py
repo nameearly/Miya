@@ -1,16 +1,18 @@
 """
-弥娅历史记录员 (Historian)
+弥娅历史记录员 (Historian) v2.0
 
 自动分析对话并提取需要记忆的内容：
 - 只记忆重要事实，不记忆客套话
 - 自动提取用户信息、习惯、承诺等
+- 群聊中有价值的讨论主题提取
 - 与 CognitiveEngine 配合实现智能记忆
 """
 
 import logging
 import re
 import asyncio
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Set
+from datetime import datetime
 
 from memory import get_memory_core, MemoryItem, MemorySource
 from memory.cognitive_engine import (
@@ -31,6 +33,8 @@ IGNORE_PATTERNS = [
     r"^\[表情\]$",
     r"^[\(]?图片[照片]?[\)]?$",
     r"^[/@].*",  # 命令
+    r"^!{3,}$",  # 纯感叹号
+    r"^[~～]{3,}$",  # 纯波浪号
 ]
 
 # 重要信息模式
@@ -61,6 +65,24 @@ IMPORTANT_PATTERNS = {
     ],
 }
 
+# 群聊有价值讨论模式
+GROUP_DISCUSSION_PATTERNS = {
+    "knowledge": [
+        (r"(三体|阶梯计划|云天明|二向箔|曲率|黑洞|光速飞船)", "科幻讨论"),
+        (r"(群星|战锤|蜂巢|超级个体|进化方向)", "科幻哲学"),
+        (r"(饕餮|深水王子|针眼画师|童话)", "三体童话"),
+        (r"(计划的一部分|面壁者|执剑人)", "三体概念"),
+    ],
+    "opinion": [
+        (r"(我认为|我觉得|我的看法|我的看法是)", "观点表达"),
+        (r"(你怎么看|你怎么想|你的看法)", "征求意见"),
+    ],
+    "event": [
+        (r"(今天|明天|昨天|下周|下周)(去|要|准备|打算)", "计划安排"),
+        (r"(终于|总算|结束了|完成了)", "事件完成"),
+    ],
+}
+
 
 class Historian:
     """历史记录员
@@ -68,16 +90,18 @@ class Historian:
     职责：
     - 分析对话内容
     - 提取需要记忆的重要信息
+    - 群聊中有价值讨论的提取
     - 自动保存到记忆存储
     """
 
     def __init__(self):
         """初始化历史记录员"""
-        import asyncio
-
         self.memory_core = None
         self._memory_core_initialized = False
         self.cognitive_engine = get_cognitive_engine()
+        # 近期已记忆的内容哈希，避免重复记忆
+        self._recent_memory_hashes: Set[str] = set()
+        self._max_recent_hashes = 100
 
     async def _ensure_memory_core_initialized(self):
         """确保内存核心已初始化"""
@@ -86,6 +110,28 @@ class Historian:
                 self.memory_core = await get_memory_core()
             await self.memory_core.initialize()
             self._memory_core_initialized = True
+
+    def _content_hash(self, text: str) -> str:
+        """生成内容哈希用于去重"""
+        import hashlib
+
+        # 只取前50个字符做哈希，忽略标点差异
+        normalized = re.sub(r"[^\w\u4e00-\u9fff]", "", text[:50])
+        return hashlib.md5(normalized.encode("utf-8")).hexdigest()[:12]
+
+    def _is_duplicate(self, text: str) -> bool:
+        """检查是否是重复内容"""
+        h = self._content_hash(text)
+        if h in self._recent_memory_hashes:
+            return True
+        self._recent_memory_hashes.add(h)
+        # 限制哈希表大小
+        if len(self._recent_memory_hashes) > self._max_recent_hashes:
+            # 移除一半最旧的
+            to_remove = list(self._recent_memory_hashes)[: self._max_recent_hashes // 2]
+            for item in to_remove:
+                self._recent_memory_hashes.discard(item)
+        return False
 
     def _is_meaningful(self, text: str) -> bool:
         """判断内容是否有意义"""
@@ -123,6 +169,27 @@ class Historian:
 
         return results
 
+    def _extract_group_discussion(
+        self, text: str
+    ) -> Optional[Tuple[str, float, List[str]]]:
+        """提取群聊中有价值的讨论内容
+
+        Returns:
+            (内容, 重要性, 标签) 或 None
+        """
+        for category, patterns in GROUP_DISCUSSION_PATTERNS.items():
+            for pattern, info_type in patterns:
+                if re.search(pattern, text):
+                    # 群聊讨论默认较高重要性
+                    importance = 0.7
+                    tags = [category, info_type]
+                    # 添加话题标签
+                    for topic, keywords in TOPIC_KEYWORDS.items():
+                        if any(kw in text for kw in keywords):
+                            tags.append(topic)
+                    return text[:150], importance, tags
+        return None
+
     def _extract_fact_from_conversation(
         self, user_input: str, ai_response: str
     ) -> Optional[Tuple[str, float, List[str]]]:
@@ -140,7 +207,12 @@ class Historian:
             importance = 0.8 if info_type in ["personal_info", "health"] else 0.6
             return content, importance, tags
 
-        # 2. 检查触发词
+        # 2. 检查群聊有价值讨论
+        group_discussion = self._extract_group_discussion(user_input)
+        if group_discussion:
+            return group_discussion
+
+        # 3. 检查触发词
         importance = 0.3
         tags = []
 
@@ -169,7 +241,12 @@ class Historian:
         return None
 
     async def process_conversation(
-        self, user_input: str, ai_response: str, user_id: str = "default"
+        self,
+        user_input: str,
+        ai_response: str,
+        user_id: str = "default",
+        group_id: str = "",
+        message_type: str = "",
     ) -> bool:
         """处理对话并自动记忆
 
@@ -177,6 +254,8 @@ class Historian:
             user_input: 用户输入
             ai_response: AI回复
             user_id: 用户ID
+            group_id: 群组ID
+            message_type: 消息类型 (group/private)
 
         Returns:
             是否成功记忆
@@ -185,7 +264,11 @@ class Historian:
         if not self._is_meaningful(user_input):
             return False
 
-        # 2. 提取需要记忆的内容
+        # 2. 检查是否重复
+        if self._is_duplicate(user_input):
+            return False
+
+        # 3. 提取需要记忆的内容
         memory_data = self._extract_fact_from_conversation(user_input, ai_response)
 
         if not memory_data:
@@ -194,7 +277,11 @@ class Historian:
 
         content, importance, tags = memory_data
 
-        # 3. 保存到记忆存储
+        # 群聊讨论提高重要性
+        if message_type == "group" and len(user_input) > 20:
+            importance = min(1.0, importance + 0.1)
+
+        # 4. 保存到记忆存储
         try:
             # 确保内存核心已初始化
             await self._ensure_memory_core_initialized()
@@ -204,11 +291,13 @@ class Historian:
                 priority=importance,
                 tags=tags,
                 source=MemorySource.AUTO_EXTRACT,
+                user_id=user_id,
+                group_id=group_id,
             )
 
             if memory_uuid:
                 logger.info(
-                    f"[Historian] 已记忆: {content[:30]}... (importance={importance})"
+                    f"[Historian] 已记忆: {content[:30]}... (importance={importance}, group={group_id})"
                 )
                 return True
         except Exception as e:
@@ -217,7 +306,12 @@ class Historian:
         return False
 
     async def process_after_response(
-        self, user_input: str, ai_response: str, user_id: str = "default"
+        self,
+        user_input: str,
+        ai_response: str,
+        user_id: str = "default",
+        group_id: str = "",
+        message_type: str = "",
     ) -> None:
         """在生成回复后调用，自动处理记忆
 
@@ -225,6 +319,8 @@ class Historian:
             user_input: 用户输入
             ai_response: AI回复
             user_id: 用户ID
+            group_id: 群组ID
+            message_type: 消息类型 (group/private)
         """
         # 使用认知引擎判断是否需要记忆
         (
@@ -234,8 +330,20 @@ class Historian:
         ) = await self.cognitive_engine.should_remember(user_input, ai_response)
 
         if should_remember and content:
+            # 检查重复
+            if self._is_duplicate(content):
+                return
+
             # 提取话题标签
             topics = self.cognitive_engine._extract_topics(user_input)
+
+            # 群聊讨论添加额外标签
+            if message_type == "group":
+                group_discussion = self._extract_group_discussion(user_input)
+                if group_discussion:
+                    _, _, discussion_tags = group_discussion
+                    topics.extend(discussion_tags)
+                    importance = min(1.0, importance + 0.1)
 
             try:
                 # 确保内存核心已初始化
@@ -246,6 +354,8 @@ class Historian:
                     priority=importance,
                     tags=topics,
                     source=MemorySource.AUTO_EXTRACT,
+                    user_id=user_id,
+                    group_id=group_id,
                 )
                 logger.info(f"[Historian] 自动记住: {content[:30]}...")
             except Exception as e:

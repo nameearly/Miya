@@ -1,1550 +1,4 @@
 {
-  "c7d0b5f0e072d3fb": {
-    "level": "long_term",
-    "user_id": "test_user",
-    "session_id": "",
-    "tags": [
-      "偏好"
-    ],
-    "created_at": "2026-03-29T12:22:54.857613",
-    "file_path": "data\\memory\\long_term\\test_user\\c7d0b5f0e072d3fb.json"
-  },
-  "7d31b7f701e0e7a5": {
-    "level": "semantic",
-    "user_id": "vec_test",
-    "session_id": "",
-    "tags": [
-      "偏好"
-    ],
-    "created_at": "2026-03-29T12:23:38.265588",
-    "file_path": "data\\memory\\semantic\\vec_test\\7d31b7f701e0e7a5.json"
-  },
-  "3243d6c9288bcc08": {
-    "level": "long_term",
-    "user_id": "test_user",
-    "session_id": "",
-    "tags": [
-      "lifebook"
-    ],
-    "created_at": "2026-03-29T12:49:58.432424",
-    "file_path": "data\\memory\\long_term\\test_user\\3243d6c9288bcc08.json"
-  },
-  "7d06ed4f1031daeb": {
-    "level": "dialogue",
-    "user_id": "system",
-    "session_id": "startup",
-    "tags": [],
-    "created_at": "2026-03-29T12:50:42.535959",
-    "file_path": "data\\memory\\dialogue\\system\\7d06ed4f1031daeb.json"
-  },
-  "db7cfc758a6615d6": {
-    "level": "dialogue",
-    "user_id": "test",
-    "session_id": "test",
-    "tags": [],
-    "created_at": "2026-03-29T12:57:19.431833",
-    "file_path": "data\\memory\\dialogue\\test\\db7cfc758a6615d6.json"
-  },
-  "7d1e3258ba296d39": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "preference",
-      "爱好"
-    ],
-    "created_at": "2026-03-30T00:57:44.071959",
-    "file_path": "data\\memory\\short_term\\7d1e3258ba296d39.json"
-  },
-  "9b3f4d5693a5c0fc": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T01:18:51.823553",
-    "file_path": "data\\memory\\short_term\\9b3f4d5693a5c0fc.json"
-  },
-  "78c514260d68086c": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T01:21:06.808282",
-    "file_path": "data\\memory\\short_term\\78c514260d68086c.json"
-  },
-  "148aed7711499eb4": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T12:54:34.881303",
-    "file_path": "data\\memory\\short_term\\148aed7711499eb4.json"
-  },
-  "d9ae363ba87af4be": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T12:54:54.412612",
-    "file_path": "data\\memory\\short_term\\d9ae363ba87af4be.json"
-  },
-  "b0ebecaa2e4b61f0": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "行程"
-    ],
-    "created_at": "2026-03-30T12:55:37.561864",
-    "file_path": "data\\memory\\short_term\\b0ebecaa2e4b61f0.json"
-  },
-  "574142b2c2343998": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:23:03.935763",
-    "file_path": "data\\memory\\short_term\\574142b2c2343998.json"
-  },
-  "97409462b8c2c03f": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:23:35.774318",
-    "file_path": "data\\memory\\short_term\\97409462b8c2c03f.json"
-  },
-  "448fd2f72397cccc": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "学习"
-    ],
-    "created_at": "2026-03-30T13:25:42.954606",
-    "file_path": "data\\memory\\short_term\\448fd2f72397cccc.json"
-  },
-  "8f81073a77febf8b": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:27:20.863021",
-    "file_path": "data\\memory\\short_term\\8f81073a77febf8b.json"
-  },
-  "af834f12c22361eb": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:27:46.451477",
-    "file_path": "data\\memory\\short_term\\af834f12c22361eb.json"
-  },
-  "9b032261be4234e8": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:28:01.295752",
-    "file_path": "data\\memory\\short_term\\9b032261be4234e8.json"
-  },
-  "933b0a44a42ebecd": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:28:07.009386",
-    "file_path": "data\\memory\\short_term\\933b0a44a42ebecd.json"
-  },
-  "43cc9edca8a90706": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:28:17.975878",
-    "file_path": "data\\memory\\short_term\\43cc9edca8a90706.json"
-  },
-  "f5d702510a1e9e93": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:28:51.284244",
-    "file_path": "data\\memory\\short_term\\f5d702510a1e9e93.json"
-  },
-  "9899cc2b8fb9af7f": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "爱好"
-    ],
-    "created_at": "2026-03-30T13:29:46.258189",
-    "file_path": "data\\memory\\short_term\\9899cc2b8fb9af7f.json"
-  },
-  "e7a4df46c626926d": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:32:06.386751",
-    "file_path": "data\\memory\\short_term\\e7a4df46c626926d.json"
-  },
-  "b4133794b9607324": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:32:40.320080",
-    "file_path": "data\\memory\\short_term\\b4133794b9607324.json"
-  },
-  "88d38319d2207816": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:33:16.696477",
-    "file_path": "data\\memory\\short_term\\88d38319d2207816.json"
-  },
-  "a76799cc8bf5fd0a": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:34:51.413363",
-    "file_path": "data\\memory\\short_term\\a76799cc8bf5fd0a.json"
-  },
-  "c0addae52df4a87f": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:36:06.807956",
-    "file_path": "data\\memory\\short_term\\c0addae52df4a87f.json"
-  },
-  "ba55f15b02bd9198": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:37:06.799206",
-    "file_path": "data\\memory\\short_term\\ba55f15b02bd9198.json"
-  },
-  "ff6e9ca34418ba92": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "学习",
-      "休息"
-    ],
-    "created_at": "2026-03-30T13:38:32.607591",
-    "file_path": "data\\memory\\short_term\\ff6e9ca34418ba92.json"
-  },
-  "430e2274e0002f1b": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:39:06.107896",
-    "file_path": "data\\memory\\short_term\\430e2274e0002f1b.json"
-  },
-  "1c8d03c44c682d7b": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:39:55.455733",
-    "file_path": "data\\memory\\short_term\\1c8d03c44c682d7b.json"
-  },
-  "c6a3f5776c0ccf3b": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:40:42.506320",
-    "file_path": "data\\memory\\short_term\\c6a3f5776c0ccf3b.json"
-  },
-  "84245b6e8fd790c7": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:41:54.922790",
-    "file_path": "data\\memory\\short_term\\84245b6e8fd790c7.json"
-  },
-  "d2041789eadd8e3e": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:42:41.326842",
-    "file_path": "data\\memory\\short_term\\d2041789eadd8e3e.json"
-  },
-  "fd342cbafae4d5a3": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:44:10.297982",
-    "file_path": "data\\memory\\short_term\\fd342cbafae4d5a3.json"
-  },
-  "896353a14decc681": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:46:09.863907",
-    "file_path": "data\\memory\\short_term\\896353a14decc681.json"
-  },
-  "f51b1605d3ebc207": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:46:42.914880",
-    "file_path": "data\\memory\\short_term\\f51b1605d3ebc207.json"
-  },
-  "02a474f332e67887": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:46:56.745209",
-    "file_path": "data\\memory\\short_term\\02a474f332e67887.json"
-  },
-  "17edef871a884f59": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:47:37.497604",
-    "file_path": "data\\memory\\short_term\\17edef871a884f59.json"
-  },
-  "1c09a11f069e9d8a": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:48:52.308727",
-    "file_path": "data\\memory\\short_term\\1c09a11f069e9d8a.json"
-  },
-  "348695e8f3637760": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:53:06.743551",
-    "file_path": "data\\memory\\short_term\\348695e8f3637760.json"
-  },
-  "da3b4a6eb2171ece": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:54:33.768145",
-    "file_path": "data\\memory\\short_term\\da3b4a6eb2171ece.json"
-  },
-  "405985cf39ec3176": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:55:12.867145",
-    "file_path": "data\\memory\\short_term\\405985cf39ec3176.json"
-  },
-  "dbe3f222551a10b2": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:56:16.734185",
-    "file_path": "data\\memory\\short_term\\dbe3f222551a10b2.json"
-  },
-  "6675ee9bf3df7e6a": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:57:37.476715",
-    "file_path": "data\\memory\\short_term\\6675ee9bf3df7e6a.json"
-  },
-  "afe62be8a85996ba": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:57:45.611349",
-    "file_path": "data\\memory\\short_term\\afe62be8a85996ba.json"
-  },
-  "ec4d67eb3c7bd6a0": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T13:58:59.707051",
-    "file_path": "data\\memory\\short_term\\ec4d67eb3c7bd6a0.json"
-  },
-  "43a52024f3acad18": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T14:00:43.106936",
-    "file_path": "data\\memory\\short_term\\43a52024f3acad18.json"
-  },
-  "2dbcec57b95b6e3a": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T14:01:18.031246",
-    "file_path": "data\\memory\\short_term\\2dbcec57b95b6e3a.json"
-  },
-  "368480513e144fb0": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T14:09:17.540755",
-    "file_path": "data\\memory\\short_term\\368480513e144fb0.json"
-  },
-  "ca02c0b509bcfdc8": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T14:10:25.802777",
-    "file_path": "data\\memory\\short_term\\ca02c0b509bcfdc8.json"
-  },
-  "f9bba1aa303610b5": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T14:11:54.590490",
-    "file_path": "data\\memory\\short_term\\f9bba1aa303610b5.json"
-  },
-  "693530d5d50a7a97": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T15:25:50.384102",
-    "file_path": "data\\memory\\short_term\\693530d5d50a7a97.json"
-  },
-  "44b5ea3d0aa5c70c": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T15:27:38.625659",
-    "file_path": "data\\memory\\short_term\\44b5ea3d0aa5c70c.json"
-  },
-  "35c348e73a2affe5": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T16:22:14.080322",
-    "file_path": "data\\memory\\short_term\\35c348e73a2affe5.json"
-  },
-  "dfdd9489659f2478": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T16:35:54.340665",
-    "file_path": "data\\memory\\short_term\\dfdd9489659f2478.json"
-  },
-  "79adafd874a6bbae": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T16:36:02.746732",
-    "file_path": "data\\memory\\short_term\\79adafd874a6bbae.json"
-  },
-  "07352fb6b6c51a9d": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T16:40:42.098218",
-    "file_path": "data\\memory\\short_term\\07352fb6b6c51a9d.json"
-  },
-  "71b01fc3901f9103": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T16:54:10.178449",
-    "file_path": "data\\memory\\short_term\\71b01fc3901f9103.json"
-  },
-  "a55d338e8f7ce390": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T16:54:16.417795",
-    "file_path": "data\\memory\\short_term\\a55d338e8f7ce390.json"
-  },
-  "549a1a40860447c0": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T16:55:21.634836",
-    "file_path": "data\\memory\\short_term\\549a1a40860447c0.json"
-  },
-  "5d7a7c27b20a1116": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T17:01:42.332421",
-    "file_path": "data\\memory\\short_term\\5d7a7c27b20a1116.json"
-  },
-  "f6d904d6d69304e5": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T17:04:40.441919",
-    "file_path": "data\\memory\\short_term\\f6d904d6d69304e5.json"
-  },
-  "331ba058ca57d2cd": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T17:07:34.848385",
-    "file_path": "data\\memory\\short_term\\331ba058ca57d2cd.json"
-  },
-  "e17214eeab5c1aa4": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "吃饭"
-    ],
-    "created_at": "2026-03-30T17:19:58.794203",
-    "file_path": "data\\memory\\short_term\\e17214eeab5c1aa4.json"
-  },
-  "78ba7dd02c585135": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T18:29:28.215465",
-    "file_path": "data\\memory\\short_term\\78ba7dd02c585135.json"
-  },
-  "435864b086296a58": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "学习"
-    ],
-    "created_at": "2026-03-30T18:29:29.695762",
-    "file_path": "data\\memory\\short_term\\435864b086296a58.json"
-  },
-  "20cfc39ca8164473": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T20:11:00.304849",
-    "file_path": "data\\memory\\short_term\\20cfc39ca8164473.json"
-  },
-  "b2ede3fe3be75c24": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "学习"
-    ],
-    "created_at": "2026-03-30T20:13:09.643050",
-    "file_path": "data\\memory\\short_term\\b2ede3fe3be75c24.json"
-  },
-  "689aeccc76746ed9": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T20:17:23.072942",
-    "file_path": "data\\memory\\short_term\\689aeccc76746ed9.json"
-  },
-  "18afb914713f275d": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T20:21:47.457111",
-    "file_path": "data\\memory\\short_term\\18afb914713f275d.json"
-  },
-  "afabc1697fdcd862": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "社交"
-    ],
-    "created_at": "2026-03-30T21:40:54.505229",
-    "file_path": "data\\memory\\short_term\\afabc1697fdcd862.json"
-  },
-  "3e5ad461a4db9fab": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:41:20.416736",
-    "file_path": "data\\memory\\short_term\\3e5ad461a4db9fab.json"
-  },
-  "ea7aa6e3c1c5c291": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:41:25.317600",
-    "file_path": "data\\memory\\short_term\\ea7aa6e3c1c5c291.json"
-  },
-  "02c107e14e3010dd": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:42:20.754917",
-    "file_path": "data\\memory\\short_term\\02c107e14e3010dd.json"
-  },
-  "ebfe30c57b7633a9": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:43:51.552368",
-    "file_path": "data\\memory\\short_term\\ebfe30c57b7633a9.json"
-  },
-  "339c31c4498e0333": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:45:44.513698",
-    "file_path": "data\\memory\\short_term\\339c31c4498e0333.json"
-  },
-  "a81293123651f809": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:46:07.395927",
-    "file_path": "data\\memory\\short_term\\a81293123651f809.json"
-  },
-  "552952af03024d63": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:46:19.350456",
-    "file_path": "data\\memory\\short_term\\552952af03024d63.json"
-  },
-  "196575f27b6ef06c": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:47:46.994243",
-    "file_path": "data\\memory\\short_term\\196575f27b6ef06c.json"
-  },
-  "801e2bbf39fb6846": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:52:23.052176",
-    "file_path": "data\\memory\\short_term\\801e2bbf39fb6846.json"
-  },
-  "141982278eda781a": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:52:25.453394",
-    "file_path": "data\\memory\\short_term\\141982278eda781a.json"
-  },
-  "f273b9d031a4382f": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:53:24.783761",
-    "file_path": "data\\memory\\short_term\\f273b9d031a4382f.json"
-  },
-  "3599e9f64ade4957": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:53:48.070085",
-    "file_path": "data\\memory\\short_term\\3599e9f64ade4957.json"
-  },
-  "0e3a65b03ebb165b": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:54:05.456105",
-    "file_path": "data\\memory\\short_term\\0e3a65b03ebb165b.json"
-  },
-  "9e83e069ea47ed9d": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:54:29.188421",
-    "file_path": "data\\memory\\short_term\\9e83e069ea47ed9d.json"
-  },
-  "920389cab6406004": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:54:47.410847",
-    "file_path": "data\\memory\\short_term\\920389cab6406004.json"
-  },
-  "82263eeecd539af4": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:56:22.126444",
-    "file_path": "data\\memory\\short_term\\82263eeecd539af4.json"
-  },
-  "450bb98f77d451a9": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T21:56:40.447473",
-    "file_path": "data\\memory\\short_term\\450bb98f77d451a9.json"
-  },
-  "f4430b776e36790d": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "爱好"
-    ],
-    "created_at": "2026-03-30T21:57:03.831587",
-    "file_path": "data\\memory\\short_term\\f4430b776e36790d.json"
-  },
-  "33f59a5fa1811fda": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T22:08:22.021164",
-    "file_path": "data\\memory\\short_term\\33f59a5fa1811fda.json"
-  },
-  "6ae67026fa0aa28d": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "社交"
-    ],
-    "created_at": "2026-03-30T22:45:12.659270",
-    "file_path": "data\\memory\\short_term\\6ae67026fa0aa28d.json"
-  },
-  "18a1ee1d2d3d434e": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T22:45:38.002748",
-    "file_path": "data\\memory\\short_term\\18a1ee1d2d3d434e.json"
-  },
-  "f984daa39f641753": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T22:46:03.291104",
-    "file_path": "data\\memory\\short_term\\f984daa39f641753.json"
-  },
-  "85ff883d1563a421": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:04:47.069048",
-    "file_path": "data\\memory\\short_term\\85ff883d1563a421.json"
-  },
-  "8c391ce9a17c21a0": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:05:26.529161",
-    "file_path": "data\\memory\\short_term\\8c391ce9a17c21a0.json"
-  },
-  "9c1139d9e111955e": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:12:37.817527",
-    "file_path": "data\\memory\\short_term\\9c1139d9e111955e.json"
-  },
-  "628dd963e2b2d77c": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:13:00.736687",
-    "file_path": "data\\memory\\short_term\\628dd963e2b2d77c.json"
-  },
-  "909a08ae35a05a89": {
-    "level": "long_term",
-    "user_id": "2911746585",
-    "session_id": "",
-    "tags": [
-      "群聊",
-      "玩笑",
-      "角色扮演",
-      "咕"
-    ],
-    "created_at": "2026-03-30T23:13:59.534722",
-    "file_path": "data\\memory\\long_term\\2911746585\\909a08ae35a05a89.json"
-  },
-  "56e8bf44474b1e08": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:14:19.300841",
-    "file_path": "data\\memory\\short_term\\56e8bf44474b1e08.json"
-  },
-  "0aa007fcdce1d1aa": {
-    "level": "long_term",
-    "user_id": "2911746585",
-    "session_id": "",
-    "tags": [
-      "量子坍缩",
-      "身份认知",
-      "群聊"
-    ],
-    "created_at": "2026-03-30T23:27:56.997723",
-    "file_path": "data\\memory\\long_term\\2911746585\\0aa007fcdce1d1aa.json"
-  },
-  "c8b08134d94f9692": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:28:00.880795",
-    "file_path": "data\\memory\\short_term\\c8b08134d94f9692.json"
-  },
-  "e0ad9079b73f2145": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "爱好"
-    ],
-    "created_at": "2026-03-30T23:28:41.641161",
-    "file_path": "data\\memory\\short_term\\e0ad9079b73f2145.json"
-  },
-  "b057a26e0f5ab3bb": {
-    "level": "long_term",
-    "user_id": "2911746585",
-    "session_id": "",
-    "tags": [
-      "身份确认",
-      "迪迦",
-      "弥娅",
-      "群聊"
-    ],
-    "created_at": "2026-03-30T23:29:04.367896",
-    "file_path": "data\\memory\\long_term\\2911746585\\b057a26e0f5ab3bb.json"
-  },
-  "1b4ac189c4ffa672": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "爱好"
-    ],
-    "created_at": "2026-03-30T23:29:06.622910",
-    "file_path": "data\\memory\\short_term\\1b4ac189c4ffa672.json"
-  },
-  "7b58ce6544e1856f": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:29:15.446198",
-    "file_path": "data\\memory\\short_term\\7b58ce6544e1856f.json"
-  },
-  "75a1e076820ba656": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:30:04.172889",
-    "file_path": "data\\memory\\short_term\\75a1e076820ba656.json"
-  },
-  "67eb2d2d5d11a7e8": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:30:28.432966",
-    "file_path": "data\\memory\\short_term\\67eb2d2d5d11a7e8.json"
-  },
-  "2fbb69b703dd7cc3": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:30:41.963184",
-    "file_path": "data\\memory\\short_term\\2fbb69b703dd7cc3.json"
-  },
-  "8ff74c203d8f27e4": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:30:45.754286",
-    "file_path": "data\\memory\\short_term\\8ff74c203d8f27e4.json"
-  },
-  "97b81757464182d1": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:31:16.005152",
-    "file_path": "data\\memory\\short_term\\97b81757464182d1.json"
-  },
-  "d557d4c3a834dd13": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:31:45.144646",
-    "file_path": "data\\memory\\short_term\\d557d4c3a834dd13.json"
-  },
-  "17dc5b75adc1918c": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:32:15.045470",
-    "file_path": "data\\memory\\short_term\\17dc5b75adc1918c.json"
-  },
-  "e83d1c7596a40b1f": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "爱好"
-    ],
-    "created_at": "2026-03-30T23:32:35.414628",
-    "file_path": "data\\memory\\short_term\\e83d1c7596a40b1f.json"
-  },
-  "4a29f15aadf1a20b": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:33:02.706458",
-    "file_path": "data\\memory\\short_term\\4a29f15aadf1a20b.json"
-  },
-  "c76d42c18cddff0d": {
-    "level": "long_term",
-    "user_id": "2911746585",
-    "session_id": "",
-    "tags": [
-      "量子理论",
-      "身份讨论",
-      "迪迦话题",
-      "群聊"
-    ],
-    "created_at": "2026-03-30T23:33:41.881913",
-    "file_path": "data\\memory\\long_term\\2911746585\\c76d42c18cddff0d.json"
-  },
-  "b834a0954634784e": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:33:45.004627",
-    "file_path": "data\\memory\\short_term\\b834a0954634784e.json"
-  },
-  "24ee46264de88143": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:34:01.128013",
-    "file_path": "data\\memory\\short_term\\24ee46264de88143.json"
-  },
-  "ab529ea3d7a67350": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:34:17.541559",
-    "file_path": "data\\memory\\short_term\\ab529ea3d7a67350.json"
-  },
-  "168cce9a629c68e1": {
-    "level": "long_term",
-    "user_id": "2911746585",
-    "session_id": "",
-    "tags": [
-      "迪迦",
-      "角色扮演",
-      "群聊",
-      "咕"
-    ],
-    "created_at": "2026-03-30T23:34:39.210103",
-    "file_path": "data\\memory\\long_term\\2911746585\\168cce9a629c68e1.json"
-  },
-  "4fb075200c69bdb7": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:34:41.693239",
-    "file_path": "data\\memory\\short_term\\4fb075200c69bdb7.json"
-  },
-  "411900e3314b5114": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-30T23:34:55.872371",
-    "file_path": "data\\memory\\short_term\\411900e3314b5114.json"
-  },
-  "242ef4e2bad4c8b3": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:11:57.455264",
-    "file_path": "data\\memory\\short_term\\242ef4e2bad4c8b3.json"
-  },
-  "92ded8343cf8f119": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:12:17.814211",
-    "file_path": "data\\memory\\short_term\\92ded8343cf8f119.json"
-  },
-  "6ac35e2debff2b7f": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:12:36.959756",
-    "file_path": "data\\memory\\short_term\\6ac35e2debff2b7f.json"
-  },
-  "6f959ee3fdff4b39": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:13:08.746741",
-    "file_path": "data\\memory\\short_term\\6f959ee3fdff4b39.json"
-  },
-  "ed0f33c5a070d83e": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:14:06.854435",
-    "file_path": "data\\memory\\short_term\\ed0f33c5a070d83e.json"
-  },
-  "6c9b872d1f823d60": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:14:43.525795",
-    "file_path": "data\\memory\\short_term\\6c9b872d1f823d60.json"
-  },
-  "a3e8003e0009be01": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:15:01.516299",
-    "file_path": "data\\memory\\short_term\\a3e8003e0009be01.json"
-  },
-  "31bfacd99e90b1f8": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:15:23.280706",
-    "file_path": "data\\memory\\short_term\\31bfacd99e90b1f8.json"
-  },
-  "1442fd1c825ea8fd": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:15:57.805885",
-    "file_path": "data\\memory\\short_term\\1442fd1c825ea8fd.json"
-  },
-  "771082cfd2efebbf": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:16:18.746849",
-    "file_path": "data\\memory\\short_term\\771082cfd2efebbf.json"
-  },
-  "25ccf58dd30ea8e3": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:17:00.386778",
-    "file_path": "data\\memory\\short_term\\25ccf58dd30ea8e3.json"
-  },
-  "1d253476ee3354b7": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:17:08.905309",
-    "file_path": "data\\memory\\short_term\\1d253476ee3354b7.json"
-  },
-  "0f28dd3736bc9bc1": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:17:21.243617",
-    "file_path": "data\\memory\\short_term\\0f28dd3736bc9bc1.json"
-  },
-  "895256982a636a1e": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:17:49.325429",
-    "file_path": "data\\memory\\short_term\\895256982a636a1e.json"
-  },
-  "3d9713f98ce40e8b": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:18:00.439325",
-    "file_path": "data\\memory\\short_term\\3d9713f98ce40e8b.json"
-  },
-  "05d75e80657196ea": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T10:18:58.978925",
-    "file_path": "data\\memory\\short_term\\05d75e80657196ea.json"
-  },
-  "535ed974abf6adf1": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T11:03:02.875993",
-    "file_path": "data\\memory\\short_term\\535ed974abf6adf1.json"
-  },
-  "25a3ddbee4e95527": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T11:31:23.475099",
-    "file_path": "data\\memory\\short_term\\25a3ddbee4e95527.json"
-  },
-  "5d14fe41ea2bfb2b": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T11:35:08.207189",
-    "file_path": "data\\memory\\short_term\\5d14fe41ea2bfb2b.json"
-  },
-  "e9618812e654f4e2": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "休息",
-      "社交",
-      "爱好"
-    ],
-    "created_at": "2026-03-31T11:38:10.836570",
-    "file_path": "data\\memory\\short_term\\e9618812e654f4e2.json"
-  },
-  "1dc858b68b972053": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T11:44:18.731651",
-    "file_path": "data\\memory\\short_term\\1dc858b68b972053.json"
-  },
-  "256fc9cdce6ad757": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "社交"
-    ],
-    "created_at": "2026-03-31T11:44:57.801206",
-    "file_path": "data\\memory\\short_term\\256fc9cdce6ad757.json"
-  },
-  "efc66bf02cdaa61d": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "休息",
-      "社交",
-      "爱好"
-    ],
-    "created_at": "2026-03-31T11:45:14.719602",
-    "file_path": "data\\memory\\short_term\\efc66bf02cdaa61d.json"
-  },
-  "38dd96135616d506": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "爱好"
-    ],
-    "created_at": "2026-03-31T11:46:21.214126",
-    "file_path": "data\\memory\\short_term\\38dd96135616d506.json"
-  },
-  "53bd3d5b5259a0d9": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T11:46:54.644781",
-    "file_path": "data\\memory\\short_term\\53bd3d5b5259a0d9.json"
-  },
-  "98b0ce02adbf6cc3": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T11:47:30.949353",
-    "file_path": "data\\memory\\short_term\\98b0ce02adbf6cc3.json"
-  },
-  "02346b018c34f741": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "吃饭"
-    ],
-    "created_at": "2026-03-31T11:54:36.710006",
-    "file_path": "data\\memory\\short_term\\02346b018c34f741.json"
-  },
-  "847d13ff6b511b5d": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T12:10:33.282339",
-    "file_path": "data\\memory\\short_term\\847d13ff6b511b5d.json"
-  },
-  "338a5a464aa326cd": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T12:11:37.364281",
-    "file_path": "data\\memory\\short_term\\338a5a464aa326cd.json"
-  },
-  "3bdf3db09d47fd32": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T12:18:08.921393",
-    "file_path": "data\\memory\\short_term\\3bdf3db09d47fd32.json"
-  },
-  "be1ca25cc8cb38de": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T12:26:50.333536",
-    "file_path": "data\\memory\\short_term\\be1ca25cc8cb38de.json"
-  },
-  "eb0c1c47bbd8a73c": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T12:31:40.710773",
-    "file_path": "data\\memory\\short_term\\eb0c1c47bbd8a73c.json"
-  },
-  "7e216e1dd4cbd8d3": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T12:44:18.047053",
-    "file_path": "data\\memory\\short_term\\7e216e1dd4cbd8d3.json"
-  },
-  "9ad15f37db4ab74d": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T12:45:41.523201",
-    "file_path": "data\\memory\\short_term\\9ad15f37db4ab74d.json"
-  },
-  "e7f9ca67ebb7d02c": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T13:11:03.708532",
-    "file_path": "data\\memory\\short_term\\e7f9ca67ebb7d02c.json"
-  },
-  "fcaab3d5cfc9a7de": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "学习"
-    ],
-    "created_at": "2026-03-31T13:22:53.451686",
-    "file_path": "data\\memory\\short_term\\fcaab3d5cfc9a7de.json"
-  },
-  "c78e983d092374d0": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T13:24:48.302895",
-    "file_path": "data\\memory\\short_term\\c78e983d092374d0.json"
-  },
-  "53cb069351f267de": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T13:26:47.926250",
-    "file_path": "data\\memory\\short_term\\53cb069351f267de.json"
-  },
-  "b70bd33ca3b6fa3c": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T13:54:13.368267",
-    "file_path": "data\\memory\\short_term\\b70bd33ca3b6fa3c.json"
-  },
-  "dd8920b696b5eb47": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "休息"
-    ],
-    "created_at": "2026-03-31T14:23:37.201499",
-    "file_path": "data\\memory\\short_term\\dd8920b696b5eb47.json"
-  },
-  "b0bb6f88d28dd5d7": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T14:59:10.710494",
-    "file_path": "data\\memory\\short_term\\b0bb6f88d28dd5d7.json"
-  },
-  "dfd8b8548f2cc57f": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T15:09:34.199992",
-    "file_path": "data\\memory\\short_term\\dfd8b8548f2cc57f.json"
-  },
-  "b36553ecd8d90f10": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T15:37:02.543625",
-    "file_path": "data\\memory\\short_term\\b36553ecd8d90f10.json"
-  },
-  "a68ab6cc0b7c9d08": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T15:43:09.314015",
-    "file_path": "data\\memory\\short_term\\a68ab6cc0b7c9d08.json"
-  },
-  "2c0dcadc4bb2db82": {
-    "level": "long_term",
-    "user_id": "1523878699",
-    "session_id": "",
-    "tags": [
-      "喝水提醒",
-      "健康习惯"
-    ],
-    "created_at": "2026-03-31T15:44:28.287095",
-    "file_path": "data\\memory\\long_term\\1523878699\\2c0dcadc4bb2db82.json"
-  },
-  "77dab2964b0da23c": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T15:44:29.990568",
-    "file_path": "data\\memory\\short_term\\77dab2964b0da23c.json"
-  },
-  "68b62ed5e936f502": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T17:03:35.203600",
-    "file_path": "data\\memory\\short_term\\68b62ed5e936f502.json"
-  },
-  "f362f39b4d880321": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T18:17:41.937379",
-    "file_path": "data\\memory\\short_term\\f362f39b4d880321.json"
-  },
-  "eccc67b6bc82bc30": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T18:31:47.963119",
-    "file_path": "data\\memory\\short_term\\eccc67b6bc82bc30.json"
-  },
-  "16dc98885022b384": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "情绪"
-    ],
-    "created_at": "2026-03-31T18:31:51.252515",
-    "file_path": "data\\memory\\short_term\\16dc98885022b384.json"
-  },
-  "c855714b98f9a913": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T18:31:57.379472",
-    "file_path": "data\\memory\\short_term\\c855714b98f9a913.json"
-  },
-  "8a0ba9c8c9e206b5": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "健康"
-    ],
-    "created_at": "2026-03-31T18:47:04.533040",
-    "file_path": "data\\memory\\short_term\\8a0ba9c8c9e206b5.json"
-  },
-  "c9e903cf308a1bd5": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T18:57:32.968560",
-    "file_path": "data\\memory\\short_term\\c9e903cf308a1bd5.json"
-  },
-  "a898318ae54f5185": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "社交"
-    ],
-    "created_at": "2026-03-31T18:57:37.950839",
-    "file_path": "data\\memory\\short_term\\a898318ae54f5185.json"
-  },
-  "cba1bc03faa549ca": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T18:57:40.582603",
-    "file_path": "data\\memory\\short_term\\cba1bc03faa549ca.json"
-  },
-  "26727681705603c3": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T18:57:57.295289",
-    "file_path": "data\\memory\\short_term\\26727681705603c3.json"
-  },
-  "1616003e2821fc8c": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T18:59:32.505349",
-    "file_path": "data\\memory\\short_term\\1616003e2821fc8c.json"
-  },
-  "05835763768ee645": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T19:00:47.005678",
-    "file_path": "data\\memory\\short_term\\05835763768ee645.json"
-  },
-  "785377a1b4f141c2": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T19:03:24.283635",
-    "file_path": "data\\memory\\short_term\\785377a1b4f141c2.json"
-  },
-  "71fb87c0412649de": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [],
-    "created_at": "2026-03-31T19:03:30.125311",
-    "file_path": "data\\memory\\short_term\\71fb87c0412649de.json"
-  },
-  "d19d3988f4e9ca39": {
-    "level": "short_term",
-    "user_id": "global",
-    "session_id": "",
-    "tags": [
-      "休息",
-      "爱好"
-    ],
-    "created_at": "2026-03-31T19:03:34.908844",
-    "file_path": "data\\memory\\short_term\\d19d3988f4e9ca39.json"
-  },
   "488dd27ebaf11f6b": {
     "level": "short_term",
     "user_id": "global",
@@ -2324,5 +778,1399 @@
     "tags": [],
     "created_at": "2026-03-31T23:24:04.456769",
     "file_path": "data\\memory\\short_term\\70952862990be1b1.json"
+  },
+  "c2536906523532ea": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T12:53:43.893716",
+    "file_path": "data\\memory\\short_term\\c2536906523532ea.json",
+    "priority": 0.3
+  },
+  "ff1654b63168207a": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T12:55:29.928028",
+    "file_path": "data\\memory\\short_term\\ff1654b63168207a.json",
+    "priority": 0.7
+  },
+  "beca13b8050e4e1f": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T12:56:24.999308",
+    "file_path": "data\\memory\\short_term\\beca13b8050e4e1f.json",
+    "priority": 0.3
+  },
+  "476bb6d8772078d0": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:20:53.298724",
+    "file_path": "data\\memory\\short_term\\476bb6d8772078d0.json",
+    "priority": 0.3
+  },
+  "804ab7cbf9909d7b": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:21:51.874838",
+    "file_path": "data\\memory\\short_term\\804ab7cbf9909d7b.json",
+    "priority": 0.3
+  },
+  "bc133417741df17f": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:23:18.917502",
+    "file_path": "data\\memory\\short_term\\bc133417741df17f.json",
+    "priority": 0.7
+  },
+  "e08f1ead4b45e348": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [
+      "爱好"
+    ],
+    "created_at": "2026-04-03T13:23:46.997023",
+    "file_path": "data\\memory\\short_term\\e08f1ead4b45e348.json",
+    "priority": 1.0
+  },
+  "bae7ce43909104a6": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [
+      "爱好"
+    ],
+    "created_at": "2026-04-03T13:23:58.048852",
+    "file_path": "data\\memory\\short_term\\bae7ce43909104a6.json",
+    "priority": 0.8999999999999999
+  },
+  "3126b1c1ff048ed5": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:27:10.682905",
+    "file_path": "data\\memory\\short_term\\3126b1c1ff048ed5.json",
+    "priority": 0.3
+  },
+  "65a7a809ce11d7c7": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [
+      "学习"
+    ],
+    "created_at": "2026-04-03T13:28:52.714412",
+    "file_path": "data\\memory\\short_term\\65a7a809ce11d7c7.json",
+    "priority": 0.3
+  },
+  "61411952e0bfd5b8": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:31:10.018381",
+    "file_path": "data\\memory\\short_term\\61411952e0bfd5b8.json",
+    "priority": 0.3
+  },
+  "9a6b768f3ce00ff8": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:33:16.397902",
+    "file_path": "data\\memory\\short_term\\9a6b768f3ce00ff8.json",
+    "priority": 0.3
+  },
+  "5b972bb62beb98d2": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:45:49.157264",
+    "file_path": "data\\memory\\short_term\\5b972bb62beb98d2.json",
+    "priority": 0.7
+  },
+  "47fb3ab16d124bfd": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:46:03.363812",
+    "file_path": "data\\memory\\short_term\\47fb3ab16d124bfd.json",
+    "priority": 0.3
+  },
+  "45fce007d207f11a": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:50:14.235956",
+    "file_path": "data\\memory\\short_term\\45fce007d207f11a.json",
+    "priority": 0.3
+  },
+  "98f66e78cd74a30c": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:51:32.983548",
+    "file_path": "data\\memory\\short_term\\98f66e78cd74a30c.json",
+    "priority": 0.3
+  },
+  "97514548352c1725": {
+    "level": "long_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "tags": [
+      "功能维护",
+      "关心",
+      "修复"
+    ],
+    "created_at": "2026-04-03T13:53:21.769205",
+    "file_path": "data\\memory\\long_term\\1523878699\\97514548352c1725.json",
+    "priority": 0.7
+  },
+  "abbb188206fb49d0": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:53:24.076704",
+    "file_path": "data\\memory\\short_term\\abbb188206fb49d0.json",
+    "priority": 0.3
+  },
+  "c9b25d6161f2ba3b": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:55:01.407956",
+    "file_path": "data\\memory\\short_term\\c9b25d6161f2ba3b.json",
+    "priority": 0.3
+  },
+  "47ca811fa02a82f0": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:55:15.043252",
+    "file_path": "data\\memory\\short_term\\47ca811fa02a82f0.json",
+    "priority": 0.3
+  },
+  "405c08ce3eeae796": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:55:28.683599",
+    "file_path": "data\\memory\\short_term\\405c08ce3eeae796.json",
+    "priority": 0.3
+  },
+  "738d2ef389d19860": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T13:55:38.705032",
+    "file_path": "data\\memory\\short_term\\738d2ef389d19860.json",
+    "priority": 0.3
+  },
+  "d7a58e6e1a586f01": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:15:12.319388",
+    "file_path": "data\\memory\\short_term\\d7a58e6e1a586f01.json",
+    "priority": 0.3
+  },
+  "971abe438f2b2fc3": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:16:03.837123",
+    "file_path": "data\\memory\\short_term\\971abe438f2b2fc3.json",
+    "priority": 0.3
+  },
+  "582a1f61eeaeef60": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:16:24.675911",
+    "file_path": "data\\memory\\short_term\\582a1f61eeaeef60.json",
+    "priority": 0.3
+  },
+  "c6ab63af55120996": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:16:56.701429",
+    "file_path": "data\\memory\\short_term\\c6ab63af55120996.json",
+    "priority": 0.7
+  },
+  "18ef8c45dceee3b8": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:18:28.313287",
+    "file_path": "data\\memory\\short_term\\18ef8c45dceee3b8.json",
+    "priority": 0.3
+  },
+  "8a86d3f7d0e747ea": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:21:14.958058",
+    "file_path": "data\\memory\\short_term\\8a86d3f7d0e747ea.json",
+    "priority": 0.3
+  },
+  "ff7ec8f2ada2735f": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:21:38.273808",
+    "file_path": "data\\memory\\short_term\\ff7ec8f2ada2735f.json",
+    "priority": 0.3
+  },
+  "80c422b2fd5f0cdb": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:23:02.351853",
+    "file_path": "data\\memory\\short_term\\80c422b2fd5f0cdb.json",
+    "priority": 0.3
+  },
+  "dd3ef3aa76fc4fb0": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:27:22.001717",
+    "file_path": "data\\memory\\short_term\\dd3ef3aa76fc4fb0.json",
+    "priority": 0.3
+  },
+  "d57332b8fe01d975": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:28:14.938772",
+    "file_path": "data\\memory\\short_term\\d57332b8fe01d975.json",
+    "priority": 0.3
+  },
+  "d84e932b07a79c28": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:28:30.145822",
+    "file_path": "data\\memory\\short_term\\d84e932b07a79c28.json",
+    "priority": 0.7
+  },
+  "6a112a6eabddf8d2": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:28:36.086723",
+    "file_path": "data\\memory\\short_term\\6a112a6eabddf8d2.json",
+    "priority": 0.3
+  },
+  "4b9a7169cd046704": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:29:58.719393",
+    "file_path": "data\\memory\\short_term\\4b9a7169cd046704.json",
+    "priority": 0.7
+  },
+  "42ab981467cb28af": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:32:19.442096",
+    "file_path": "data\\memory\\short_term\\42ab981467cb28af.json",
+    "priority": 0.3
+  },
+  "01fdc0b0bf26801a": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:34:33.432997",
+    "file_path": "data\\memory\\short_term\\01fdc0b0bf26801a.json",
+    "priority": 0.3
+  },
+  "08944a460f81cdda": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:41:33.329795",
+    "file_path": "data\\memory\\short_term\\08944a460f81cdda.json",
+    "priority": 0.8999999999999999
+  },
+  "53a7aecc5fbb7a16": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T14:42:22.212148",
+    "file_path": "data\\memory\\short_term\\53a7aecc5fbb7a16.json",
+    "priority": 0.3
+  },
+  "624c7ffd45d40ade": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T15:34:47.390126",
+    "file_path": "data\\memory\\short_term\\624c7ffd45d40ade.json",
+    "priority": 0.3
+  },
+  "90f58b0f329fc74f": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [
+      "休息"
+    ],
+    "created_at": "2026-04-03T15:35:08.541013",
+    "file_path": "data\\memory\\short_term\\90f58b0f329fc74f.json",
+    "priority": 0.3
+  },
+  "e0e9d8d1d203f03e": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T15:38:54.606266",
+    "file_path": "data\\memory\\short_term\\e0e9d8d1d203f03e.json",
+    "priority": 0.3
+  },
+  "2cb955240a151d0d": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T15:42:12.096174",
+    "file_path": "data\\memory\\short_term\\2cb955240a151d0d.json",
+    "priority": 0.3
+  },
+  "4356be51a70f78d0": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T15:58:54.933960",
+    "file_path": "data\\memory\\short_term\\4356be51a70f78d0.json",
+    "priority": 0.3
+  },
+  "12ba6743a3939abe": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:00:10.566280",
+    "file_path": "data\\memory\\short_term\\12ba6743a3939abe.json",
+    "priority": 0.3
+  },
+  "f6fcc6f983244a4d": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:00:49.165832",
+    "file_path": "data\\memory\\short_term\\f6fcc6f983244a4d.json",
+    "priority": 0.3
+  },
+  "74ab9dd216a1ae13": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:09:45.868967",
+    "file_path": "data\\memory\\short_term\\74ab9dd216a1ae13.json",
+    "priority": 0.3
+  },
+  "1de4a451de4c87df": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:10:07.185242",
+    "file_path": "data\\memory\\short_term\\1de4a451de4c87df.json",
+    "priority": 0.3
+  },
+  "ef275b44e147e9fa": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:10:33.807075",
+    "file_path": "data\\memory\\short_term\\ef275b44e147e9fa.json",
+    "priority": 0.3
+  },
+  "6077b844e9d98284": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:11:04.897139",
+    "file_path": "data\\memory\\short_term\\6077b844e9d98284.json",
+    "priority": 0.7
+  },
+  "8b453dac241e6640": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:11:36.155162",
+    "file_path": "data\\memory\\short_term\\8b453dac241e6640.json",
+    "priority": 0.6
+  },
+  "2972bdacd4c5fdda": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:12:11.891859",
+    "file_path": "data\\memory\\short_term\\2972bdacd4c5fdda.json",
+    "priority": 0.3
+  },
+  "80c38a5777fe9465": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:12:53.920010",
+    "file_path": "data\\memory\\short_term\\80c38a5777fe9465.json",
+    "priority": 0.3
+  },
+  "7facad2ead567908": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:13:22.697743",
+    "file_path": "data\\memory\\short_term\\7facad2ead567908.json",
+    "priority": 0.3
+  },
+  "a9aba48b100e09c9": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:13:36.055134",
+    "file_path": "data\\memory\\short_term\\a9aba48b100e09c9.json",
+    "priority": 0.3
+  },
+  "bc5670e8c24ec382": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:14:04.959880",
+    "file_path": "data\\memory\\short_term\\bc5670e8c24ec382.json",
+    "priority": 0.3
+  },
+  "3a4cea5b7b3e6296": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:14:39.475194",
+    "file_path": "data\\memory\\short_term\\3a4cea5b7b3e6296.json",
+    "priority": 0.3
+  },
+  "81488635b1cca656": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:15:16.322770",
+    "file_path": "data\\memory\\short_term\\81488635b1cca656.json",
+    "priority": 0.3
+  },
+  "54f98d1b239cf7da": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:22:07.207654",
+    "file_path": "data\\memory\\short_term\\54f98d1b239cf7da.json",
+    "priority": 0.3
+  },
+  "f7f68f7b54d68c5c": {
+    "level": "long_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "tags": [
+      "技术问题",
+      "报错",
+      "系统状态"
+    ],
+    "created_at": "2026-04-03T16:23:29.198077",
+    "file_path": "data\\memory\\long_term\\1523878699\\f7f68f7b54d68c5c.json",
+    "priority": 0.7
+  },
+  "a63ad1e54fc9282a": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:23:31.384674",
+    "file_path": "data\\memory\\short_term\\a63ad1e54fc9282a.json",
+    "priority": 0.3
+  },
+  "6e512a7f1aab513f": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:25:11.237330",
+    "file_path": "data\\memory\\short_term\\6e512a7f1aab513f.json",
+    "priority": 0.7
+  },
+  "f9fcaf89bc872f3c": {
+    "level": "short_term",
+    "user_id": "global",
+    "session_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:33:58.168210",
+    "file_path": "data\\memory\\short_term\\f9fcaf89bc872f3c.json",
+    "priority": 0.3
+  },
+  "8b9773abb302b5d9": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:40:42.310477",
+    "file_path": "data\\memory\\short_term\\1523878699\\8b9773abb302b5d9.json",
+    "priority": 0.5
+  },
+  "6658ce01fa0adc89": {
+    "level": "short_term",
+    "user_id": "3802786314",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:41:24.081868",
+    "file_path": "data\\memory\\short_term\\3802786314\\6658ce01fa0adc89.json",
+    "priority": 0.5
+  },
+  "e86391f382707ec8": {
+    "level": "short_term",
+    "user_id": "3802786314",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:42:08.392176",
+    "file_path": "data\\memory\\short_term\\3802786314\\e86391f382707ec8.json",
+    "priority": 0.5
+  },
+  "390d99740160ae6e": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:42:42.210818",
+    "file_path": "data\\memory\\short_term\\2911746585\\390d99740160ae6e.json",
+    "priority": 0.5
+  },
+  "026e6141c6f6cde0": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:43:39.366311",
+    "file_path": "data\\memory\\short_term\\2911746585\\026e6141c6f6cde0.json",
+    "priority": 0.5
+  },
+  "d59cb8088b7ebbd0": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:45:28.826437",
+    "file_path": "data\\memory\\short_term\\2911746585\\d59cb8088b7ebbd0.json",
+    "priority": 0.5
+  },
+  "baf3221c42c727f7": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:46:07.166442",
+    "file_path": "data\\memory\\short_term\\1523878699\\baf3221c42c727f7.json",
+    "priority": 0.5
+  },
+  "462c7bbf305b8aa2": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:47:41.600761",
+    "file_path": "data\\memory\\short_term\\1523878699\\462c7bbf305b8aa2.json",
+    "priority": 0.5
+  },
+  "dc49125025ade5dc": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:50:37.866023",
+    "file_path": "data\\memory\\short_term\\1523878699\\dc49125025ade5dc.json",
+    "priority": 0.5
+  },
+  "9c6bdd4c8aa10c9c": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T16:50:57.731304",
+    "file_path": "data\\memory\\short_term\\1523878699\\9c6bdd4c8aa10c9c.json",
+    "priority": 0.7
+  },
+  "49f72b2dd62f07b1": {
+    "level": "short_term",
+    "user_id": "3802786314",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:53:44.714852",
+    "file_path": "data\\memory\\short_term\\3802786314\\49f72b2dd62f07b1.json",
+    "priority": 0.5
+  },
+  "7c9260fcfcefb355": {
+    "level": "short_term",
+    "user_id": "3802786314",
+    "session_id": "",
+    "group_id": "579433934",
+    "tags": [],
+    "created_at": "2026-04-03T16:53:47.283712",
+    "file_path": "data\\memory\\short_term\\3802786314\\7c9260fcfcefb355.json",
+    "priority": 0.7
+  },
+  "206cbd5f7127796c": {
+    "level": "short_term",
+    "user_id": "3802786314",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T16:54:08.850136",
+    "file_path": "data\\memory\\short_term\\3802786314\\206cbd5f7127796c.json",
+    "priority": 0.5
+  },
+  "21a33e3f7bf9433e": {
+    "level": "short_term",
+    "user_id": "3802786314",
+    "session_id": "",
+    "group_id": "579433934",
+    "tags": [
+      "opinion",
+      "征求意见"
+    ],
+    "created_at": "2026-04-03T16:54:14.533400",
+    "file_path": "data\\memory\\short_term\\3802786314\\21a33e3f7bf9433e.json",
+    "priority": 0.7999999999999999
+  },
+  "9256eef0f01f315a": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:07:37.411437",
+    "file_path": "data\\memory\\short_term\\1523878699\\9256eef0f01f315a.json",
+    "priority": 0.5
+  },
+  "25dfdf08930cb590": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [
+      "吃饭"
+    ],
+    "created_at": "2026-04-03T17:07:39.955176",
+    "file_path": "data\\memory\\short_term\\1523878699\\25dfdf08930cb590.json",
+    "priority": 0.3
+  },
+  "155c5ce7cbc8c941": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:07:55.952343",
+    "file_path": "data\\memory\\short_term\\1523878699\\155c5ce7cbc8c941.json",
+    "priority": 0.5
+  },
+  "ea236ab2110bf9b3": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:08:00.926491",
+    "file_path": "data\\memory\\short_term\\1523878699\\ea236ab2110bf9b3.json",
+    "priority": 0.7
+  },
+  "e156cfcdf6199bdc": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:09:39.453450",
+    "file_path": "data\\memory\\short_term\\1523878699\\e156cfcdf6199bdc.json",
+    "priority": 0.5
+  },
+  "b5e16577240e58b0": {
+    "level": "long_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [
+      "饮食",
+      "喜好",
+      "群聊"
+    ],
+    "created_at": "2026-04-03T17:09:43.900163",
+    "file_path": "data\\memory\\long_term\\1523878699\\b5e16577240e58b0.json",
+    "priority": 0.7
+  },
+  "983b6c56d3c52186": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:09:48.782042",
+    "file_path": "data\\memory\\short_term\\1523878699\\983b6c56d3c52186.json",
+    "priority": 0.3
+  },
+  "45f5e7acfc905438": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:15:19.508253",
+    "file_path": "data\\memory\\short_term\\1523878699\\45f5e7acfc905438.json",
+    "priority": 0.5
+  },
+  "c2e17d10c2ba8355": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:15:22.772268",
+    "file_path": "data\\memory\\short_term\\1523878699\\c2e17d10c2ba8355.json",
+    "priority": 0.7
+  },
+  "aa9a8228e388bb89": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:17:45.062698",
+    "file_path": "data\\memory\\short_term\\1523878699\\aa9a8228e388bb89.json",
+    "priority": 0.5
+  },
+  "0604b6e09287b2b6": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:17:51.588695",
+    "file_path": "data\\memory\\short_term\\1523878699\\0604b6e09287b2b6.json",
+    "priority": 0.7
+  },
+  "1af314280d1d6a2a": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:18:27.226486",
+    "file_path": "data\\memory\\short_term\\1523878699\\1af314280d1d6a2a.json",
+    "priority": 0.5
+  },
+  "808de4fbb740efe8": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:18:32.472500",
+    "file_path": "data\\memory\\short_term\\1523878699\\808de4fbb740efe8.json",
+    "priority": 0.6
+  },
+  "752423f693d637e0": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:24:47.057155",
+    "file_path": "data\\memory\\short_term\\1523878699\\752423f693d637e0.json",
+    "priority": 0.5
+  },
+  "5c3ed526305d9c13": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:26:30.352472",
+    "file_path": "data\\memory\\short_term\\1523878699\\5c3ed526305d9c13.json",
+    "priority": 0.5
+  },
+  "9344c9c73f5c9c9e": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:27:38.660915",
+    "file_path": "data\\memory\\short_term\\1523878699\\9344c9c73f5c9c9e.json",
+    "priority": 0.5
+  },
+  "e8985cff6b62f7ec": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:27:43.735331",
+    "file_path": "data\\memory\\short_term\\1523878699\\e8985cff6b62f7ec.json",
+    "priority": 0.3
+  },
+  "1d450f458b9d63f0": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:29:13.552946",
+    "file_path": "data\\memory\\short_term\\2911746585\\1d450f458b9d63f0.json",
+    "priority": 0.5
+  },
+  "7b04f21934c581fd": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:29:19.783221",
+    "file_path": "data\\memory\\short_term\\2911746585\\7b04f21934c581fd.json",
+    "priority": 0.3
+  },
+  "2e7e3df33f6d3db9": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:29:38.383427",
+    "file_path": "data\\memory\\short_term\\2911746585\\2e7e3df33f6d3db9.json",
+    "priority": 0.5
+  },
+  "2f0b009124ce3dfa": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:29:41.113031",
+    "file_path": "data\\memory\\short_term\\2911746585\\2f0b009124ce3dfa.json",
+    "priority": 0.7
+  },
+  "9c7b65a489e094f4": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:30:17.861764",
+    "file_path": "data\\memory\\short_term\\2911746585\\9c7b65a489e094f4.json",
+    "priority": 0.5
+  },
+  "2acc69104eecb32d": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:30:20.231621",
+    "file_path": "data\\memory\\short_term\\2911746585\\2acc69104eecb32d.json",
+    "priority": 0.7
+  },
+  "30c65cc17488ce23": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:30:27.147189",
+    "file_path": "data\\memory\\short_term\\2911746585\\30c65cc17488ce23.json",
+    "priority": 0.5
+  },
+  "e30295981c582e42": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:30:29.696652",
+    "file_path": "data\\memory\\short_term\\2911746585\\e30295981c582e42.json",
+    "priority": 0.7
+  },
+  "b46bd54d8ab3e26a": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:30:39.758203",
+    "file_path": "data\\memory\\short_term\\2911746585\\b46bd54d8ab3e26a.json",
+    "priority": 0.5
+  },
+  "12e0f2be9f07d9e3": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:30:43.089414",
+    "file_path": "data\\memory\\short_term\\2911746585\\12e0f2be9f07d9e3.json",
+    "priority": 0.7
+  },
+  "524c39664e2c9f40": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:30:49.700532",
+    "file_path": "data\\memory\\short_term\\2911746585\\524c39664e2c9f40.json",
+    "priority": 0.5
+  },
+  "d20e48de8f3c4e5a": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:31:58.375816",
+    "file_path": "data\\memory\\short_term\\1523878699\\d20e48de8f3c4e5a.json",
+    "priority": 0.5
+  },
+  "a55f04ed06413233": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:34:43.238386",
+    "file_path": "data\\memory\\short_term\\2911746585\\a55f04ed06413233.json",
+    "priority": 0.5
+  },
+  "c78ba7b9bf94bee8": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:34:45.101631",
+    "file_path": "data\\memory\\short_term\\2911746585\\c78ba7b9bf94bee8.json",
+    "priority": 0.3
+  },
+  "86be2e7045fc1ef9": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:34:59.582313",
+    "file_path": "data\\memory\\short_term\\2911746585\\86be2e7045fc1ef9.json",
+    "priority": 0.5
+  },
+  "97f334aed3b607af": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:35:02.998219",
+    "file_path": "data\\memory\\short_term\\2911746585\\97f334aed3b607af.json",
+    "priority": 0.3
+  },
+  "796a1791582cb851": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:35:17.032995",
+    "file_path": "data\\memory\\short_term\\1523878699\\796a1791582cb851.json",
+    "priority": 0.5
+  },
+  "8e99abbe87e3eaf2": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:35:20.215775",
+    "file_path": "data\\memory\\short_term\\1523878699\\8e99abbe87e3eaf2.json",
+    "priority": 0.3
+  },
+  "e25e08e67451e9c7": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:35:54.303416",
+    "file_path": "data\\memory\\short_term\\2911746585\\e25e08e67451e9c7.json",
+    "priority": 0.5
+  },
+  "1dcd6cf4082b303d": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:35:57.773225",
+    "file_path": "data\\memory\\short_term\\2911746585\\1dcd6cf4082b303d.json",
+    "priority": 0.7
+  },
+  "e9e0fb7dee3a0359": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:36:23.201862",
+    "file_path": "data\\memory\\short_term\\2911746585\\e9e0fb7dee3a0359.json",
+    "priority": 0.5
+  },
+  "b1cfc23f49220e07": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:36:25.456745",
+    "file_path": "data\\memory\\short_term\\2911746585\\b1cfc23f49220e07.json",
+    "priority": 0.3
+  },
+  "a19ecf336823244c": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:36:44.141487",
+    "file_path": "data\\memory\\short_term\\2911746585\\a19ecf336823244c.json",
+    "priority": 0.5
+  },
+  "6ec5b58542bff955": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:36:46.758601",
+    "file_path": "data\\memory\\short_term\\2911746585\\6ec5b58542bff955.json",
+    "priority": 0.3
+  },
+  "bb735f6fad5436d0": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:36:47.922673",
+    "file_path": "data\\memory\\short_term\\1523878699\\bb735f6fad5436d0.json",
+    "priority": 0.5
+  },
+  "d1741ad146d6794e": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:36:49.917846",
+    "file_path": "data\\memory\\short_term\\1523878699\\d1741ad146d6794e.json",
+    "priority": 0.3
+  },
+  "d2f4044551df19b7": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:38:19.706584",
+    "file_path": "data\\memory\\short_term\\1523878699\\d2f4044551df19b7.json",
+    "priority": 0.5
+  },
+  "37488f532a7962c9": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:38:23.139780",
+    "file_path": "data\\memory\\short_term\\1523878699\\37488f532a7962c9.json",
+    "priority": 0.7
+  },
+  "8cb30080910dd9e8": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:39:01.543195",
+    "file_path": "data\\memory\\short_term\\1523878699\\8cb30080910dd9e8.json",
+    "priority": 0.5
+  },
+  "eca7063200664532": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:39:25.894308",
+    "file_path": "data\\memory\\short_term\\1523878699\\eca7063200664532.json",
+    "priority": 0.5
+  },
+  "072854a7511d7445": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "1092980378",
+    "tags": [],
+    "created_at": "2026-04-03T17:39:28.280788",
+    "file_path": "data\\memory\\short_term\\1523878699\\072854a7511d7445.json",
+    "priority": 0.7
+  },
+  "aa215061227226d2": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T17:43:17.598285",
+    "file_path": "data\\memory\\short_term\\1523878699\\aa215061227226d2.json",
+    "priority": 0.5
+  },
+  "d595a4aec19b8ede": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:02:11.161321",
+    "file_path": "data\\memory\\short_term\\1523878699\\d595a4aec19b8ede.json",
+    "priority": 0.5
+  },
+  "ff8159e008c926c8": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:02:11.211994",
+    "file_path": "data\\memory\\short_term\\1523878699\\ff8159e008c926c8.json",
+    "priority": 0.3
+  },
+  "016c19e41d8dffdb": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:03:51.855603",
+    "file_path": "data\\memory\\short_term\\2911746585\\016c19e41d8dffdb.json",
+    "priority": 0.5
+  },
+  "017f8c5d4886efc6": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:03:51.893685",
+    "file_path": "data\\memory\\short_term\\2911746585\\017f8c5d4886efc6.json",
+    "priority": 0.9
+  },
+  "0f190bd11f743710": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:04:17.538793",
+    "file_path": "data\\memory\\short_term\\2911746585\\0f190bd11f743710.json",
+    "priority": 0.5
+  },
+  "e53f202860a33a8b": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:04:17.570938",
+    "file_path": "data\\memory\\short_term\\2911746585\\e53f202860a33a8b.json",
+    "priority": 0.3
+  },
+  "84901d1d90e37bf4": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:04:22.857499",
+    "file_path": "data\\memory\\short_term\\1523878699\\84901d1d90e37bf4.json",
+    "priority": 0.5
+  },
+  "284d5f89e19fc6bf": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:04:23.175550",
+    "file_path": "data\\memory\\short_term\\1523878699\\284d5f89e19fc6bf.json",
+    "priority": 0.7
+  },
+  "71fd8897939c5af0": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:04:28.894377",
+    "file_path": "data\\memory\\short_term\\2911746585\\71fd8897939c5af0.json",
+    "priority": 0.5
+  },
+  "4979b3eac92a3c63": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:05:42.026321",
+    "file_path": "data\\memory\\short_term\\1523878699\\4979b3eac92a3c63.json",
+    "priority": 0.5
+  },
+  "2b0b7f807d0835cb": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:05:47.532335",
+    "file_path": "data\\memory\\short_term\\1523878699\\2b0b7f807d0835cb.json",
+    "priority": 0.3
+  },
+  "e0f9f879251ffb86": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:06:01.679423",
+    "file_path": "data\\memory\\short_term\\1523878699\\e0f9f879251ffb86.json",
+    "priority": 0.5
+  },
+  "bcd723f7be71b8ef": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [
+      "行程"
+    ],
+    "created_at": "2026-04-03T18:06:07.390445",
+    "file_path": "data\\memory\\short_term\\1523878699\\bcd723f7be71b8ef.json",
+    "priority": 0.7
+  },
+  "a259087f96163b04": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:15:26.834995",
+    "file_path": "data\\memory\\short_term\\2911746585\\a259087f96163b04.json",
+    "priority": 0.5
+  },
+  "d454c72aef78837d": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:15:29.280478",
+    "file_path": "data\\memory\\short_term\\2911746585\\d454c72aef78837d.json",
+    "priority": 0.9
+  },
+  "5932203edfe7744c": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:24:23.182963",
+    "file_path": "data\\memory\\short_term\\1523878699\\5932203edfe7744c.json",
+    "priority": 0.5
+  },
+  "595954e0fd39ac10": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-03T18:24:28.901708",
+    "file_path": "data\\memory\\short_term\\1523878699\\595954e0fd39ac10.json",
+    "priority": 0.3
   }
 }

@@ -79,7 +79,7 @@ class DecisionHub:
         onebot_client=None,
         game_mode_adapter=None,
         identity=None,
-        multi_model_manager=None,
+        model_pool=None,
         miya_instance=None,
         unified_memory=None,
     ):
@@ -100,7 +100,7 @@ class DecisionHub:
             onebot_client: OneBot 客户端
             game_mode_adapter: 游戏模式适配器
             identity: 身份系统
-            multi_model_manager: 多模型管理器
+            model_pool: 多模型管理器
             miya_instance: Miya 实例
         """
         # 核心组件引用（保留用于兼容性）
@@ -117,7 +117,7 @@ class DecisionHub:
         self.scheduler = scheduler
         self.onebot_client = onebot_client
         self.identity = identity
-        self.multi_model_manager = multi_model_manager
+        self.model_pool = model_pool
         self.miya_instance = miya_instance
 
         # 当前使用的模型信息（用于日志显示）
@@ -178,7 +178,7 @@ class DecisionHub:
             prompt_manager=self.prompt_manager,
             tool_subnet=self.tool_subnet,
             memory_engine=self.memory_engine,
-            multi_model_manager=self.multi_model_manager,
+            model_pool=self.model_pool,
             identity=self.identity,
         )
 
@@ -1043,31 +1043,38 @@ class DecisionHub:
                 }
                 self.ai_client.set_tool_context(tool_context)
 
-                # 使用多模型管理器动态选择模型
+                # 使用模型池动态选择模型
                 ai_client_to_use = self.ai_client  # 默认使用传入的AI客户端
 
-                if self.multi_model_manager:
-                    # 分类任务类型
-                    from core.multi_model_manager import TaskType
+                if self.model_pool:
+                    from core.model_pool import TaskType
 
-                    task_type = await self.multi_model_manager.classify_task(
-                        content, context
+                    task_type = await self.model_pool.classify_task(content, context)
+
+                    # 根据任务类型选择最优模型配置
+                    model_config = self.model_pool.select_model_for_task(
+                        task_type.value, "qq"
                     )
 
-                    # 根据任务类型选择最优模型
-                    (
-                        model_key,
-                        selected_client,
-                    ) = await self.multi_model_manager.select_model(task_type)
+                    if model_config and model_config.api_key and model_config.base_url:
+                        try:
+                            from core.ai_client import AIClientFactory
 
-                    if selected_client:
-                        ai_client_to_use = selected_client
-                        selected_client.set_tool_context(tool_context)
-                        self._last_selected_model = model_key
-                        self._last_task_type = task_type.value
-                        logger.info(
-                            f"[决策层-跨平台] 使用模型 {model_key} 处理任务类型 {task_type.value}"
-                        )
+                            selected_client = AIClientFactory.create_client(
+                                provider=model_config.provider.value,
+                                api_key=model_config.api_key,
+                                model=model_config.name,
+                                base_url=model_config.base_url,
+                            )
+                            if selected_client:
+                                ai_client_to_use = selected_client
+                                self._last_selected_model = model_config.id
+                                self._last_task_type = task_type.value
+                                logger.info(
+                                    f"[决策层-跨平台] 使用模型 {model_config.id} 处理任务类型 {task_type.value}"
+                                )
+                        except Exception as e:
+                            logger.warning(f"[决策层] 创建模型客户端失败: {e}")
 
                 # 调用 AI（带工具）
                 # 【修改】使用 auto 让 AI 自行决定是否调用工具
@@ -1125,30 +1132,38 @@ class DecisionHub:
                             "error_messages.tool_failure_fallback"
                         ).format(error=str(e2)[:100])
             else:
-                # 使用多模型管理器动态选择模型
+                # 使用模型池动态选择模型
                 ai_client_to_use = self.ai_client  # 默认使用传入的AI客户端
 
-                if self.multi_model_manager:
-                    # 分类任务类型
-                    from core.multi_model_manager import TaskType
+                if self.model_pool:
+                    from core.model_pool import TaskType
 
-                    task_type = await self.multi_model_manager.classify_task(
-                        content, context
+                    task_type = await self.model_pool.classify_task(content, context)
+
+                    # 根据任务类型选择最优模型配置
+                    model_config = self.model_pool.select_model_for_task(
+                        task_type.value, "qq"
                     )
 
-                    # 根据任务类型选择最优模型
-                    (
-                        model_key,
-                        selected_client,
-                    ) = await self.multi_model_manager.select_model(task_type)
+                    if model_config and model_config.api_key and model_config.base_url:
+                        try:
+                            from core.ai_client import AIClientFactory
 
-                    if selected_client:
-                        ai_client_to_use = selected_client
-                        self._last_selected_model = model_key
-                        self._last_task_type = task_type.value
-                        logger.info(
-                            f"[决策层-跨平台] 使用模型 {model_key} 处理任务类型 {task_type.value}"
-                        )
+                            selected_client = AIClientFactory.create_client(
+                                provider=model_config.provider.value,
+                                api_key=model_config.api_key,
+                                model=model_config.name,
+                                base_url=model_config.base_url,
+                            )
+                            if selected_client:
+                                ai_client_to_use = selected_client
+                                self._last_selected_model = model_config.id
+                                self._last_task_type = task_type.value
+                                logger.info(
+                                    f"[决策层-跨平台] 使用模型 {model_config.id} 处理任务类型 {task_type.value}"
+                                )
+                        except Exception as e:
+                            logger.warning(f"[决策层] 创建模型客户端失败: {e}")
 
                 # 调用 AI（不带工具）
                 response = await ai_client_to_use.chat_with_system_prompt(

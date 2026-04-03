@@ -97,7 +97,7 @@ async def extract_quintuples_async(text: str, ai_client) -> List[Quintuple]:
         try:
             response = await asyncio.wait_for(
                 ai_client.chat.completions.create(
-                    model="default",
+                    model=ai_client.model if hasattr(ai_client, "model") else "default",
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=2000,
                     temperature=0.3,
@@ -183,7 +183,7 @@ def extract_quintuples_sync(text: str, ai_client) -> List[Quintuple]:
 
     try:
         response = ai_client.chat.completions.create(
-            model="default",
+            model=ai_client.model if hasattr(ai_client, "model") else "default",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=2000,
             temperature=0.3,

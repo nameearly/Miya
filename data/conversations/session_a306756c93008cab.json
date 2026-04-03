@@ -1,0 +1,178 @@
+[
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "image",
+        "data": {
+          "summary": "",
+          "file": "E5982D9F281876B05EC51366BA620946.jpg",
+          "sub_type": 0,
+          "url": "https://multimedia.nt.qq.com.cn/download?appid=1406&fileid=EhRpqNXmG8wqovtkIX9xmTTCLfyLVBinhxMg_goog7ONzMjOkwMyBHByb2RQgLsvWhCBHJgrCEdYNN8sTJev83FUegIqPYIBAm5q&rkey=CAMSMDf9EX---pZjMfUpceSCg0Ljfvy0U_j81_Qun1cTlX12ol-mVw65Z4ZVzAmfUVbSzA",
+          "file_size": "312231"
+        }
+      }
+    ],
+    "timestamp": "2026-04-02T14:45:36.414217",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "",
+      "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-02T14:49:46.043106",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "",
+      "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-02T15:59:15.084402",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "",
+      "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-02T16:38:39.541946",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "",
+      "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-02T16:38:52.572412",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "",
+      "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-02T16:54:32.368999",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "",
+      "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-02T17:11:18.487568",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "",
+      "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-02T17:15:06.401943",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-02T17:40:38.701560",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-02T18:29:23.034385",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-02T18:35:31.801397",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
+  }
+]

@@ -347,12 +347,12 @@ class OpenAIClient(BaseAIClient):
     def __init__(
         self,
         api_key: str,
-        model: str = "gpt-4o",
+        model: str,
         base_url: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(api_key, model, **kwargs)
-        self.base_url = base_url or get_api_url("openai")
+        self.base_url = base_url
 
         try:
             from openai import AsyncOpenAI
@@ -688,12 +688,12 @@ class DeepSeekClient(BaseAIClient):
     def __init__(
         self,
         api_key: str,
-        model: str = "deepseek-chat",
+        model: str,
         base_url: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(api_key, model, **kwargs)
-        self.base_url = base_url or get_api_url("deepseek")
+        self.base_url = base_url
 
         try:
             from openai import AsyncOpenAI
@@ -1074,7 +1074,7 @@ class DeepSeekClient(BaseAIClient):
 class AnthropicClient(BaseAIClient):
     """Anthropic (Claude) API客户端"""
 
-    def __init__(self, api_key: str, model: str = "claude-3-sonnet-20240229", **kwargs):
+    def __init__(self, api_key: str, model: str, **kwargs):
         super().__init__(api_key, model, **kwargs)
 
         try:
@@ -1118,7 +1118,7 @@ class AnthropicClient(BaseAIClient):
 class ZhipuAIClient(BaseAIClient):
     """智谱AI API客户端"""
 
-    def __init__(self, api_key: str, model: str = "glm-4", **kwargs):
+    def __init__(self, api_key: str, model: str, **kwargs):
         super().__init__(api_key, model, **kwargs)
 
         try:

@@ -344,12 +344,16 @@ class JsonBackend(MemoryBackend):
         self.index_file = base_dir / "index.json"
         self.tag_index_file = base_dir / "tag_index.json"  # 倒排索引
         self._index: Dict[str, Dict] = {}
-        self._tag_index: Dict[str, Set[str]] = defaultdict(set)  # 倒排索引
+        self._tag_index: Dict[str, Set[str]] = defaultdict(set)  # 倒排索引 (权威版本)
         self._query_cache: Dict[str, List[MemoryItem]] = {}  # 查询缓存
         self._cache_max_size = 100
 
+        # 文件锁保护索引读写
+        self._index_lock = asyncio.Lock()
+
         self._load_index()
         self._load_tag_index()
+        self._cleanup_stale_entries()
 
     def _load_index(self):
         if self.index_file.exists():
@@ -385,6 +389,28 @@ class JsonBackend(MemoryBackend):
         except Exception as e:
             logger.error(f"保存倒排索引失败: {e}")
 
+    def _cleanup_stale_entries(self):
+        """清理索引中指向不存在文件的失效条目"""
+        stale_ids = []
+        for memory_id, info in self._index.items():
+            file_path = Path(info.get("file_path", ""))
+            if not file_path.exists():
+                stale_ids.append(memory_id)
+
+        if stale_ids:
+            logger.warning(
+                f"[JsonBackend] 发现 {len(stale_ids)} 条失效索引条目，正在清理..."
+            )
+            for memory_id in stale_ids:
+                info = self._index[memory_id]
+                tags = info.get("tags", [])
+                for tag in tags:
+                    self._tag_index[tag].discard(memory_id)
+                del self._index[memory_id]
+            self._save_index()
+            self._save_tag_index()
+            logger.info(f"[JsonBackend] 已清理 {len(stale_ids)} 条失效索引")
+
     def _get_dir(self, level: Union[MemoryLevel, List[MemoryLevel]]) -> Path:
         """获取层级目录"""
         if isinstance(level, list):
@@ -416,35 +442,37 @@ class JsonBackend(MemoryBackend):
 
     async def save(self, memory: MemoryItem) -> bool:
         """保存记忆"""
-        try:
-            file_path = self._get_file_path(memory)
+        async with self._index_lock:
+            try:
+                file_path = self._get_file_path(memory)
 
-            async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
-                await f.write(
-                    json.dumps(memory.to_dict(), ensure_ascii=False, indent=2)
-                )
+                async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+                    await f.write(
+                        json.dumps(memory.to_dict(), ensure_ascii=False, indent=2)
+                    )
 
-            self._index[memory.id] = {
-                "level": memory.level.value,
-                "user_id": memory.user_id,
-                "session_id": memory.session_id,
-                "tags": memory.tags,
-                "created_at": memory.created_at,
-                "file_path": str(file_path),
-                "priority": memory.priority,
-            }
-            self._save_index()
+                self._index[memory.id] = {
+                    "level": memory.level.value,
+                    "user_id": memory.user_id,
+                    "session_id": memory.session_id,
+                    "group_id": memory.group_id,
+                    "tags": memory.tags,
+                    "created_at": memory.created_at,
+                    "file_path": str(file_path),
+                    "priority": memory.priority,
+                }
+                self._save_index()
 
-            for tag in memory.tags:
-                self._tag_index[tag].add(memory.id)
-            self._save_tag_index()
+                for tag in memory.tags:
+                    self._tag_index[tag].add(memory.id)
+                self._save_tag_index()
 
-            self._invalidate_cache()
+                self._invalidate_cache()
 
-            return True
-        except Exception as e:
-            logger.error(f"保存记忆失败: {e}")
-            return False
+                return True
+            except Exception as e:
+                logger.error(f"保存记忆失败: {e}")
+                return False
 
     def _invalidate_cache(self):
         """使查询缓存失效"""
@@ -487,26 +515,27 @@ class JsonBackend(MemoryBackend):
 
     async def delete(self, memory_id: str) -> bool:
         """删除记忆"""
-        if memory_id not in self._index:
-            return False
+        async with self._index_lock:
+            if memory_id not in self._index:
+                return False
 
-        try:
-            file_path = Path(self._index[memory_id].get("file_path", ""))
-            if file_path.exists():
-                file_path.unlink()
+            try:
+                file_path = Path(self._index[memory_id].get("file_path", ""))
+                if file_path.exists():
+                    file_path.unlink()
 
-            tags = self._index[memory_id].get("tags", [])
-            for tag in tags:
-                self._tag_index[tag].discard(memory_id)
+                tags = self._index[memory_id].get("tags", [])
+                for tag in tags:
+                    self._tag_index[tag].discard(memory_id)
 
-            del self._index[memory_id]
-            self._save_index()
-            self._save_tag_index()
-            self._invalidate_cache()
-            return True
-        except Exception as e:
-            logger.error(f"删除记忆失败: {e}")
-            return False
+                del self._index[memory_id]
+                self._save_index()
+                self._save_tag_index()
+                self._invalidate_cache()
+                return True
+            except Exception as e:
+                logger.error(f"删除记忆失败: {e}")
+                return False
 
     async def query(self, query: MemoryQuery) -> List[MemoryItem]:
         """查询记忆 - 优化版"""
@@ -526,6 +555,13 @@ class JsonBackend(MemoryBackend):
                 candidate_ids = user_candidates
             else:
                 candidate_ids = candidate_ids & user_candidates
+
+        if query.group_id:
+            group_candidates = self._get_candidates_by_group(query.group_id)
+            if candidate_ids is None:
+                candidate_ids = group_candidates
+            else:
+                candidate_ids = candidate_ids & group_candidates
 
         search_levels = (
             [query.levels]
@@ -584,6 +620,12 @@ class JsonBackend(MemoryBackend):
             mid for mid, info in self._index.items() if info.get("user_id") == user_id
         }
 
+    def _get_candidates_by_group(self, group_id: str) -> Set[str]:
+        """通过群组获取候选ID"""
+        return {
+            mid for mid, info in self._index.items() if info.get("group_id") == group_id
+        }
+
     def _match_query(self, memory: Optional[MemoryItem], query: MemoryQuery) -> bool:
         """检查是否匹配查询"""
         if memory is None:
@@ -595,6 +637,10 @@ class JsonBackend(MemoryBackend):
 
         # 会话过滤
         if query.session_id and memory.session_id != query.session_id:
+            return False
+
+        # 群组过滤
+        if query.group_id and memory.group_id != query.group_id:
             return False
 
         # 标签过滤
@@ -706,6 +752,15 @@ class MiyaMemoryCore:
     这是唯一入口，所有代码都必须使用此类！
     """
 
+    @property
+    def _tag_index(self):
+        """代理到 backend._tag_index，保持向后兼容"""
+        return self.backend._tag_index
+
+    @_tag_index.setter
+    def _tag_index(self, value):
+        self.backend._tag_index = value
+
     def __init__(
         self,
         data_dir: Union[str, Path] = "data/memory",
@@ -725,10 +780,10 @@ class MiyaMemoryCore:
         self.embedding_client = embedding_client
 
         self.backend: JsonBackend = JsonBackend(self.data_dir)
+        self.sqlite_backend = None
 
         self._cache: Dict[str, MemoryItem] = {}
         self._user_index: Dict[str, Set[str]] = defaultdict(set)
-        self._tag_index: Dict[str, Set[str]] = defaultdict(set)
 
         self._stats = {
             "total_stored": 0,
@@ -827,6 +882,29 @@ class MiyaMemoryCore:
             return
 
         logger.info("[MiyaMemoryCore] 初始化索引...")
+
+        # 初始化 SQLite 后端（如果启用）
+        try:
+            from pathlib import Path
+
+            model_config_path = (
+                Path(__file__).parent.parent / "config" / "multi_model_config.json"
+            )
+            if model_config_path.exists():
+                import json
+
+                with open(model_config_path, "r", encoding="utf-8") as f:
+                    model_config = json.load(f)
+                emb_config = model_config.get("embedding_config", {})
+                if emb_config.get("enabled"):
+                    from memory.sqlite_backend import SQLiteBackend
+
+                    self.sqlite_backend = SQLiteBackend(
+                        str(self.data_dir / "miya_memory.db")
+                    )
+                    logger.info("[MiyaMemoryCore] SQLite 后端已启用")
+        except Exception as e:
+            logger.debug(f"[MiyaMemoryCore] SQLite 后端初始化失败（不影响运行）: {e}")
 
         if lazy_load:
             self._loaded = True
@@ -929,6 +1007,10 @@ class MiyaMemoryCore:
             ttl = ttl or self.short_term_ttl
             expires_at = (datetime.now() + timedelta(seconds=ttl)).isoformat()
 
+        # 确保 user_id 和 group_id 是字符串
+        user_id = str(user_id) if user_id is not None else ""
+        group_id = str(group_id) if group_id is not None else ""
+
         # 创建记忆
         memory = MemoryItem(
             content=content,
@@ -953,8 +1035,13 @@ class MiyaMemoryCore:
             obj=obj,
         )
 
-        # 保存到后端
+        # 保存到后端（JSON + SQLite 双写）
         await self.backend.save(memory)
+        if self.sqlite_backend:
+            try:
+                await self.sqlite_backend.save(memory)
+            except Exception as e:
+                logger.debug(f"[MiyaMemoryCore] SQLite 写入失败（不影响运行）: {e}")
 
         # 更新缓存和索引
         self._cache[memory.id] = memory
@@ -966,12 +1053,13 @@ class MiyaMemoryCore:
         if self.redis_client and level == MemoryLevel.SHORT_TERM:
             await self._sync_to_redis(memory)
 
-        # 同步到向量库
-        if self.milvus_client and level in [
+        # 生成向量并同步到向量库（优先使用真实 embedding API）
+        if level in [
             MemoryLevel.SEMANTIC,
             MemoryLevel.LONG_TERM,
+            MemoryLevel.KNOWLEDGE,
         ]:
-            await self._sync_to_milvus(memory)
+            await self._generate_and_sync_vector(memory)
 
         # 同步到图谱
         if self.neo4j_client and (level == MemoryLevel.KNOWLEDGE or subject):
@@ -1052,6 +1140,7 @@ class MiyaMemoryCore:
         level: Optional[MemoryLevel] = None,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
+        group_id: Optional[str] = None,
         tags: Optional[List[str]] = None,
         limit: int = 20,
         # 对话详情过滤
@@ -1072,6 +1161,7 @@ class MiyaMemoryCore:
                 level=level,
                 user_id=user_id,
                 session_id=session_id,
+                group_id=group_id,
                 tags=tags,
                 limit=limit,
                 event_type=event_type,
@@ -1090,6 +1180,8 @@ class MiyaMemoryCore:
                 q.user_id = user_id
             if session_id is not None:
                 q.session_id = session_id
+            if group_id is not None:
+                q.group_id = group_id
             if tags is not None:
                 q.tags = tags
             if event_type is not None:
@@ -1108,9 +1200,18 @@ class MiyaMemoryCore:
         # 先从缓存搜索
         results = self._search_from_cache(q)
 
-        # 从后端搜索
+        # 从后端搜索（优先 SQLite，回退 JSON）
         if len(results) < q.limit:
-            backend_results = await self.backend.query(q)
+            backend_results = []
+            if self.sqlite_backend:
+                try:
+                    backend_results = await self.sqlite_backend.query(q)
+                except Exception as e:
+                    logger.debug(f"[MiyaMemoryCore] SQLite 查询失败，回退 JSON: {e}")
+                    backend_results = await self.backend.query(q)
+            else:
+                backend_results = await self.backend.query(q)
+
             # 合并去重
             existing_ids = {r.id for r in results}
             for r in backend_results:
@@ -1124,6 +1225,53 @@ class MiyaMemoryCore:
         self._stats["total_retrieved"] += len(results)
 
         return results[: q.limit]
+
+    async def get_statistics(self) -> Dict:
+        """获取统计"""
+        sqlite_count = 0
+        if self.sqlite_backend:
+            try:
+                sqlite_count = await self.sqlite_backend.count()
+            except Exception:
+                pass
+
+        return {
+            "total_cached": len(self._cache),
+            "total_indexed": await self.backend.count(),
+            "total_sqlite": sqlite_count,
+            "by_level": {
+                "dialogue": len(
+                    [m for m in self._cache.values() if m.level == MemoryLevel.DIALOGUE]
+                ),
+                "short_term": len(
+                    [
+                        m
+                        for m in self._cache.values()
+                        if m.level == MemoryLevel.SHORT_TERM
+                    ]
+                ),
+                "long_term": len(
+                    [
+                        m
+                        for m in self._cache.values()
+                        if m.level == MemoryLevel.LONG_TERM
+                    ]
+                ),
+                "semantic": len(
+                    [m for m in self._cache.values() if m.level == MemoryLevel.SEMANTIC]
+                ),
+                "knowledge": len(
+                    [
+                        m
+                        for m in self._cache.values()
+                        if m.level == MemoryLevel.KNOWLEDGE
+                    ]
+                ),
+            },
+            "by_user": len(self._user_index),
+            "by_tag": len(self._tag_index),
+            "stats": self._stats,
+        }
 
     def _search_from_cache(self, query: MemoryQuery) -> List[MemoryItem]:
         """从缓存搜索"""
@@ -1146,6 +1294,8 @@ class MiyaMemoryCore:
         if query.user_id and memory.user_id != query.user_id:
             return False
         if query.session_id and memory.session_id != query.session_id:
+            return False
+        if query.group_id and memory.group_id != query.group_id:
             return False
         if query.level and memory.level != query.level:
             return False
@@ -1338,11 +1488,12 @@ class MiyaMemoryCore:
     # ==================== 批量操作 ====================
 
     async def delete_expired(self) -> int:
-        """删除过期记忆"""
+        """删除过期记忆 - 同时清理缓存和磁盘文件"""
         count = 0
         expired_ids = []
 
-        for memory_id, memory in self._cache.items():
+        # 1. 清理缓存中的过期记忆
+        for memory_id, memory in list(self._cache.items()):
             if memory.is_expired():
                 expired_ids.append(memory_id)
 
@@ -1350,8 +1501,37 @@ class MiyaMemoryCore:
             await self.delete(memory_id)
             count += 1
 
+        # 2. 扫描磁盘文件，清理过期的短期记忆
+        short_term_dir = self.backend.short_term_dir
+        if short_term_dir.exists():
+            now = datetime.now()
+            for file_path in short_term_dir.rglob("*.json"):
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    memory = MemoryItem.from_dict(data)
+                    if memory and memory.is_expired():
+                        file_path.unlink()
+                        # 从索引中移除
+                        if memory.id in self.backend._index:
+                            del self.backend._index[memory.id]
+                        for tag in memory.tags:
+                            self.backend._tag_index[tag].discard(memory.id)
+                        if memory.id in self._cache:
+                            del self._cache[memory.id]
+                        self._user_index[memory.user_id].discard(memory.id)
+                        for tag in memory.tags:
+                            self._tag_index[tag].discard(memory.id)
+                        count += 1
+                except Exception:
+                    continue
+
+        # 保存更新后的索引
+        self.backend._save_index()
+        self.backend._save_tag_index()
+
         if count > 0:
-            logger.info(f"[MiyaMemoryCore] 清理了 {count} 条过期记忆")
+            logger.info(f"[MiyaMemoryCore] 清理了 {count} 条过期记忆 (含磁盘)")
 
         return count
 
@@ -1598,6 +1778,23 @@ class MiyaMemoryCore:
         except Exception as e:
             logger.warning(f"[MiyaMemoryCore] Redis同步失败: {e}")
 
+    async def _generate_and_sync_vector(self, memory: MemoryItem):
+        """生成向量并同步到所有向量存储"""
+        try:
+            vector = await self.get_embedding(memory.content)
+            if vector:
+                memory.vector = vector
+                # 更新JSON文件中的向量
+                await self.backend.save(memory)
+
+                # 同步到Milvus（如果有）
+                if self.milvus_client:
+                    await self._sync_to_milvus(memory)
+
+                logger.debug(f"[MiyaMemoryCore] 向量生成并同步成功: {memory.id}")
+        except Exception as e:
+            logger.warning(f"[MiyaMemoryCore] 向量生成失败: {e}")
+
     async def _sync_to_milvus(self, memory: MemoryItem):
         """同步到Milvus"""
         if not self.milvus_client:
@@ -1639,12 +1836,14 @@ class MiyaMemoryCore:
             logger.warning(f"[MiyaMemoryCore] Neo4j同步失败: {e}")
 
     async def _backup_memory(self, memory: MemoryItem):
-        """备份记忆"""
+        """备份记忆 - 按周归档，避免数据丢失"""
         backup_dir = self.data_dir / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
 
-        date = datetime.now().strftime("%Y%m%d")
-        backup_file = backup_dir / f"{date}.json"
+        # 使用 ISO 周年格式 (2026-W14) 按周归档
+        iso_year, iso_week, _ = datetime.now().isocalendar()
+        week_key = f"{iso_year}-W{iso_week:02d}"
+        backup_file = backup_dir / f"{week_key}.json"
 
         try:
             # 读取现有备份
@@ -1656,29 +1855,79 @@ class MiyaMemoryCore:
             # 添加新备份
             backups.append(memory.to_dict())
 
-            # 保留最近30天
-            if len(backups) > 1000:
-                backups = backups[-1000:]
+            # 每周最多10000条，超出后归档旧数据到archive
+            if len(backups) > 10000:
+                archive_dir = backup_dir / "archive"
+                archive_dir.mkdir(parents=True, exist_ok=True)
+                overflow = backups[:5000]
+                backups = backups[5000:]
+                archive_file = archive_dir / f"{week_key}_overflow_{len(overflow)}.json"
+                with open(archive_file, "w", encoding="utf-8") as f:
+                    json.dump(overflow, f, ensure_ascii=False, indent=2)
+                logger.info(f"[MiyaMemoryCore] 备份溢出已归档: {archive_file}")
 
             # 保存
             with open(backup_file, "w", encoding="utf-8") as f:
                 json.dump(backups, f, ensure_ascii=False, indent=2)
+
+            # 清理超过8周的旧备份文件
+            self._cleanup_old_backups(backup_dir)
         except Exception as e:
             logger.warning(f"[MiyaMemoryCore] 备份失败: {e}")
 
+    def _cleanup_old_backups(self, backup_dir: Path):
+        """清理超过8周的备份文件"""
+        try:
+            from datetime import timedelta
+
+            cutoff = datetime.now() - timedelta(weeks=8)
+            for f in backup_dir.glob("*.json"):
+                if f.name == "tag_index.json" or f.name == "index.json":
+                    continue
+                # 从文件名提取日期 (20260403.json 或 2026-W14.json)
+                stem = f.stem
+                try:
+                    if "W" in stem:
+                        # ISO周格式: 2026-W14
+                        year, week = stem.split("-W")
+                        # 取该周的第一天作为参考
+                        from datetime import date
+
+                        ref_date = date.fromisocalendar(int(year), int(week), 1)
+                        if ref_date < cutoff.date():
+                            f.unlink()
+                    else:
+                        # 旧格式: 20260403
+                        file_date = datetime.strptime(stem, "%Y%m%d")
+                        if file_date < cutoff:
+                            f.unlink()
+                except (ValueError, IndexError):
+                    pass
+        except Exception as e:
+            logger.warning(f"[MiyaMemoryCore] 备份清理失败: {e}")
+
     def _simple_embed(self, text: str) -> List[float]:
-        """生成伪向量（回退用）"""
+        """生成伪向量（回退用，比纯哈希更合理）"""
         import math
         from hashlib import sha256
 
         dimension = 1536
-        vector = []
+        vector = [0.0] * dimension
 
-        for i in range(dimension):
-            digest = sha256((text + str(i)).encode("utf-8")).digest()
-            hash_val = int.from_bytes(digest[:8], "big", signed=False)
-            vector.append((hash_val % 10000) / 10000.0)
+        # 使用n-gram哈希，让相似文本产生相似向量
+        words = list(text.lower())
+        for i in range(len(words)):
+            for n in range(1, 4):  # unigram, bigram, trigram
+                if i + n <= len(words):
+                    ngram = "".join(words[i : i + n])
+                    digest = sha256(ngram.encode("utf-8")).digest()
+                    hash_val = int.from_bytes(digest[:4], "big", signed=False)
+                    # 映射到向量维度
+                    idx = hash_val % dimension
+                    weight = 1.0 / n  # 短n-gram权重更高
+                    vector[idx] += weight
 
+        # 归一化
         norm = math.sqrt(sum(x * x for x in vector))
         if norm > 0:
             vector = [x / norm for x in vector]
@@ -1686,23 +1935,35 @@ class MiyaMemoryCore:
         return vector
 
     async def get_embedding(self, text: str) -> Optional[List[float]]:
-        """获取文本的语义向量"""
+        """获取文本的语义向量 - 优先使用真实 Embedding API"""
         if self.embedding_client:
             try:
-                if hasattr(self.embedding_client, "encode"):
+                # 支持 EmbeddingClient 的 embed() 方法
+                if hasattr(self.embedding_client, "embed"):
+                    return await self.embedding_client.embed(text)
+                # 支持 encode() 方法
+                elif hasattr(self.embedding_client, "encode"):
                     return await self.embedding_client.encode(text)
+                # 支持 get_embedding() 方法
                 elif hasattr(self.embedding_client, "get_embedding"):
                     return await self.embedding_client.get_embedding(text)
+                # 支持 OpenAI 风格的 embeddings.create()
                 elif hasattr(self.embedding_client, "embeddings") and hasattr(
                     self.embedding_client.embeddings, "create"
                 ):
                     resp = await self.embedding_client.embeddings.create(
-                        model="text-embedding-3-small", input=text
+                        model=self.embedding_client.model
+                        if hasattr(self.embedding_client, "model")
+                        else "text-embedding-3-small",
+                        input=text,
                     )
                     return resp.data[0].embedding
             except Exception as e:
-                logger.warning(f"生成嵌入向量失败: {e}")
+                logger.warning(
+                    f"[MiyaMemoryCore] Embedding API 调用失败，使用回退方案: {e}"
+                )
 
+        # 回退：使用伪向量
         return self._simple_embed(text)
 
     async def semantic_search(
@@ -1763,10 +2024,73 @@ async def get_memory_core(
     neo4j_client=None,
     embedding_client=None,
 ) -> MiyaMemoryCore:
-    """获取全局核心实例"""
+    """获取全局核心实例 - 从 multi_model_config.json 自动加载 embedding 配置"""
     global _global_core
 
     if _global_core is None:
+        # 自动加载 embedding 客户端
+        if embedding_client is None:
+            try:
+                from core.embedding_client import (
+                    get_embedding_client,
+                    EmbeddingProvider,
+                )
+                from pathlib import Path
+
+                model_config_path = (
+                    Path(__file__).parent.parent / "config" / "multi_model_config.json"
+                )
+                if model_config_path.exists():
+                    import json
+
+                    with open(model_config_path, "r", encoding="utf-8") as f:
+                        model_config = json.load(f)
+
+                    emb_config = model_config.get("embedding_config", {})
+                    if emb_config.get("enabled"):
+                        primary_model_id = emb_config.get(
+                            "primary", "siliconflow_bge_large"
+                        )
+                        models = model_config.get("models", {})
+                        model_info = models.get(primary_model_id)
+
+                        if model_info:
+                            provider_str = model_info.get("provider", "openai").lower()
+                            provider_map = {
+                                "openai": EmbeddingProvider.OPENAI,
+                                "deepseek": EmbeddingProvider.DEEPSEEK,
+                                "siliconflow": EmbeddingProvider.SILICONFLOW,
+                                "sentence_transformers": EmbeddingProvider.SENTENCE_TRANSFORMERS,
+                            }
+                            provider = provider_map.get(
+                                provider_str, EmbeddingProvider.OPENAI
+                            )
+                            model_name = model_info.get("name")
+                            api_key = model_info.get("api_key")
+                            base_url = model_info.get("base_url")
+
+                            embedding_client = await get_embedding_client(
+                                provider=provider, model=model_name, api_key=api_key
+                            )
+                            # 设置自定义 base_url
+                            if base_url:
+                                embedding_client.base_url = base_url
+                            logger.info(
+                                f"[MiyaMemoryCore] 自动加载 Embedding 客户端: {primary_model_id} ({model_name})"
+                            )
+                        else:
+                            logger.warning(
+                                f"[MiyaMemoryCore] Embedding 模型 {primary_model_id} 未在模型池中找到"
+                            )
+                    else:
+                        logger.info("[MiyaMemoryCore] Embedding 未启用，使用伪向量回退")
+                else:
+                    logger.warning("[MiyaMemoryCore] multi_model_config.json 不存在")
+            except Exception as e:
+                logger.debug(
+                    f"[MiyaMemoryCore] Embedding 客户端加载失败，使用伪向量: {e}"
+                )
+
         _global_core = MiyaMemoryCore(
             data_dir=data_dir,
             redis_client=redis_client,

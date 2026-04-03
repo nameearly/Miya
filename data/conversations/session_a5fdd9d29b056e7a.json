@@ -1,0 +1,145 @@
+[
+  {
+    "role": "assistant",
+    "content": "看到了这张照片，挺不错的，你喜欢拍这种风格的照片吗？ 😊",
+    "timestamp": "2026-04-02T14:45:37.217151",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "看这张照片挺温馨的，你在什么情况下拍的呢？",
+    "timestamp": "2026-04-02T14:49:47.114506",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "看到了这张照片，真的很好看呢！你喜欢拍这样的照片吗？",
+    "timestamp": "2026-04-02T15:59:16.768047",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，看看这个？挺有意思的呢。想不想听听这是什么内容？",
+    "timestamp": "2026-04-02T16:38:44.508090",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这个照片很有趣呢，能告诉我它是怎么拍的吗？或者，你想和我分享一下拍这张照片的故事吗？",
+    "timestamp": "2026-04-02T16:38:53.781232",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "看来你分享了一张大图，挺吸引人的呢！想聊聊这张图片的内容吗？",
+    "timestamp": "2026-04-02T16:54:33.670609",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "看到了，这幅表情包真的挺让人感受到那种焦虑和绝望的情绪呢。你最近是不是也遇到了什么让你感到压力很大的事情呢？需要聊聊吗？",
+    "timestamp": "2026-04-02T17:11:20.337751",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "\"哎呀，让我看看……哦，原来是新面孔，欢迎加入索多玛哦！\"",
+    "timestamp": "2026-04-02T17:15:14.162495",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "红尘之外，唯你是我牵绊。看起来是一幅充满甜蜜互动的插画，两位角色的互动十分有趣呢。",
+    "timestamp": "2026-04-02T17:40:40.454452",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "licative, 嗯，让我看看这张照片。有意思的东西，不是吗？",
+    "timestamp": "2026-04-02T18:29:24.109770",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "这张图片看起来挺有意思的，可是我看不到具体内容呢。或许可以描述一下，或者告诉我这张图片是从哪里来的？嘿嘿。",
+    "timestamp": "2026-04-02T18:35:36.528457",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 0,
+      "sender_name": "弥娅"
+    }
+  }
+]

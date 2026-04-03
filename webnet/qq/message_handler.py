@@ -6,6 +6,7 @@ QQ交互子网 - 消息处理逻辑
 import asyncio
 import logging
 import re
+import time
 from typing import Dict, List, Optional, Any, Set, Union
 from datetime import datetime
 
@@ -34,6 +35,10 @@ class QQMessageHandler:
 
         # 图片处理器 - 将在configure中设置
         self.image_handler: Optional[QQImageHandler] = None
+
+        # 拍一拍冷却 (sender_id -> last_poke_time)
+        self._poke_cooldown: Dict[int, float] = {}
+        self._poke_cooldown_seconds: float = 15.0  # 同一用户15秒内只能拍一次
 
     def configure(
         self,
@@ -135,6 +140,17 @@ class QQMessageHandler:
         # 只有拍机器人才响应
         if target_id != self.bot_qq:
             return None
+
+        # 拍一拍冷却检查
+        now = time.time()
+        last_poke = self._poke_cooldown.get(sender_id, 0)
+        if now - last_poke < self._poke_cooldown_seconds:
+            remaining = self._poke_cooldown_seconds - (now - last_poke)
+            logger.debug(
+                f"[QQNet] 拍一拍冷却中: sender={sender_id}, 剩余{remaining:.1f}秒"
+            )
+            return None
+        self._poke_cooldown[sender_id] = now
 
         logger.info(f"[QQNet] 收到拍一拍: sender={sender_id}, group={group_id}")
 

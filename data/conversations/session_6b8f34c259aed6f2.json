@@ -58,5 +58,35 @@
       "sender_name": "佳",
       "group_name": ""
     }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，一分钟后提醒我深呼吸一下",
+    "timestamp": "2026-04-03T15:37:07.593839",
+    "session_id": "private_1523878699",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "private",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": ""
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，我们之前聊了什么",
+    "timestamp": "2026-04-03T18:02:11.159095",
+    "session_id": "private_1523878699",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "private",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": ""
+    }
   }
 ]

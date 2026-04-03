@@ -442,14 +442,26 @@ class MemoryCategory:
 
 
 def get_unified_memory(data_dir="data/memory"):
-    """旧接口兼容 - 同步获取统一记忆"""
+    """旧接口兼容 - 同步/异步安全获取统一记忆"""
     global _unified_memory_sync
     if _unified_memory_sync is None:
         import asyncio
 
-        _unified_memory_sync = asyncio.get_event_loop().run_until_complete(
-            get_memory_core(data_dir)
-        )
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # 在异步上下文中，创建任务并等待
+                import concurrent.futures
+
+                # 直接同步初始化，避免在异步上下文中调用 run_until_complete
+                _unified_memory_sync = MiyaMemoryCore(data_dir)
+            else:
+                _unified_memory_sync = loop.run_until_complete(
+                    get_memory_core(data_dir)
+                )
+        except RuntimeError:
+            # 没有事件循环，直接同步初始化
+            _unified_memory_sync = MiyaMemoryCore(data_dir)
     return _unified_memory_sync
 
 
@@ -459,14 +471,19 @@ async def init_unified_memory(data_dir="data/memory"):
 
 
 def get_undefined_memory_adapter():
-    """旧接口兼容 - 同步获取Undefined适配器"""
+    """旧接口兼容 - 同步/异步安全获取适配器"""
     global _memory_adapter
     if _memory_adapter is None:
         import asyncio
 
-        _memory_adapter = asyncio.get_event_loop().run_until_complete(
-            get_memory_adapter()
-        )
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                _memory_adapter = MemoryAdapter()
+            else:
+                _memory_adapter = loop.run_until_complete(get_memory_adapter())
+        except RuntimeError:
+            _memory_adapter = MemoryAdapter()
     return _memory_adapter
 
 

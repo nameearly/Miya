@@ -920,8 +920,8 @@ class ProactiveChatSystem:
 
             response = await self.ai_client.chat(
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=50,
-                temperature=0.7,
+                max_tokens=self.config.get("max_tokens", 50),
+                temperature=self.config.get("temperature", 0.7),
             )
 
             message = (
