@@ -743,5 +743,28 @@
         "task_planning": ["帮我", "任务", "计划", "规划", "步骤"],
         "default_task": "simple_chat",
         "chinese_ratio_threshold": 0.5
+    },
+
+    "search_strategy": {
+        "enabled": true,
+        "provider": "tavily",
+        "auto_search_enabled": true,
+        "auto_search_triggers": [
+            "最近", "最新", "今天", "现在", "当前",
+            "新闻", "发生了什么", "有什么新",
+            "帮我查", "帮我搜", "搜索一下", "查一下",
+            "是什么", "什么意思", "是谁", "在哪里",
+            "怎么办", "怎么做", "如何", "教程",
+            "天气", "时间", "价格", "多少钱"
+        ],
+        "skip_search_keywords": [
+            "你好", "谢谢", "再见", "晚安", "早上好",
+            "哈哈", "呵呵", "嗯嗯", "好的", "知道了",
+            "对的对的", "不是", "是的", "嗯", "哦"
+        ],
+        "max_results": 5,
+        "search_depth": "basic",
+        "include_answer": true,
+        "timeout_seconds": 15
     }
 }

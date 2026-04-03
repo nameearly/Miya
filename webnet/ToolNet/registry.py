@@ -736,15 +736,17 @@ class ToolRegistry:
             from webnet.ToolNet.tools.network.whois_query import WhoisQueryTool
             from webnet.ToolNet.tools.network.tcping import TCPingTool
             from webnet.ToolNet.tools.network.speed_test import SpeedTestTool
+            from webnet.ToolNet.tools.network.tavily_search_tool import TavilySearchTool
 
             self.register(GrokSearchTool())
             self.register(CrawlWebpageTool())
             self.register(WhoisQueryTool())
             self.register(TCPingTool())
             self.register(SpeedTestTool())
+            self.register(TavilySearchTool())
 
             self.logger.info(
-                "已加载网络工具: GrokSearch, CrawlWebpage, WhoisQuery, TCPing, SpeedTest"
+                "已加载网络工具: GrokSearch, CrawlWebpage, WhoisQuery, TCPing, SpeedTest, TavilySearch"
             )
         except Exception as e:
             self.logger.warning(f"加载网络工具失败: {e}")
