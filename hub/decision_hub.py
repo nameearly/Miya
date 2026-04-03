@@ -1079,7 +1079,9 @@ class DecisionHub:
                         f"triggers_found={[kw for kw in trigger_keywords if kw in content_lower]}"
                     )
 
+                    print("[DEBUG] 6.5 准备判断 if 条件...", flush=True)
                     if should_search and not should_skip:
+                        print("[DEBUG] 7. 条件成立！进入搜索逻辑", flush=True)
                         logger.info(f"[主动搜索] 检测到搜索需求: {content[:50]}...")
                         # 调用 Tavily 搜索
                         from webnet.ToolNet.tools.network.tavily_search import (
@@ -1088,11 +1090,17 @@ class DecisionHub:
                         import os
 
                         tavily_key = os.getenv("TAVILY_API_KEY", "")
+                        print(
+                            f"[DEBUG] 8. TAVILY_API_KEY 存在: {bool(tavily_key)}",
+                            flush=True,
+                        )
                         logger.info(
                             f"[主动搜索] TAVILY_API_KEY: {'已配置' if tavily_key else '未配置'}"
                         )
                         if tavily_key:
+                            print("[DEBUG] 9. 开始实例化 TavilyAISearch", flush=True)
                             searcher = TavilyAISearch(api_key=tavily_key)
+                            print("[DEBUG] 10. 开始调用 searcher.search", flush=True)
                             result = searcher.search(
                                 query=content,
                                 max_results=search_strategy.get("max_results", 5),
@@ -1102,6 +1110,10 @@ class DecisionHub:
                                 include_answer=search_strategy.get(
                                     "include_answer", True
                                 ),
+                            )
+                            print(
+                                f"[DEBUG] 11. 搜索结果: {result.get('success')}",
+                                flush=True,
                             )
                             if result.get("success"):
                                 search_context = searcher.format_for_ai(result)
@@ -1116,6 +1128,8 @@ class DecisionHub:
                             logger.warning(
                                 "[主动搜索] TAVILY_API_KEY 未配置，请在 .env 中添加"
                             )
+                    else:
+                        print("[DEBUG] 7. 条件不成立，跳过搜索", flush=True)
             except Exception as e:
                 import traceback
 
