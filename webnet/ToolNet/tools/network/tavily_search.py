@@ -78,8 +78,8 @@ class TavilyAISearch:
             payload["exclude_domains"] = exclude_domains
 
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
+            with httpx.Client() as client:
+                response = client.post(
                     self.base_url,
                     json=payload,
                     timeout=self.timeout,
