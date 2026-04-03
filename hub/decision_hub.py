@@ -1030,7 +1030,6 @@ class DecisionHub:
             # 【主动搜索策略】检测是否需要联网搜索
             search_context = ""
             try:
-                from core.text_loader import get_text
                 import json
 
                 search_config_path = (
@@ -1041,6 +1040,12 @@ class DecisionHub:
                     with open(search_config_path, "r", encoding="utf-8") as f:
                         full_config = json.load(f)
                     search_strategy = full_config.get("search_strategy", {})
+                    logger.info(
+                        f"[主动搜索] 配置加载成功: enabled={search_strategy.get('enabled')}, "
+                        f"auto={search_strategy.get('auto_search_enabled')}"
+                    )
+                else:
+                    logger.warning(f"[主动搜索] 配置文件不存在: {search_config_path}")
 
                 if search_strategy.get("enabled") and search_strategy.get(
                     "auto_search_enabled"
@@ -1054,6 +1059,12 @@ class DecisionHub:
                     trigger_keywords = search_strategy.get("auto_search_triggers", [])
                     should_search = any(kw in content_lower for kw in trigger_keywords)
 
+                    logger.info(
+                        f"[主动搜索] 检测: 内容='{content[:30]}...', "
+                        f"should_search={should_search}, should_skip={should_skip}, "
+                        f"triggers_found={[kw for kw in trigger_keywords if kw in content_lower]}"
+                    )
+
                     if should_search and not should_skip:
                         logger.info(f"[主动搜索] 检测到搜索需求: {content[:50]}...")
                         # 调用 Tavily 搜索
@@ -1063,6 +1074,9 @@ class DecisionHub:
                         import os
 
                         tavily_key = os.getenv("TAVILY_API_KEY", "")
+                        logger.info(
+                            f"[主动搜索] TAVILY_API_KEY: {'已配置' if tavily_key else '未配置'}"
+                        )
                         if tavily_key:
                             searcher = TavilyAISearch(api_key=tavily_key)
                             result = searcher.search(
@@ -1085,9 +1099,14 @@ class DecisionHub:
                                     f"[主动搜索] 搜索失败: {result.get('error')}"
                                 )
                         else:
-                            logger.debug("[主动搜索] TAVILY_API_KEY 未配置")
+                            logger.warning(
+                                "[主动搜索] TAVILY_API_KEY 未配置，请在 .env 中添加"
+                            )
             except Exception as e:
-                logger.debug(f"[主动搜索] 检测失败: {e}")
+                import traceback
+
+                logger.warning(f"[主动搜索] 检测失败: {e}")
+                logger.warning(traceback.format_exc())
 
             # 获取引用消息信息
             reply_info = context.get("reply")
