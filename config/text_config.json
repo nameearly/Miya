@@ -765,6 +765,23 @@
         "max_results": 5,
         "search_depth": "basic",
         "include_answer": true,
-        "timeout_seconds": 15
+        "timeout_seconds": 15,
+        "prompt_templates": {
+            "search_context_prefix": "\n【重要：以下是刚刚为你搜索到的实时信息，请直接使用这些信息回答用户的问题，不要再说“我去查一下”或“稍等”】\n",
+            "search_success_log": "[主动搜索] 搜索成功: {count} 条结果",
+            "search_failure_log": "[主动搜索] 搜索失败: {error}",
+            "search_trigger_log": "[主动搜索] 检测到搜索需求: {query}"
+        }
+    },
+
+    "output_filter": {
+        "enabled": true,
+        "exclamation_threshold": 50,
+        "fallback_responses": [
+            "好的呢～我收到啦！",
+            "明白啦！有什么需要我帮忙的吗？",
+            "收到！怎么啦？",
+            "嗯呢～在说什么呢？"
+        ]
     }
 }

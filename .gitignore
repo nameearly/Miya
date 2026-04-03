@@ -89,6 +89,16 @@ data/emoji/user_uploaded/*.gif
 data/emoji/user_uploaded/*.png
 data/emoji/user_uploaded/*.jpeg
 
+# Runtime Data (not committed - generated during runtime)
+data/conversations/
+data/memory/
+data/user_personas/
+data/.emoji_backups/
+data/emoji/*.json
+
+# Runtime working memory
+data/memory/short_term/
+
 # Cache
 Cache/
 

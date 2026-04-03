@@ -445,27 +445,55 @@ class MiyaQQ:
         if not response_text or not self.qq_net:
             return
 
+        filtered_text = response_text
+
+        try:
+            import json
+            from pathlib import Path
+
+            config_path = Path(__file__).parent.parent / "config" / "text_config.json"
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+
+                output_filter = config.get("output_filter", {})
+                if output_filter.get("enabled", True):
+                    threshold = output_filter.get("exclamation_threshold")
+                    if threshold and threshold > 0:
+                        exclamation_count = sum(1 for c in response_text if c == "!")
+                        if exclamation_count >= threshold:
+                            fallback_responses = output_filter.get("fallback_responses")
+                            if fallback_responses:
+                                self.logger.warning(
+                                    f"[刷屏过滤] 检测到过多感叹号 ({exclamation_count}个)，将被替换为礼貌回应"
+                                )
+                                import random
+
+                                filtered_text = random.choice(fallback_responses)
+        except Exception:
+            pass
+
         try:
             if qq_message.message_type == "poke":
                 if qq_message.group_id and qq_message.group_id > 0:
                     self.logger.info(f"发送群聊拍一拍回复至 {qq_message.group_id}")
                     _ = await self.qq_net.send_group_message(
-                        qq_message.group_id, response_text
+                        qq_message.group_id, filtered_text
                     )
                 elif qq_message.user_id and qq_message.user_id > 0:
                     self.logger.info(f"发送私聊拍一拍回复至 {qq_message.user_id}")
                     _ = await self.qq_net.send_private_message(
-                        qq_message.user_id, response_text
+                        qq_message.user_id, filtered_text
                     )
             elif qq_message.message_type == "group":
                 self.logger.info(f"发送群消息至 {qq_message.group_id}")
                 _ = await self.qq_net.send_group_message(
-                    qq_message.group_id, response_text
+                    qq_message.group_id, filtered_text
                 )
             elif qq_message.message_type == "private":
                 self.logger.info(f"发送私聊消息至 {qq_message.user_id}")
                 _ = await self.qq_net.send_private_message(
-                    qq_message.user_id, response_text
+                    qq_message.user_id, filtered_text
                 )
         except Exception as e:
             self.logger.error(f"QQ响应发送失败: {e}", exc_info=True)

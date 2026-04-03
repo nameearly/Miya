@@ -1029,78 +1029,51 @@ class DecisionHub:
 
             # 【主动搜索策略】检测是否需要联网搜索
             search_context = ""
-            print("[DEBUG] 1. 进入主动搜索代码块", flush=True)
             try:
                 import json
 
                 search_config_path = (
                     Path(__file__).parent.parent / "config" / "text_config.json"
                 )
-                print(f"[DEBUG] 2. 配置文件路径: {search_config_path}", flush=True)
 
                 search_strategy = {}
                 if search_config_path.exists():
                     with open(search_config_path, "r", encoding="utf-8") as f:
                         full_config = json.load(f)
                     search_strategy = full_config.get("search_strategy", {})
-                    print(f"[DEBUG] 3. 搜索策略配置: {search_strategy}", flush=True)
-                    logger.info(
-                        f"[主动搜索] 配置加载成功: enabled={search_strategy.get('enabled')}, "
-                        f"auto={search_strategy.get('auto_search_enabled')}"
-                    )
-                else:
-                    logger.warning(f"[主动搜索] 配置文件不存在: {search_config_path}")
 
                 enabled = search_strategy.get("enabled")
                 auto = search_strategy.get("auto_search_enabled")
-                print(
-                    f"[DEBUG] 4. enabled={enabled} (type: {type(enabled)}), auto={auto} (type: {type(auto)})",
-                    flush=True,
+
+                logger.info(
+                    f"[主动搜索] enabled={enabled}, auto={auto}, content='{content[:20]}...'"
                 )
 
                 if enabled and auto:
-                    print("[DEBUG] 5. 条件满足，开始检测关键词", flush=True)
                     content_lower = content.lower()
-                    # 检查跳过关键词
                     skip_keywords = search_strategy.get("skip_search_keywords", [])
                     should_skip = any(kw in content_lower for kw in skip_keywords)
 
-                    # 检查触发关键词
                     trigger_keywords = search_strategy.get("auto_search_triggers", [])
                     should_search = any(kw in content_lower for kw in trigger_keywords)
 
-                    print(
-                        f"[DEBUG] 6. should_search={should_search}, should_skip={should_skip}",
-                        flush=True,
-                    )
                     logger.info(
-                        f"[主动搜索] 检测: 内容='{content[:30]}...', "
-                        f"should_search={should_search}, should_skip={should_skip}, "
-                        f"triggers_found={[kw for kw in trigger_keywords if kw in content_lower]}"
+                        f"[主动搜索] should_search={should_search}, should_skip={should_skip}"
                     )
 
-                    print("[DEBUG] 6.5 准备判断 if 条件...", flush=True)
                     if should_search and not should_skip:
-                        print("[DEBUG] 7. 条件成立！进入搜索逻辑", flush=True)
-                        logger.info(f"[主动搜索] 检测到搜索需求: {content[:50]}...")
-                        # 调用 Tavily 搜索
+                        logger.info(f"[主动搜索] 触发搜索: {content[:50]}...")
                         from webnet.ToolNet.tools.network.tavily_search import (
                             TavilyAISearch,
                         )
                         import os
 
                         tavily_key = os.getenv("TAVILY_API_KEY", "")
-                        print(
-                            f"[DEBUG] 8. TAVILY_API_KEY 存在: {bool(tavily_key)}",
-                            flush=True,
-                        )
                         logger.info(
                             f"[主动搜索] TAVILY_API_KEY: {'已配置' if tavily_key else '未配置'}"
                         )
                         if tavily_key:
-                            print("[DEBUG] 9. 开始实例化 TavilyAISearch", flush=True)
                             searcher = TavilyAISearch(api_key=tavily_key)
-                            print("[DEBUG] 10. 开始调用 searcher.search", flush=True)
                             result = searcher.search(
                                 query=content,
                                 max_results=search_strategy.get("max_results", 5),
@@ -1111,29 +1084,22 @@ class DecisionHub:
                                     "include_answer", True
                                 ),
                             )
-                            print(
-                                f"[DEBUG] 11. 搜索结果: {result.get('success')}",
-                                flush=True,
-                            )
                             if result.get("success"):
                                 search_context = searcher.format_for_ai(result)
                                 logger.info(
-                                    f"[主动搜索] 搜索成功: {result.get('result_count', 0)} 条结果"
+                                    f"[主动搜索] 成功: {result.get('result_count', 0)} 条结果"
                                 )
                             else:
                                 logger.warning(
-                                    f"[主动搜索] 搜索失败: {result.get('error')}"
+                                    f"[主动搜索] 失败: {result.get('error')}"
                                 )
                         else:
                             logger.warning(
                                 "[主动搜索] TAVILY_API_KEY 未配置，请在 .env 中添加"
                             )
-                    else:
-                        print("[DEBUG] 7. 条件不成立，跳过搜索", flush=True)
             except Exception as e:
                 import traceback
 
-                print(f"[DEBUG] 异常: {e}", flush=True)
                 logger.warning(f"[主动搜索] 检测失败: {e}")
                 logger.warning(traceback.format_exc())
 
@@ -1141,7 +1107,9 @@ class DecisionHub:
             reply_info = context.get("reply")
             reply_context = ""
             if reply_info:
-                reply_context = f"\n[引用消息] 来自: {reply_info.get('sender_name', '未知')}\n内容: {reply_info.get('content', '')[:100]}"
+                sender_name = reply_info.get("sender_name", "未知")
+                content = reply_info.get("content", "")[:100]
+                reply_context = f"\n[引用消息] 来自: {sender_name}\n内容: {content}"
 
             # 获取文件信息
             files_info = context.get("files", [])

@@ -11298,6 +11298,330 @@ model = pool.select_model_for_task(task_type.value, "qq")
 
 ---
 
+### 11. 主动搜索功能 (Tavily AI 搜索引擎)
+
+#### 11.1 功能概述
+
+弥娅集成了 Tavily AI 搜索引擎，实现了主动联网搜索能力。当用户发送包含特定关键词的消息时（如"搜索"、"今天"、"价格"等），弥娅会自动调用 Tavily API 获取实时信息，并将结果直接注入到 Prompt 中，使 AI 能够直接使用搜索结果回答用户问题，无需再说"我去查一下"。
+
+#### 11.2 工作原理
+
+```
+用户发送: "搜索一下今天的固态硬盘的价格"
+    ↓
+决策层检测触发关键词 (今天、价格、搜索等)
+    ↓
+调用 Tavily AI 搜索引擎 API
+    ↓
+获取搜索结果并格式化为上下文
+    ↓
+注入到 AI Prompt 中
+    ↓
+AI 直接使用搜索结果回复用户
+```
+
+#### 11.3 配置方式
+
+在 `config/text_config.json` 中配置：
+
+```json
+{
+  "search_strategy": {
+    "enabled": true,
+    "provider": "tavily",
+    "auto_search_enabled": true,
+    "auto_search_triggers": [
+      "最近", "最新", "今天", "现在", "当前",
+      "新闻", "发生了什么", "有什么新",
+      "帮我查", "帮我搜", "搜索一下", "查一下",
+      "是什么", "什么意思", "是谁", "在哪里",
+      "怎么办", "怎么做", "如何", "教程",
+      "天气", "时间", "价格", "多少钱"
+    ],
+    "skip_search_keywords": [
+      "你好", "谢谢", "再见", "晚安", "早上好",
+      "哈哈", "呵呵", "嗯嗯", "好的", "知道了",
+      "对的对的", "不是", "是的", "嗯", "哦"
+    ],
+    "max_results": 5,
+    "search_depth": "basic",
+    "include_answer": true,
+    "timeout_seconds": 15,
+    "prompt_templates": {
+      "search_context_prefix": "\n【重要：以下是刚刚为你搜索到的实时信息，请直接使用这些信息回答用户的问题，不要再说"我去查一下"或"稍等"】\n"
+    }
+  }
+}
+```
+
+#### 11.4 配置项说明
+
+| 配置项 | 类型 | 说明 |
+|--------|------|------|
+| `enabled` | boolean | 是否启用搜索功能 |
+| `provider` | string | 搜索服务提供商（当前支持 tavily） |
+| `auto_search_enabled` | boolean | 是否自动检测搜索需求 |
+| `auto_search_triggers` | array | 触发搜索的关键词列表 |
+| `skip_search_keywords` | array | 跳过搜索的关键词列表（如寒暄语） |
+| `max_results` | number | 最多返回结果数 |
+| `search_depth` | string | 搜索深度（basic/advanced） |
+| `include_answer` | boolean | 是否包含 AI 生成的答案摘要 |
+| `timeout_seconds` | number | API 超时时间（秒） |
+| `prompt_templates.search_context_prefix` | string | 搜索结果注入提示词模板 |
+
+#### 11.5 API 密钥配置
+
+在 `.env` 文件中配置 Tavily API Key：
+
+```bash
+# Tavily AI 搜索（专为 AI 设计的搜索引擎）
+# 注册地址: https://tavily.com/
+TAVILY_API_KEY=tvly-你的Tavily_API密钥
+```
+
+#### 11.6 工作流程
+
+1. **关键词检测**：用户消息首先经过触发关键词检测
+2. **跳过检测**：检查是否包含跳过关键词（如寒暄语）
+3. **执行搜索**：调用 Tavily API 获取搜索结果
+4. **结果注入**：将搜索结果格式化为上下文，注入到 AI Prompt
+5. **AI 回复**：AI 直接使用搜索结果回复，无需额外搜索
+
+#### 11.7 相关文件
+
+| 文件 | 功能 |
+|------|------|
+| `webnet/ToolNet/tools/network/tavily_search.py` | Tavily 搜索引擎实现 |
+| `webnet/ToolNet/tools/network/tavily_search_tool.py` | ToolNet 工具封装 |
+| `hub/decision_hub.py` | 搜索触发逻辑集成 |
+| `core/prompt_manager.py` | 搜索结果注入 |
+| `config/text_config.json` | 搜索策略配置 |
+| `config/.env` | API 密钥配置 |
+
+---
+
+### 12. 输出过滤与刷屏防护系统
+
+#### 12.1 功能概述
+
+弥娅实现了输出过滤系统，用于防止 AI 输出异常（如大量重复字符刷屏）。当检测到输出包含过多连续重复字符（如 50 个以上的感叹号）时，系统会自动替换为预设的礼貌回应。
+
+#### 12.2 配置方式
+
+在 `config/text_config.json` 中配置：
+
+```json
+{
+  "output_filter": {
+    "enabled": true,
+    "exclamation_threshold": 50,
+    "fallback_responses": [
+      "好的呢～我收到啦！",
+      "明白啦！有什么需要我帮忙的吗？",
+      "收到！怎么啦？",
+      "嗯呢～在说什么呢？"
+    ]
+  }
+}
+```
+
+#### 12.3 配置项说明
+
+| 配置项 | 类型 | 说明 |
+|--------|------|------|
+| `enabled` | boolean | 是否启用输出过滤 |
+| `exclamation_threshold` | number | 感叹号阈值，超过此数量则触发过滤 |
+| `fallback_responses` | array | 触发过滤时替换的礼貌回应列表 |
+
+#### 12.4 工作流程
+
+```
+AI 生成回复
+    ↓
+检测连续重复字符数量（!、~、?等）
+    ↓
+超过阈值?
+    ↓ 是 → 随机选择 fallback_responses 替换
+    ↓ 否 → 直接发送原回复
+    ↓
+发送消息
+```
+
+#### 12.5 相关文件
+
+| 文件 | 功能 |
+|------|------|
+| `run/qq_main.py` | 输出过滤逻辑实现 |
+
+---
+
+### 13. 配置文件统一管理
+
+#### 13.1 配置文件架构
+
+弥娅采用统一的配置文件管理架构，所有配置通过配置文件管理，代码中零硬编码。
+
+| 配置文件 | 用途 |
+|----------|------|
+| `.env` | 环境变量（API 密钥、数据库连接等敏感配置） |
+| `multi_model_config.json` | 所有模型配置（文本、视觉、Embedding） |
+| `text_config.json` | 业务规则配置（搜索策略、输出过滤、任务分类等） |
+| `qq_config.yaml` | QQ 功能配置 |
+| `mcp.json` / `mcp.yaml` | MCP 工具配置 |
+
+#### 13.2 配置加载机制
+
+所有配置均从配置文件加载，代码通过统一的加载器访问：
+
+```python
+# 从 multi_model_config.json 加载
+from core.model_pool import get_model_pool
+pool = get_model_pool()
+
+# 从 text_config.json 加载
+from core.text_loader import get_text, get_chatbot_keywords
+keywords = get_chatbot_keywords()
+
+# 从 .env 加载
+import os
+api_key = os.getenv("API_KEY")
+```
+
+#### 13.3 配置文件示例
+
+##### .env.example
+
+```bash
+# === OpenAI API（可选）===
+OPENAI_API_KEY=sk-你的OpenAI密钥
+
+# === DeepSeek API ===
+DEEPSEEK_API_KEY=sk-你的DeepSeek密钥
+
+# === 智谱 AI ===
+ZHIPU_API_KEY=你的智谱密钥
+
+# === 硅基流动 SiliconFlow API ===
+SILICONFLOW_API_KEY=sk-你的硅基流动密钥
+
+# === Tavily AI 搜索（专为 AI 设计的搜索引擎）===
+TAVILY_API_KEY=tvly-你的Tavily API密钥
+```
+
+##### multi_model_config.json 结构
+
+```json
+{
+  "models": {
+    "text": [...],
+    "vision": [...],
+    "embedding": [...]
+  },
+  "task_classification": {...}
+}
+```
+
+##### text_config.json 结构
+
+```json
+{
+  "search_strategy": {...},
+  "output_filter": {...},
+  "vision": {...},
+  "sqlite_backend": {...}
+}
+```
+
+---
+
+### 14. 代码优化与冗余清理
+
+#### 14.1 已清理的硬编码
+
+本次更新清理了以下硬编码：
+
+1. **搜索相关硬编码**：
+   - 搜索触发关键词 → 配置到 `text_config.json`
+   - 搜索结果提示词模板 → 配置到 `text_config.json`
+   - 感叹号阈值和备用回复 → 配置到 `text_config.json`
+
+2. **模型相关硬编码**：
+   - 所有模型配置 → 移动到 `multi_model_config.json`
+   - 模型选择逻辑 → 配置化到 `multi_model_config.json`
+
+3. **其他硬编码**：
+   - 引用消息格式 → 从配置加载
+   - 文件上下文格式 → 从配置加载
+
+#### 14.2 已删除的冗余文件
+
+| 文件 | 原因 |
+|------|------|
+| `core/ai_backend.py` | 功能与 ai_client.py 重叠 |
+| `core/vision_analyzer.py` | 死代码，被 multi_vision_analyzer.py 替代 |
+| `core/multi_model_manager.py` | 已合并到 model_pool.py |
+| `webnet/qq/smart_image_analyzer.py` | 100% 死代码 |
+| `webnet/qq/enhanced_image_handler.py` | 与 image_handler.py 重叠 |
+| `config/smart_image_processing.yaml` | 从未被加载 |
+| `config/unified_model_config.yaml` | 已迁移到 multi_model_config.json |
+
+#### 14.3 代码规范
+
+- 所有业务规则配置必须从配置文件加载
+- 配置文件路径使用相对路径，确保跨平台兼容
+- 代码中保留必要的默认值作为配置缺失时的回退
+- 使用日志记录配置加载状态，便于问题排查
+
+---
+
+### 15. 版本历史与更新记录
+
+#### Version 4.3.1 (2026-04-03)
+
+##### 新增功能
+
+1. **Tavily AI 搜索引擎集成**
+   - 实现主动联网搜索能力
+   - 支持自动检测搜索需求
+   - 搜索结果直接注入 Prompt
+
+2. **输出过滤系统**
+   - 防止刷屏（感叹号过滤）
+   - 可配置阈值和备用回复
+
+3. **意识感知系统**
+   - 时间、地点、活动感知
+   - 生成 `perception_text` 注入 Prompt
+
+4. **谛听监听系统增强**
+   - 分层摘要注入
+   - 活跃对话检测
+
+##### 代码优化
+
+1. **配置文件统一**
+   - 所有硬编码移至配置文件
+   - 零硬编码目标达成
+   - 清理冗余文件
+
+2. **日志优化**
+   - 简化调试日志
+   - 保留关键信息
+
+3. **模型管理优化**
+   - 模型池统一管理
+   - 任务智能分类
+
+##### 配置变更
+
+| 配置文件 | 新增配置 |
+|----------|----------|
+| `text_config.json` | `search_strategy`, `output_filter` |
+| `multi_model_config.json` | 完整模型配置 |
+| `.env` | `TAVILY_API_KEY` |
+
+---
+
 ## 联系方式
 
 - **GitHub**: [Jia-520-only/Miya](https://github.com/Jia-520-only/Miya)

@@ -434,11 +434,32 @@ class PromptManager:
             awareness_text = additional_context.get("awareness_text", "")
             search_context = additional_context.get("search_context", "")
 
+            # 从配置加载提示词模板
+            search_prefix = ""
+            try:
+                from pathlib import Path
+                import json
+
+                config_path = (
+                    Path(__file__).parent.parent / "config" / "text_config.json"
+                )
+                if config_path.exists():
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        full_config = json.load(f)
+                    templates = full_config.get("search_strategy", {}).get(
+                        "prompt_templates", {}
+                    )
+                    search_prefix = templates.get(
+                        "search_context_prefix", search_prefix
+                    )
+            except Exception:
+                pass
+
             extra_context = ""
             if awareness_text:
                 extra_context += awareness_text + "\n"
             if search_context:
-                extra_context += f"\n【重要：以下是刚刚为你搜索到的实时信息，请直接使用这些信息回答用户的问题，不要再说“我去查一下”或“稍等”】\n{search_context}\n"
+                extra_context += f"\n{search_prefix}\n{search_context}\n"
             if reply_context:
                 extra_context += reply_context + "\n"
             if files_context:
