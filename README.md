@@ -10601,6 +10601,703 @@ print(profile)
 
 ---
 
+## v4.3.2 重大更新 (2026-04-03)
+
+### 更新概述
+
+v4.3.2 是弥娅系统的一次重大架构升级，引入了谛听监听系统、前后端意识系统、模型池统一配置、SQLite 后端、Embedding API 支持、记忆全局化等多项重大改进。
+
+---
+
+### 1. 谛听监听系统 (DiTing Listener)
+
+#### 1.1 系统概述
+
+谛听是弥娅的群聊消息监听与压缩系统，负责：
+- **监听所有群消息**（不触发大模型，零 token 消耗）
+- **自动压缩为结构化摘要**
+- **追踪活跃对话窗口**（5分钟/5条连续消息）
+- **区分公开话题 vs 私密对话**
+
+#### 1.2 核心原理
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    谛听监听系统架构                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  群消息流 ──────────────────────────────────────────────▶    │
+│       │                                                      │
+│       ▼                                                      │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              DiTingListener (谛听监听器)              │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │    │
+│  │  │ 消息记录    │  │ 话题线程    │  │ 活跃追踪    │  │    │
+│  │  │ on_group_  │  │ _topic_     │  │ _active_    │  │    │
+│  │  │ message()  │  │ threads()   │  │ conv()      │  │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  │    │
+│  └────────────────────────┬────────────────────────────┘    │
+│                           │                                  │
+│  ┌────────────────────────┴────────────────────────────┐    │
+│  │              分层摘要注入 (唤醒时)                    │    │
+│  │  Layer 1: 时间线概览 (必注入)                        │    │
+│  │  Layer 2: 关键对话 (按需注入)                        │    │
+│  │  Layer 3: 当前话题 (实时)                            │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 1.3 核心文件
+
+| 文件 | 功能 |
+|------|------|
+| `memory/diteng_listener.py` | 谛听监听器核心 |
+| `hub/decision_hub.py` | 集成谛听到决策流程 |
+| `webnet/qq/message_handler.py` | 消息入口集成 |
+| `webnet/qq/models.py` | QQMessage 模型扩展 (reply_to_bot) |
+
+#### 1.4 分层摘要注入
+
+当弥娅被唤醒时，会注入三层群聊上下文：
+
+```
+【群聊时间线】
+[佳] 聊了4条: 弥娅...
+[咕] 聊了2条: 我有一计...
+
+【与弥娅的对话】
+@佳: 弥娅，我们现在在哪里？
+
+【当前对话】
+佳: 没事
+```
+
+#### 1.5 活跃对话窗口
+
+- **窗口期**：5分钟内连续对话视为活跃
+- **触发条件**：@机器人 或 回复机器人消息
+- **效果**：活跃期间，用户的所有消息都会触发弥娅回复（无需@）
+- **标记机制**：关键词触发时也标记为活跃
+
+#### 1.6 使用方法
+
+```python
+from memory.diteng_listener import get_diting
+
+# 获取谛听监听器单例
+diteng = get_diting()
+
+# 记录群消息
+diteng.on_group_message(
+    group_id="1092980378",
+    group_name="索多玛",
+    user_id="1523878699",
+    user_name="佳",
+    content="弥娅，你好",
+    is_at_bot=True,
+    reply_to_bot=False,
+)
+
+# 检查用户是否活跃
+is_active = diteng.is_user_active_with_bot("1092980378", "1523878699")
+
+# 获取群聊摘要
+summary = diteng.get_layered_context("1092980378")
+
+# 获取活跃用户
+active_users = diteng.get_active_users("1092980378")
+```
+
+---
+
+### 2. 前后端意识系统 (Awareness System)
+
+#### 2.1 系统概述
+
+前后端意识系统让弥娅像人一样知道：
+- **什么时候**（时刻、星期、时段）
+- **在哪里**（群聊/私聊、群名、用户角色）
+- **在做什么**（活跃对话、群聊动态、最近话题）
+
+#### 2.2 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    前后端意识系统架构                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │ 时间感知    │  │ 地点感知    │  │ 活动感知    │        │
+│  │ TimeAwar-   │  │ Location-   │  │ Activity-   │        │
+│  │ eness       │  │ Awareness   │  │ Awareness   │        │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
+│         │                │                │                │
+│  ┌──────┴────────────────┴────────────────┴──────┐        │
+│  │              FrontendAwareness                │        │
+│  │  gather_context() → perception_text           │        │
+│  └────────────────────────┬──────────────────────┘        │
+│                           │                                │
+│  ┌────────────────────────┴──────────────────────┐        │
+│  │              决策层注入                        │        │
+│  │  awareness_text → prompt_manager → AI prompt  │        │
+│  └───────────────────────────────────────────────┘        │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 2.3 核心文件
+
+| 文件 | 功能 |
+|------|------|
+| `core/awareness.py` | 意识感知系统核心 |
+| `hub/decision_hub.py` | 意识感知注入到 Prompt |
+| `core/prompt_manager.py` | awareness_text 注入到 user_prompt |
+
+#### 2.4 感知输出示例
+
+```
+【当前感知】
+时间：2026-04-03 19:59:08 (晚上, 星期五)
+地点：群聊 [索多玛] (1092980378)
+对话对象：佳 (admin)
+对话状态：活跃对话中
+
+【群聊动态】
+【群聊时间线】
+[佳] 聊了4条: 弥娅...
+
+【与弥娅的对话】
+@佳: 弥娅
+
+【当前对话】
+佳: 弥娅
+```
+
+#### 2.5 使用方法
+
+```python
+from core.awareness import get_awareness
+
+# 获取意识感知系统单例
+awareness = get_awareness()
+
+# 收集完整上下文
+ctx = awareness.gather_context(
+    message_type="group",
+    group_id=1092980378,
+    group_name="索多玛",
+    user_id=1523878699,
+    sender_name="佳",
+    sender_role="admin",
+)
+
+print(ctx["perception_text"])
+```
+
+---
+
+### 3. 模型池统一配置 (multi_model_config.json)
+
+#### 3.1 核心原则
+
+**`multi_model_config.json` 是唯一模型池来源**，所有模型（文本、视觉、Embedding）都从此文件加载，代码中零硬编码。
+
+#### 3.2 配置文件结构
+
+```json
+{
+  "models": {
+    "deepseek_v3_official": {
+      "name": "deepseek-chat",
+      "provider": "openai",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key": "sk-xxx",
+      "description": "DeepSeek V3 官方 - 快速响应的通用模型",
+      "capabilities": ["simple_chat", "chinese_understanding", "tool_calling"],
+      "cost_per_1k_tokens": {"input": 0.00014, "output": 0.00028},
+      "latency": "fast",
+      "quality": "excellent"
+    },
+    "siliconflow_qwen_vl": {
+      "name": "Qwen/Qwen3-VL-32B-Instruct",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-xxx",
+      "description": "Qwen3-VL-32B - 视觉理解模型（硅基流动）",
+      "type": "vision",
+      "capabilities": ["image_description", "vision_understanding", "ocr"],
+      "cost_per_1k_tokens": {"input": 0.00126, "output": 0.00126},
+      "latency": "medium",
+      "quality": "excellent"
+    },
+    "qwen3_embedding_8b": {
+      "name": "Qwen/Qwen3-Embedding-8B",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-xxx",
+      "description": "Qwen3-Embedding-8B - 高质量语义向量模型",
+      "type": "embedding",
+      "capabilities": ["semantic_search", "memory_embedding", "chinese_understanding"],
+      "dimension": 4096,
+      "cost_per_1k_tokens": {"input": 0.00126, "output": 0},
+      "latency": "medium",
+      "quality": "excellent"
+    }
+  },
+  "routing_strategy": {
+    "simple_chat": {
+      "primary": "qwen_7b",
+      "secondary": "llama_3_1_8b",
+      "fallback": "deepseek_v3_official"
+    },
+    "complex_reasoning": {
+      "primary": "deepseek_r1_official",
+      "secondary": "deepseek_r1_distill_7b",
+      "fallback": "qwen_72b"
+    },
+    "image_description": {
+      "primary": "siliconflow_qwen_vl",
+      "secondary": "zhipu_glm_46v_flash",
+      "fallback": "simple_analysis"
+    }
+  },
+  "budget_control": {
+    "daily_budget_usd": 10.0,
+    "monthly_budget_usd": 300.0,
+    "alert_threshold": 0.8,
+    "stop_threshold": 0.95
+  },
+  "performance_settings": {
+    "enable_caching": true,
+    "cache_ttl_seconds": 3600,
+    "enable_parallel_execution": true,
+    "max_parallel_models": 3,
+    "consensus_threshold": 0.7
+  }
+}
+```
+
+#### 3.3 模型类型
+
+| type 值 | 说明 | 示例 |
+|---------|------|------|
+| `text` | 文本模型（默认） | deepseek-chat, qwen_72b |
+| `vision` | 视觉模型 | Qwen3-VL-32B, glm-4.6v-flash |
+| `embedding` | 语义向量模型 | Qwen3-Embedding-8B, bge-large-zh |
+
+#### 3.4 路由策略
+
+每个任务类型支持三层故障转移：
+- `primary` - 主模型，优先使用
+- `secondary` - 备用模型，主模型失败时使用
+- `fallback` - 兜底方案，所有模型失败时使用
+
+#### 3.5 任务类型
+
+| 任务类型 | 说明 | 默认路由 |
+|---------|------|---------|
+| `simple_chat` | 简单对话 | qwen_7b → llama_3_1_8b → deepseek_v3 |
+| `complex_reasoning` | 复杂推理 | deepseek_r1 → r1_distill_7b → qwen_72b |
+| `code_analysis` | 代码分析 | zhipu_glm_46v → deepseek_v3 → r1_distill_7b |
+| `code_generation` | 代码生成 | zhipu_glm_46v → deepseek_v3 → gemma_2_9b |
+| `tool_calling` | 工具调用 | qwen_72b → deepseek_v3 → deepseek_v3 |
+| `creative_writing` | 创意写作 | deepseek_r1 → qwen_72b → deepseek_v3 |
+| `chinese_understanding` | 中文理解 | deepseek_v3 → qwen_72b → deepseek_v3 |
+| `summarization` | 摘要 | llama_3_1_8b → qwen_7b → deepseek_v3 |
+| `image_description` | 图片描述 | siliconflow_qwen_vl → zhipu_glm_46v → simple_analysis |
+
+#### 3.6 使用方法
+
+```python
+from core.model_pool import get_model_pool, ModelType
+
+# 获取模型池单例
+pool = get_model_pool()
+
+# 获取所有模型
+all_models = pool.list_all_models()
+
+# 按类型获取
+vision_models = pool.get_models_by_type(ModelType.VISION)
+embedding_models = pool.get_models_by_type(ModelType.EMBEDDING)
+
+# 为任务选择最佳模型
+model = pool.select_model_for_task("chinese_understanding", "qq")
+
+# 获取模型配置
+model_config = pool.get_model("qwen3_embedding_8b")
+```
+
+---
+
+### 4. Embedding API 支持
+
+#### 4.1 系统概述
+
+弥娅现在支持真实 Embedding API 调用，用于语义搜索和记忆向量生成。
+
+#### 4.2 配置方式
+
+在 `multi_model_config.json` 中添加 embedding 模型：
+
+```json
+{
+  "models": {
+    "qwen3_embedding_8b": {
+      "name": "Qwen/Qwen3-Embedding-8B",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-xxx",
+      "type": "embedding",
+      "dimension": 4096
+    }
+  }
+}
+```
+
+#### 4.3 核心文件
+
+| 文件 | 功能 |
+|------|------|
+| `core/embedding_client.py` | Embedding 客户端（支持 OpenAI/DeepSeek/SiliconFlow） |
+| `memory/core.py` | 记忆系统集成 Embedding |
+| `memory/sqlite_backend.py` | SQLite 后端存储向量 |
+
+#### 4.4 支持的 Provider
+
+| Provider | 说明 | 配置方式 |
+|----------|------|---------|
+| `openai` | OpenAI 兼容 API | base_url + api_key |
+| `deepseek` | DeepSeek Embedding | base_url + api_key |
+| `siliconflow` | 硅基流动 Embedding | base_url + api_key |
+| `sentence_transformers` | 本地模型 | 自动下载 |
+
+#### 4.5 回退机制
+
+当 Embedding API 不可用时，自动回退到 n-gram 哈希伪向量：
+
+```python
+# memory/core.py - get_embedding()
+async def get_embedding(self, text: str) -> Optional[List[float]]:
+    if self.embedding_client:
+        try:
+            return await self.embedding_client.embed(text)
+        except Exception as e:
+            logger.warning(f"Embedding API 失败，使用回退方案: {e}")
+    return self._simple_embed(text)  # n-gram 哈希回退
+```
+
+---
+
+### 5. SQLite 后端（与 JSON 并存）
+
+#### 5.1 系统概述
+
+SQLite 后端与 JSON 后端并存：
+- **JSON** - 保持可视化，人类可读
+- **SQLite** - 高性能查询，FTS5 全文索引
+
+#### 5.2 配置方式
+
+在 `text_config.json` 中配置：
+
+```json
+{
+  "sqlite_backend": {
+    "enabled": false,
+    "db_path": "data/memory/miya_memory.db",
+    "pragma": {
+      "journal_mode": "WAL",
+      "foreign_keys": true,
+      "synchronous": "NORMAL",
+      "cache_size": -64000,
+      "temp_store": "MEMORY"
+    },
+    "table": {
+      "name": "memories",
+      "fts_enabled": true,
+      "fts_name": "memories_fts",
+      "fts_columns": ["content", "tags"]
+    },
+    "indexes": [
+      {"name": "idx_memories_user_id", "column": "user_id"},
+      {"name": "idx_memories_group_id", "column": "group_id"},
+      {"name": "idx_memories_level", "column": "level"},
+      {"name": "idx_memories_created_at", "column": "created_at"},
+      {"name": "idx_memories_priority", "column": "priority"}
+    ]
+  }
+}
+```
+
+#### 5.3 核心文件
+
+| 文件 | 功能 |
+|------|------|
+| `memory/sqlite_backend.py` | SQLite 后端实现 |
+| `memory/core.py` | 双写逻辑（JSON + SQLite） |
+
+#### 5.4 工作原理
+
+```
+存储: MemoryItem → JSON 文件 (可视化)
+                → SQLite 数据库 (高性能查询)
+
+查询: 优先 SQLite → 失败回退 JSON
+```
+
+#### 5.5 使用方法
+
+```python
+from memory.sqlite_backend import SQLiteBackend
+
+# 创建 SQLite 后端
+sqlite = SQLiteBackend("data/memory/miya_memory.db")
+
+# 保存记忆
+await sqlite.save(memory_item)
+
+# 查询记忆
+results = await sqlite.query(MemoryQuery(query="篮球", user_id="123456"))
+
+# 批量保存
+await sqlite.bulk_save(memory_items)
+```
+
+---
+
+### 6. 记忆全局化 + 标签加权
+
+#### 6.1 核心原则
+
+**弥娅的记忆是全局的，不按群/用户隔离**。`group_id` 和 `user_id` 仅用于加权排序，不过滤结果。
+
+#### 6.2 加权规则
+
+| 条件 | 权重倍率 | 说明 |
+|------|---------|------|
+| 当前群记忆 | ×1.5 | 当前所在群的记忆优先 |
+| 当前用户记忆 | ×1.3 | 当前用户的记忆优先 |
+| 相关标签匹配 | ×1.2 | 标签匹配的记忆优先 |
+
+#### 6.3 效果
+
+- 在"索多玛"群问"我们聊过什么"→ 索多玛的记忆排前面，但其他群记忆也能看到
+- 私聊佳问"你还记得咕说了什么吗"→ 能检索到咕的记忆
+- 弥娅知道一切，可以分享一切记忆
+
+#### 6.4 代码实现
+
+```python
+# memory/core.py - retrieve()
+async def retrieve(self, query, user_id=None, group_id=None, ...):
+    # 全局检索，不过滤
+    results = self._search_all(q)
+    
+    # 加权排序
+    scored = []
+    for r in results:
+        score = r.priority
+        if group_id and r.group_id == group_id:
+            score *= 1.5  # 当前群加权
+        if user_id and r.user_id == user_id:
+            score *= 1.3  # 当前用户加权
+        scored.append((r, score))
+    
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return [r for r, _ in scored[:limit]]
+```
+
+---
+
+### 7. 识图系统重构
+
+#### 7.1 重构概述
+
+- 删除 `smart_image_analyzer.py`（100% 死代码）
+- 删除 `enhanced_image_handler.py`（与 image_handler.py 重叠）
+- 删除 `smart_image_processing.yaml`（从未被加载）
+- 统一为 `image_handler.py` + `MultiVisionAnalyzer`
+
+#### 7.2 新架构
+
+```
+QQ消息 → image_handler.py → MultiVisionAnalyzer → 模型池视觉模型
+                                    ↓ (全部失败)
+                              本地简单分析（PIL）
+                                    ↓
+                          返回 QQMessage（含 image_analysis）
+```
+
+#### 7.3 视觉模型配置
+
+视觉模型从 `multi_model_config.json` 加载，支持自动故障转移：
+
+```json
+{
+  "models": {
+    "siliconflow_qwen_vl": {
+      "name": "Qwen/Qwen3-VL-32B-Instruct",
+      "type": "vision",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-xxx"
+    },
+    "zhipu_glm_46v_flash": {
+      "name": "glm-4.6v-flash",
+      "type": "vision",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "api_key": "xxx"
+    }
+  },
+  "routing_strategy": {
+    "image_description": {
+      "primary": "siliconflow_qwen_vl",
+      "secondary": "zhipu_glm_46v_flash",
+      "fallback": "simple_analysis"
+    }
+  }
+}
+```
+
+---
+
+### 8. 硬编码清理
+
+#### 8.1 清理原则
+
+**所有模型配置、任务分类关键词、API URL 都从配置文件加载，代码中零硬编码。**
+
+#### 8.2 清理详情
+
+| 原硬编码位置 | 迁移到 | 说明 |
+|-------------|--------|------|
+| `model_pool.py` 默认模型 | `multi_model_config.json` | 所有模型配置 |
+| `ai_client.py` 默认模型名 | 构造函数参数 | 由调用方指定 |
+| `ai_backend.py` fallback URL | 删除文件 | 不再需要 |
+| `embedding_client.py` 默认模型 | 构造函数参数 | 由调用方指定 |
+| `multi_vision_analyzer.py` API key | 模型池配置 | 从模型池读取 |
+| `decision_hub.py` 任务分类关键词 | `multi_model_config.json` → `task_classification` | 配置驱动 |
+| `run/main.py` fallback 模型 | 删除 | 模型池为空时不启动 AI |
+| `scene_pipeline.py` 模型名 | 删除 | 从模型池获取 |
+| `setup_dev.py` 示例模型 | 清空 | 指向 multi_model_config.json |
+
+#### 8.3 配置文件分布
+
+| 配置文件 | 管理内容 |
+|---------|---------|
+| `multi_model_config.json` | 所有模型定义、路由策略、预算控制、任务分类关键词 |
+| `text_config.json` | 用户可见文本、SQLite 配置、视觉配置、记忆系统配置 |
+| `.env` | 基础环境变量（API Key 等敏感信息） |
+| `permissions.json` | 权限配置 |
+| `personalities/*.yaml` | 人格形态配置 |
+
+---
+
+### 9. 任务分类系统（LLM 智能分类）
+
+#### 9.1 系统概述
+
+弥娅现在支持 LLM 智能任务分类，使用小模型（如 qwen_7b）自动判断用户意图，选择最优模型。
+
+#### 9.2 配置方式
+
+在 `multi_model_config.json` 中配置：
+
+```json
+{
+  "task_classification": {
+    "mode": "llm",
+    "llm_model": "qwen_7b",
+    "llm_timeout": 10,
+    "fallback_to_keywords": true,
+    "tool_calling": ["执行", "运行", "打开", "关闭"],
+    "code_keywords": ["代码", "函数", "类", "编程"],
+    "complex_reasoning": ["分析", "推理", "解释", "为什么"],
+    "creative_writing": ["写", "创作", "故事", "诗歌"],
+    "summarization": ["总结", "摘要", "概括"],
+    "task_planning": ["帮我", "任务", "计划", "规划"],
+    "default_task": "simple_chat",
+    "chinese_ratio_threshold": 0.5
+  }
+}
+```
+
+#### 9.3 工作流程
+
+```
+用户输入 → LLM 分类（qwen_7b，10秒超时）
+              ↓ 失败或返回未知类型
+         关键词回退（瞬时完成）
+              ↓
+         选择最优模型
+```
+
+#### 9.4 使用方法
+
+```python
+from core.model_pool import get_model_pool, TaskType
+
+pool = get_model_pool()
+
+# LLM 智能分类
+task_type = await pool.classify_task("帮我分析一下这段代码")
+# 返回: TaskType.CODE_ANALYSIS
+
+# 选择模型
+model = pool.select_model_for_task(task_type.value, "qq")
+```
+
+---
+
+### 10. 文件变更清单
+
+#### 10.1 新增文件
+
+| 文件 | 功能 |
+|------|------|
+| `memory/diteng_listener.py` | 谛听监听器 |
+| `core/awareness.py` | 前后端意识系统 |
+| `memory/sqlite_backend.py` | SQLite 后端 |
+
+#### 10.2 修改文件
+
+| 文件 | 变更 |
+|------|------|
+| `memory/core.py` | group_id 过滤→加权、Embedding 集成、SQLite 双写 |
+| `memory/cognitive_engine.py` | 任务分类配置化、内容回退搜索 |
+| `hub/decision_hub.py` | 谛听集成、意识感知注入、活跃对话检测 |
+| `hub/conversation_context.py` | session_id 修复（包含 group_id） |
+| `hub/memory_manager.py` | session_id 修复 |
+| `core/model_pool.py` | 删除所有硬编码、任务分类配置化 |
+| `core/ai_client.py` | 删除默认模型参数 |
+| `core/embedding_client.py` | 删除默认模型、支持多种 Provider |
+| `core/multi_vision_analyzer.py` | 从模型池读取视觉模型 |
+| `core/prompt_manager.py` | awareness_text 注入 |
+| `core/awareness.py` | 新增 |
+| `core/text_loader.py` | 支持 embedding 配置读取 |
+| `webnet/qq/message_handler.py` | 谛听记录、reply_to_bot 检测 |
+| `webnet/qq/models.py` | ReplySegment.sender_id、QQMessage.reply_to_bot |
+| `webnet/qq/image_handler.py` | 重构为统一入口 |
+| `webnet/qq/core.py` | 删除 fallback 导入 |
+| `run/main.py` | 删除 fallback 模型 |
+| `config/multi_model_config.json` | 新增 embedding 模型、任务分类配置 |
+| `config/text_config.json` | 新增 vision、sqlite_backend、task_classification 配置 |
+
+#### 10.3 删除文件
+
+| 文件 | 原因 |
+|------|------|
+| `core/ai_backend.py` | 未被导入，功能与 ai_client.py 重叠 |
+| `core/vision_analyzer.py` | 死代码，被 multi_vision_analyzer.py 替代 |
+| `core/multi_model_manager.py` | 已合并到 model_pool.py |
+| `webnet/qq/smart_image_analyzer.py` | 100% 死代码 |
+| `webnet/qq/enhanced_image_handler.py` | 与 image_handler.py 重叠 |
+| `config/smart_image_processing.yaml` | 从未被加载 |
+| `config/unified_model_config.yaml` | 已迁移到 multi_model_config.json |
+
+---
+
 ## 联系方式
 
 - **GitHub**: [Jia-520-only/Miya](https://github.com/Jia-520-only/Miya)

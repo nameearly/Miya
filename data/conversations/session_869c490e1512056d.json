@@ -328,5 +328,215 @@
       "sender": "佳",
       "chat_label": "群聊_1092980378"
     }
+  },
+  {
+    "role": "user",
+    "content": "佳 拍了拍你",
+    "timestamp": "2026-04-03T18:42:44.459670",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，看看我们再这个群里聊过什么",
+    "timestamp": "2026-04-03T18:44:38.543036",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅",
+    "timestamp": "2026-04-03T19:21:01.113206",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "佳 拍了拍你",
+    "timestamp": "2026-04-03T19:27:59.975855",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，我们现在在哪里？",
+    "timestamp": "2026-04-03T19:28:22.871608",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "怪了",
+    "timestamp": "2026-04-03T19:29:06.802061",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，那个是昨天的事情了",
+    "timestamp": "2026-04-03T19:29:31.069703",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "不是你先提起的嘛",
+    "timestamp": "2026-04-03T19:29:51.655193",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅",
+    "timestamp": "2026-04-03T19:42:21.632299",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅",
+    "timestamp": "2026-04-03T19:50:23.988085",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅",
+    "timestamp": "2026-04-03T19:59:08.414109",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "没事",
+    "timestamp": "2026-04-03T19:59:18.538101",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": " 前后端意识更新好像成功了哇",
+    "timestamp": "2026-04-03T20:00:18.440971",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "佳 拍了拍你",
+    "timestamp": "2026-04-03T20:04:09.437231",
+    "session_id": "qq_1092980378_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
+    }
   }
 ]

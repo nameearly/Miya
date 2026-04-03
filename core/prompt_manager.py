@@ -430,8 +430,12 @@ class PromptManager:
             files_context = additional_context.get("files_context", "")
             media_context = additional_context.get("media_context", "")
             image_context = additional_context.get("image_context", "")
+            group_chat_context = additional_context.get("group_chat_context", "")
+            awareness_text = additional_context.get("awareness_text", "")
 
             extra_context = ""
+            if awareness_text:
+                extra_context += awareness_text + "\n"
             if reply_context:
                 extra_context += reply_context + "\n"
             if files_context:
@@ -440,11 +444,13 @@ class PromptManager:
                 extra_context += media_context + "\n"
             if image_context:
                 extra_context += image_context + "\n"
+            if group_chat_context:
+                extra_context += group_chat_context + "\n"
 
             if extra_context:
                 user_prompt = extra_context + user_prompt
                 logger.info(
-                    "[PromptManager] 已添加消息上下文（引用/文件/媒体/图片分析）"
+                    "[PromptManager] 已添加消息上下文（感知/引用/文件/媒体/图片/群聊）"
                 )
 
         return {"system": system_prompt, "user": user_prompt}

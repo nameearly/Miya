@@ -19,6 +19,7 @@ class ReplySegment:
     message_id: int = 0
     sender_name: str = ""
     content: str = ""
+    sender_id: int = 0
 
 
 @dataclass
@@ -48,6 +49,7 @@ class QQMessage:
     sender_title: str = ""
     message_id: int = 0
     is_at_bot: bool = False
+    reply_to_bot: bool = False
     time: datetime = field(default_factory=datetime.now)
     at_list: List[int] = field(default_factory=list)
     is_emoji_request: bool = False

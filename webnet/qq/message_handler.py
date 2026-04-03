@@ -272,6 +272,28 @@ class QQMessageHandler:
         is_at_bot = self._is_at_bot(raw_message)
         at_list = self._extract_at_list(raw_message)
 
+        # 检测是否回复机器人消息
+        reply_to_bot = False
+        if reply_info and reply_info.sender_id == self.bot_qq:
+            reply_to_bot = True
+
+        # 【谛听】记录所有群消息（不触发大模型）
+        try:
+            from memory.diteng_listener import get_diting
+
+            diteng = get_diting()
+            diteng.on_group_message(
+                group_id=str(group_id),
+                group_name=group_name,
+                user_id=str(sender_id),
+                user_name=sender_card or sender_nickname,
+                content=text,
+                is_at_bot=is_at_bot,
+                reply_to_bot=reply_to_bot,
+            )
+        except Exception as e:
+            logger.debug(f"[QQMessageHandler] 谛听记录失败: {e}")
+
         # 保存历史
         self._save_history(
             "group",
@@ -298,6 +320,7 @@ class QQMessageHandler:
             sender_title=sender_title,
             message_id=event.get("message_id", 0),
             is_at_bot=is_at_bot,
+            reply_to_bot=reply_to_bot,
             at_list=at_list,
             reply=reply_info,
             files=files_segment,

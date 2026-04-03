@@ -1152,18 +1152,21 @@ class MiyaMemoryCore:
         max_significance: float = 1.0,
     ) -> List[MemoryItem]:
         """
-        检索记忆 - 统一检索入口
+        检索记忆 - 全局检索 + 上下文加权
+
+        弥娅的记忆是全局的，不按群/用户隔离。
+        group_id 和 user_id 仅用于加权排序，不过滤结果。
         """
-        # 构建查询
+        # 构建查询（不设置 group_id/user_id 过滤，仅用于加权）
         if isinstance(query, str):
             q = MemoryQuery(
                 query=query,
                 level=level,
-                user_id=user_id,
-                session_id=session_id,
-                group_id=group_id,
+                user_id=None,  # 不过滤，全局检索
+                session_id=None,
+                group_id=None,
                 tags=tags,
-                limit=limit,
+                limit=limit * 3,  # 多取一些，加权后截断
                 event_type=event_type,
                 location=location,
                 conversation_partner=conversation_partner,
@@ -1172,16 +1175,12 @@ class MiyaMemoryCore:
                 max_significance=max_significance,
             )
         else:
-            # 如果已经是MemoryQuery对象，更新其字段
             q = query
             if level is not None:
                 q.level = level
-            if user_id is not None:
-                q.user_id = user_id
-            if session_id is not None:
-                q.session_id = session_id
-            if group_id is not None:
-                q.group_id = group_id
+            q.user_id = None  # 清除过滤
+            q.session_id = None
+            q.group_id = None
             if tags is not None:
                 q.tags = tags
             if event_type is not None:
@@ -1192,9 +1191,9 @@ class MiyaMemoryCore:
                 q.conversation_partner = conversation_partner
             if emotional_tone is not None:
                 q.emotional_tone = emotional_tone
-            if min_significance != 0.0:  # 只在非默认值时更新
+            if min_significance != 0.0:
                 q.min_significance = min_significance
-            if max_significance != 1.0:  # 只在非默认值时更新
+            if max_significance != 1.0:
                 q.max_significance = max_significance
 
         # 先从缓存搜索
@@ -1218,13 +1217,35 @@ class MiyaMemoryCore:
                 if r.id not in existing_ids:
                     results.append(r)
 
+        # 【全局记忆加权排序】
+        # 不隔离记忆，但根据上下文加权
+        scored = []
+        for r in results:
+            score = r.priority
+            # 当前群记忆加权
+            if group_id and r.group_id == group_id:
+                score *= 1.5
+            # 当前用户记忆加权
+            if user_id and r.user_id == user_id:
+                score *= 1.3
+            # 相关标签加权
+            if tags:
+                for t in tags:
+                    if t in r.tags:
+                        score *= 1.2
+            scored.append((r, score))
+
+        # 按加权分数排序
+        scored.sort(key=lambda x: x[1], reverse=True)
+        results = [r for r, _ in scored[:limit]]
+
         # 更新访问
         for r in results:
             r.update_access()
 
         self._stats["total_retrieved"] += len(results)
 
-        return results[: q.limit]
+        return results[:limit]
 
     async def get_statistics(self) -> Dict:
         """获取统计"""

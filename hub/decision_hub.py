@@ -568,10 +568,35 @@ class DecisionHub:
 
         logger.info(f"[决策层] 收到感知数据: {sender_name} - {content[:50]}")
 
-        # 【新增】更新用户/群聊侧写（从消息中学习用户特征）
-        user_id = perception.get("user_id", perception.get("sender_id", 0))
+        # 【谛听】第一时间记录所有群消息（在任何拦截之前）
         group_id = perception.get("group_id", 0)
+        is_at_bot = perception.get("is_at_bot", False)
+        reply_to_bot = perception.get("reply_to_bot", False)
+        user_id = perception.get("user_id", perception.get("sender_id", 0))
         group_name = perception.get("group_name", "")
+
+        try:
+            if group_id and group_id != 0:
+                from memory.diteng_listener import get_diting
+
+                diteng = get_diting()
+                diteng.on_group_message(
+                    group_id=str(group_id),
+                    group_name=group_name,
+                    user_id=str(user_id),
+                    user_name=sender_name,
+                    content=content,
+                    is_at_bot=is_at_bot,
+                    reply_to_bot=reply_to_bot,
+                )
+                logger.warning(
+                    f"[谛听] 记录: group={group_id}({group_name}), user={sender_name}, "
+                    f"at_bot={is_at_bot}, reply_bot={reply_to_bot}"
+                )
+        except Exception as e:
+            logger.warning(f"[谛听] 记录失败: {e}")
+
+        # 【新增】更新用户/群聊侧写（从消息中学习用户特征）
 
         if platform == "qq" and user_id:
             try:
@@ -630,23 +655,78 @@ class DecisionHub:
         # 【新增】群聊关键词触发检测（不@也能回复）
         group_id = perception.get("group_id", 0)
         is_at_bot = perception.get("is_at_bot", False)
+        reply_to_bot = perception.get("reply_to_bot", False)
+
+        logger.info(
+            f"[谛听] 检查群聊: group_id={group_id}, is_at_bot={is_at_bot}, "
+            f"reply_to_bot={reply_to_bot}"
+        )
+
+        # 谛听监听：记录所有群消息（不触发大模型）
+        if group_id and group_id != 0:
+            from memory.diteng_listener import get_diting
+
+            diteng = get_diting()
+            sender_name = perception.get("sender_name", "未知")
+            diteng.on_group_message(
+                group_id=str(group_id),
+                group_name=perception.get("group_name", ""),
+                user_id=str(perception.get("user_id", 0)),
+                user_name=sender_name,
+                content=content,
+                is_at_bot=is_at_bot,
+                reply_to_bot=reply_to_bot,
+            )
+            logger.info(
+                f"[谛听] 记录消息: group={group_id}, user={sender_name}, at_bot={is_at_bot}"
+            )
 
         # 群聊关键词列表：叫弥娅名字/亲昵称呼时触发回复 - 从配置获取
         from core.text_loader import get_chatbot_keywords
 
         auto_respond_keywords = get_chatbot_keywords()
 
-        # 如果是群聊且没有@bot，检查是否包含关键词
+        # 如果是群聊且没有@bot，检查是否包含关键词 或 用户仍在活跃对话中
         if group_id and group_id != 0 and not is_at_bot:
             content_lower = content.lower()
             matched_keywords = [
                 kw for kw in auto_respond_keywords if kw.lower() in content_lower
             ]
 
+            # 检查用户是否仍在与机器人活跃对话
+            from memory.diteng_listener import get_diting
+
+            diteng = get_diting()
+            user_id_str = str(perception.get("user_id", 0))
+            user_active = diteng.is_user_active_with_bot(str(group_id), user_id_str)
+
+            logger.warning(
+                f"[谛听] 关键词检查: group={group_id}, user={user_id_str}, "
+                f"matched={matched_keywords}, active={user_active}"
+            )
+
             if matched_keywords:
-                logger.info(f"[决策层] 群聊关键词触发回复: 匹配到 {matched_keywords}")
+                logger.warning(
+                    f"[决策层] 群聊关键词触发回复: 匹配到 {matched_keywords}"
+                )
+                # 关键词触发也标记为活跃对话
+                diteng.on_group_message(
+                    group_id=str(group_id),
+                    group_name=perception.get("group_name", ""),
+                    user_id=user_id_str,
+                    user_name=perception.get("sender_name", "未知"),
+                    content=content,
+                    is_at_bot=True,  # 视为@了机器人
+                    reply_to_bot=reply_to_bot,
+                )
+            elif user_active:
+                logger.warning(
+                    f"[决策层] 谛听检测到用户仍在活跃对话中，触发回复 (user={user_id_str})"
+                )
             else:
-                logger.debug(f"[决策层] 群聊消息无关键词触发，跳过: {content[:30]}")
+                logger.info(
+                    f"[决策层] 群聊消息无关键词且非活跃对话，跳过: {content[:30]}"
+                )
                 return None
 
         # 1. 检查终端命令（委托给感知处理器）
@@ -977,6 +1057,43 @@ class DecisionHub:
                 image_context += f"\n(分析模型: {model})"
                 logger.info(f"[决策层] 图片分析结果已添加到上下文: {description[:50]}")
 
+            # 【意识感知层】注入时间、地点、活动感知
+            awareness_text = ""
+            try:
+                from core.awareness import get_awareness
+
+                awareness = get_awareness()
+                perception_ctx = awareness.gather_context(
+                    message_type=message_type,
+                    group_id=context.get("group_id", 0),
+                    group_name=context.get("group_name", ""),
+                    user_id=context.get("user_id", 0),
+                    sender_name=context.get("sender_name", ""),
+                    sender_role=context.get("sender_role", ""),
+                )
+                awareness_text = perception_ctx.get("perception_text", "")
+                logger.warning(f"[意识感知] 成功: {awareness_text[:150]}")
+            except Exception as e:
+                import traceback
+
+                logger.warning(f"[意识感知] 注入失败: {e}")
+                logger.warning(traceback.format_exc())
+
+            # 【谛听】注入群聊上下文摘要
+            group_chat_context = ""
+            if message_type == "group" and context.get("group_id"):
+                from memory.diteng_listener import get_diting
+
+                diteng = get_diting()
+                group_summary = diteng.get_group_context(
+                    str(context.get("group_id")), max_snippets=10
+                )
+                if group_summary:
+                    group_chat_context = (
+                        f"\n\n[群聊上下文] 以下是最近群里的对话：\n{group_summary}"
+                    )
+                    logger.debug(f"[决策层] 注入群聊上下文: {len(group_summary)} 字符")
+
             prompt_info = self.prompt_manager.build_full_prompt(
                 user_input=content,
                 memory_context=conversation_context,
@@ -1005,6 +1122,10 @@ class DecisionHub:
                     "files_context": files_context,
                     "media_context": media_context,
                     "image_context": image_context,
+                    # 【谛听】群聊上下文摘要
+                    "group_chat_context": group_chat_context,
+                    # 【意识感知】时间、地点、活动感知
+                    "awareness_text": awareness_text,
                 },
             )
 

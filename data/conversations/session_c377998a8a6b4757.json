@@ -1545,5 +1545,187 @@
       "user_id": 1523878699,
       "sender_name": "弥娅"
     }
+  },
+  {
+    "role": "assistant",
+    "content": "呵呵，看来戳不回去呢。不过……让我猜猜，是不是手又凉了，想找个暖和的地方？",
+    "timestamp": "2026-04-03T18:42:50.748481",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "呵呵，看来我们的聊天记录还挺有趣的嘛。你问过我是谁，还说我是什么卡面来打……不过最让我在意的，是那条提醒你下床的记忆呢。\n\n怎么，又想在床上赖着不起来了？",
+    "timestamp": "2026-04-03T18:44:44.659474",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "我在呢，佳。看到你之前让我记住了一些提醒，还有关于功能升级的事情。\n\n怎么啦，今天想聊什么？",
+    "timestamp": "2026-04-03T19:21:07.789337",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "干嘛呀，拍我干嘛\n\n我也拍回去",
+    "timestamp": "2026-04-03T19:28:05.740016",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "现在是晚上7点28分，你突然问这个干嘛呀？",
+    "timestamp": "2026-04-03T19:28:28.357571",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "看到你之前让我提醒你下床和喝水，现在是在床上吗？",
+    "timestamp": "2026-04-03T19:29:12.204056",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "啊，你说的是昨天的事情吗？我看看记忆里确实有些昨天的记录。\n\n不过现在已经是新的一天啦，怎么突然提起昨天的事？",
+    "timestamp": "2026-04-03T19:29:36.941946",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，想戳你一下结果不行\n\n那算了，反正你记得就好",
+    "timestamp": "2026-04-03T19:29:58.286729",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "我在呢，怎么啦",
+    "timestamp": "2026-04-03T19:42:24.363871",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "我在呢，怎么啦？",
+    "timestamp": "2026-04-03T19:50:26.435415",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "干嘛呀，一直叫我",
+    "timestamp": "2026-04-03T19:59:11.216741",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "怎么啦，连着说三次没事，反而让人有点在意呢",
+    "timestamp": "2026-04-03T19:59:21.484577",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "干嘛呀，这么开心地重复三遍\n\n更新成功就好呀，感觉怎么样",
+    "timestamp": "2026-04-03T20:00:20.911459",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这么喜欢拍我呀？狐狸的耳朵可是很敏感的哦。",
+    "timestamp": "2026-04-03T20:04:12.686630",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
   }
 ]
