@@ -255,6 +255,19 @@ class ModelPool:
                     )
                     self._models[model_id] = model_config
 
+            if "routing_strategy" in config:
+                for task_type, route_data in config["routing_strategy"].items():
+                    route = ModelRoute(
+                        task_type=task_type,
+                        primary=route_data.get("primary", ""),
+                        secondary=route_data.get("secondary", ""),
+                        fallback=route_data.get("fallback", ""),
+                    )
+                    self._routes[task_type] = route
+                logger.info(
+                    f"[ModelPool] 路由策略解析完成，共 {len(self._routes)} 个路由"
+                )
+
             logger.info(f"[ModelPool] JSON配置解析完成，共 {len(self._models)} 个模型")
         except Exception as e:
             logger.error(f"[ModelPool] 解析JSON配置失败: {e}")
