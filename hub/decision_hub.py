@@ -1029,25 +1029,21 @@ class DecisionHub:
 
             # 【主动搜索策略】检测是否需要联网搜索
             search_context = ""
-            # 强制输出调试信息，确保代码被执行
-            print("[DEBUG] 进入主动搜索代码块", flush=True)
+            print("[DEBUG] 1. 进入主动搜索代码块", flush=True)
             try:
                 import json
 
                 search_config_path = (
                     Path(__file__).parent.parent / "config" / "text_config.json"
                 )
-                print(f"[DEBUG] 配置文件路径: {search_config_path}", flush=True)
-                print(
-                    f"[DEBUG] 配置文件存在: {search_config_path.exists()}", flush=True
-                )
+                print(f"[DEBUG] 2. 配置文件路径: {search_config_path}", flush=True)
 
                 search_strategy = {}
                 if search_config_path.exists():
                     with open(search_config_path, "r", encoding="utf-8") as f:
                         full_config = json.load(f)
                     search_strategy = full_config.get("search_strategy", {})
-                    print(f"[DEBUG] 搜索策略配置: {search_strategy}", flush=True)
+                    print(f"[DEBUG] 3. 搜索策略配置: {search_strategy}", flush=True)
                     logger.info(
                         f"[主动搜索] 配置加载成功: enabled={search_strategy.get('enabled')}, "
                         f"auto={search_strategy.get('auto_search_enabled')}"
@@ -1055,9 +1051,15 @@ class DecisionHub:
                 else:
                     logger.warning(f"[主动搜索] 配置文件不存在: {search_config_path}")
 
-                if search_strategy.get("enabled") and search_strategy.get(
-                    "auto_search_enabled"
-                ):
+                enabled = search_strategy.get("enabled")
+                auto = search_strategy.get("auto_search_enabled")
+                print(
+                    f"[DEBUG] 4. enabled={enabled} (type: {type(enabled)}), auto={auto} (type: {type(auto)})",
+                    flush=True,
+                )
+
+                if enabled and auto:
+                    print("[DEBUG] 5. 条件满足，开始检测关键词", flush=True)
                     content_lower = content.lower()
                     # 检查跳过关键词
                     skip_keywords = search_strategy.get("skip_search_keywords", [])
@@ -1067,6 +1069,10 @@ class DecisionHub:
                     trigger_keywords = search_strategy.get("auto_search_triggers", [])
                     should_search = any(kw in content_lower for kw in trigger_keywords)
 
+                    print(
+                        f"[DEBUG] 6. should_search={should_search}, should_skip={should_skip}",
+                        flush=True,
+                    )
                     logger.info(
                         f"[主动搜索] 检测: 内容='{content[:30]}...', "
                         f"should_search={should_search}, should_skip={should_skip}, "
@@ -1113,6 +1119,7 @@ class DecisionHub:
             except Exception as e:
                 import traceback
 
+                print(f"[DEBUG] 异常: {e}", flush=True)
                 logger.warning(f"[主动搜索] 检测失败: {e}")
                 logger.warning(traceback.format_exc())
 
