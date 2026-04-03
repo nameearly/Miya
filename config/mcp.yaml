@@ -2,53 +2,13 @@
 # 用于连接外部工具和数据源
 
 # 是否启用MCP
-enabled: false
+enabled: true
 
 # MCP配置文件路径
 config_path: "config/mcp.json"
-
-# MCP服务器配置示例:
-# -------------------
-# 
-# 1. Playwright MCP (网页自动化)
-#    {
-#      "mcpServers": {
-#        "playwright": {
-#          "command": "npx",
-#          "args": ["-y", "@playwright/mcp@latest"]
-#        }
-#      }
-#    }
-#
-# 2. Filesystem MCP (文件访问)
-#    {
-#      "mcpServers": {
-#        "filesystem": {
-#          "command": "npx", 
-#          "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/directory"]
-#        }
-#      }
-#    }
-#
-# 3. 多个服务器配置
-#    {
-#      "mcpServers": {
-#        "playwright": {...},
-#        "filesystem": {...},
-#        "github": {...}
-#      }
-#    }
 
 # 工具命名策略: "mcp" (前缀mcp.) 或 "raw" (原始名称)
 tool_name_strategy: "mcp"
 
 # Agent私有MCP配置 (可选)
-# 可为特定Agent配置独立的MCP
-agent_mcp:
-  # web_agent:
-  #   enabled: true
-  #   servers:
-  #     playwright: ...
-  
-  # file_agent:
-  #   enabled: false
+agent_mcp: {}
