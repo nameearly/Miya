@@ -1029,17 +1029,25 @@ class DecisionHub:
 
             # 【主动搜索策略】检测是否需要联网搜索
             search_context = ""
+            # 强制输出调试信息，确保代码被执行
+            print("[DEBUG] 进入主动搜索代码块", flush=True)
             try:
                 import json
 
                 search_config_path = (
                     Path(__file__).parent.parent / "config" / "text_config.json"
                 )
+                print(f"[DEBUG] 配置文件路径: {search_config_path}", flush=True)
+                print(
+                    f"[DEBUG] 配置文件存在: {search_config_path.exists()}", flush=True
+                )
+
                 search_strategy = {}
                 if search_config_path.exists():
                     with open(search_config_path, "r", encoding="utf-8") as f:
                         full_config = json.load(f)
                     search_strategy = full_config.get("search_strategy", {})
+                    print(f"[DEBUG] 搜索策略配置: {search_strategy}", flush=True)
                     logger.info(
                         f"[主动搜索] 配置加载成功: enabled={search_strategy.get('enabled')}, "
                         f"auto={search_strategy.get('auto_search_enabled')}"
