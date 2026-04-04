@@ -11629,6 +11629,520 @@ TAVILY_API_KEY=tvly-你的Tavily API密钥
 
 ---
 
+## v4.3.2 重大更新 (2026-04-04)
+
+### 更新概览
+
+本次更新是弥娅系统自 v4.3.0 以来最大规模的架构优化，涵盖**记忆系统修复、消息处理优化、视觉模型升级、硬编码清理**四大方向。
+
+#### 核心改进一览
+
+| 模块 | 改进内容 | 状态 |
+|------|---------|------|
+| 记忆系统 | 修复 memory_list 检索，增加对话历史注入量，记忆锚点自动加载 | ✅ |
+| 消息处理 | 新增消息汇总窗口期，修复批次重复消费，修复空消息过滤 | ✅ |
+| 图片识别 | 修复 @艾特唤醒，修复 GLM-4.5V 模型调用，修复图片文本提取 | ✅ |
+| 工作记忆 | AI 回复自动记录到工作记忆，分层摘要架构 | ✅ |
+| 提示词系统 | 防幻觉规则注入，系统提示词配置化 | ✅ |
+| 代码清理 | 硬编码迁移到配置文件，冗余文件清理 | ✅ |
+
+---
+
+### 1. 记忆系统全面修复
+
+#### 1.1 问题诊断
+
+更新前存在以下核心问题：
+
+1. **`memory_list` 工具返回空**：工具只检索长期记忆，过滤掉了短期记忆中的记忆锚点
+2. **AI 不知道自己说过什么**：工作记忆只记录用户消息，不记录 AI 回复
+3. **对话历史注入量太少**：工作记忆只有 16-59 字符，无法提供足够的上下文
+4. **记忆锚点未加载**：`memory_anchors_identity.json` 和 `memory_anchors_user.json` 从未被加载到新的 MiyaMemoryCore 中
+
+#### 1.2 修复方案
+
+##### 1.2.1 `memory_list.py` 修复
+
+**修改文件**: `webnet/ToolNet/tools/memory/memory_list.py`
+
+**修复内容**:
+- 优先使用 `MiyaMemoryCore` 查询，替代旧的 Undefined/认知记忆系统
+- 检索时**保留带有 `init_anchor` 标记的短期记忆**（核心锚点不应被过滤）
+- 返回格式清晰：标签、用户、时间、层级
+
+```python
+# 修复前：过滤掉所有短期记忆
+results = [m for m in results if m.level.value in ('long_term', 'semantic', 'knowledge')]
+
+# 修复后：保留核心锚点
+for m in results:
+    level_val = m.level.value
+    if level_val in ('long_term', 'semantic', 'knowledge'):
+        filtered.append(m)
+    elif level_val == 'short_term':
+        meta = getattr(m, 'metadata', {}) or {}
+        if meta.get('source') == 'init_anchor' or meta.get('importance') == 'high':
+            filtered.append(m)
+```
+
+##### 1.2.2 工作记忆增加 AI 回复记录
+
+**修改文件**: `hub/decision_hub.py`
+
+**修复内容**:
+- 每次 AI 回复后，自动将回复内容添加到工作记忆中
+- 防止工作记忆只有用户消息的单向记录问题
+
+```python
+# 将 AI 回复也添加到工作记忆中
+if msg_type == "group" and group_id:
+    wm = get_working_memory()
+    wm.add_message(
+        group_id=group_id_str,
+        sender="弥娅",
+        content=response[:200],  # 限制长度避免过长
+        is_at_bot=False,
+    )
+```
+
+##### 1.2.3 对话历史注入量增加
+
+**修改文件**: `hub/conversation_context.py`
+
+**修改内容**:
+- 正常对话加载从 15 条增加到 20 条
+- 深度讨论加载 30 条
+- 回忆模式加载 50 条
+- Token 上限从 2000 增加到 6000
+
+##### 1.2.4 记忆锚点自动加载
+
+**修改文件**: `memory/core.py`
+
+**原理**: 在 `MiyaMemoryCore.initialize()` 中增加 `_load_memory_anchors()` 方法，启动时自动读取锚点文件并加载到记忆系统。
+
+**加载流程**:
+```
+系统启动 → MiyaMemoryCore.initialize()
+    → _load_memory_anchors()
+        → 读取 data/memory_anchors_identity.json (9条)
+        → 读取 data/memory_anchors_user.json (22条)
+        → 检查是否已存在（去重）
+        → 存储为 LONG_TERM 记忆，标记 source=init_anchor
+```
+
+**锚点文件说明**:
+
+| 文件 | 内容 | 条数 | 优先级 |
+|------|------|------|--------|
+| `data/memory_anchors_identity.json` | 弥娅的自我认知、核心目的、与佳的关系 | 9 | 0.8-1.0 |
+| `data/memory_anchors_user.json` | 佳的健康、喜好、习惯、学业、外貌等 | 22 | 0.95 |
+
+**记忆锚点的作用**:
+- 系统启动时自动注入核心事实到记忆系统
+- 确保弥娅始终知道自己的身份和关于佳的重要信息
+- 即使记忆系统被清理，重启后锚点会自动重新加载
+
+---
+
+### 2. 消息汇总窗口期系统
+
+#### 2.1 设计目标
+
+当群聊消息密集时，弥娅逐条回复会导致：
+1. 回复跟不上消息速度
+2. 上下文断裂，无法理解整体对话
+3. API 调用频繁，成本增加
+
+**解决方案**: 消息汇总窗口期——在一定时间内收集群聊消息，然后统一回复。
+
+#### 2.2 架构设计
+
+```
+消息A到达 → 启动5秒计时器
+  3秒后消息B到达 → 重置计时器（还剩5秒）
+  2秒后消息C到达 → 重置计时器
+  5秒后无新消息 → 汇总[A,B,C] → 调用AI → 回复
+```
+
+**核心特性**:
+- 第1条消息：立即处理（不等待，保证即时交互）
+- 第2条消息在 3 秒内到达：触发窗口期，开始收集
+- 窗口期内收到新消息：重置计时器
+- 窗口期结束或达到最大消息数：批量处理
+
+#### 2.3 配置文件
+
+**文件**: `config/qq_config.yaml`
+
+```yaml
+message_batching:
+  enabled: true                         # 是否启用消息汇总窗口
+  window_seconds: 5                     # 窗口期时长（秒）
+  max_window_seconds: 10                # 最大窗口期（防止无限等待）
+  max_messages: 15                      # 窗口期内最大消息数量
+  only_group: true                      # 是否仅对群聊生效
+  cooldown_seconds: 3                   # 两条消息间隔小于此时长才触发窗口期
+  status_message: ""                    # 状态提示（留空则不发送）
+```
+
+#### 2.4 核心模块
+
+**文件**: `webnet/qq/message_batcher.py`
+
+```python
+class MessageBatcher:
+    """消息汇总窗口期管理器"""
+    
+    async def submit_message(self, ...) -> bool:
+        """提交消息到窗口队列，返回 True 表示等待，False 表示立即处理"""
+        
+    async def get_next_batch(self) -> Optional[Tuple[str, List[QueuedMessage]]]:
+        """获取下一个待处理的批次"""
+        
+    async def _flush_window(self, group_key: str):
+        """刷新窗口，将消息放入输出队列"""
+```
+
+**防重复机制**:
+- `is_flushing` 标志：防止窗口期内重复刷新
+- `processing_keys` 集合：消费者端去重，防止同一批次被处理两次
+- 原子操作：检查和设置标志在同一个锁内完成
+
+#### 2.5 消息汇总格式
+
+当多条消息被汇总时，格式如下：
+
+```
+【群聊消息汇总】
+[佳] 吃饭时间到，点外卖😋
+[咕] 弥娅，人为什么活着
+[佳] 弥娅，你记得你刚才说了几句话嘛
+```
+
+如果包含图片，会附加图片分析结果：
+```
+[佳] 看看她是谁 (图片内容: 银发红瞳，系着深蓝丝带...)
+```
+
+---
+
+### 3. 图片识别系统修复
+
+#### 3.1 问题分析
+
+更新前图片识别存在三个问题：
+
+1. **@艾特无法唤醒**：图片消息的 `is_at_bot` 始终为 `False`
+2. **GLM-4.5V 调用失败**：模型名错误（`zhipu-vl` 而非 `glm-4.5v`）
+3. **混合消息文本丢失**：`@弥娅 看看她是谁 [图片]` 中的文字被丢弃
+
+#### 3.2 修复方案
+
+##### 3.2.1 图片消息 @检测
+
+**修改文件**: `webnet/qq/image_handler.py`
+
+新增方法：
+```python
+def _is_at_bot(self, segments) -> bool:
+    """检测是否@了机器人"""
+    bot_qq_str = str(self.qq_net.bot_qq)
+    for seg in segments:
+        if isinstance(seg, dict) and seg.get("type") == "at":
+            at_qq = str(seg.get("data", {}).get("qq", ""))
+            if at_qq == bot_qq_str:
+                return True
+    return False
+```
+
+##### 3.2.2 混合消息文本提取
+
+```python
+def _extract_text_from_segments(self, segments) -> str:
+    """从消息段中提取文本内容"""
+    text_parts = []
+    for seg in segments:
+        if isinstance(seg, dict) and seg.get("type") == "text":
+            text_parts.append(seg.get("data", {}).get("text", ""))
+    return " ".join(text_parts).strip()
+```
+
+##### 3.2.3 视觉模型配置修复
+
+**修改文件**: `core/multi_vision_analyzer.py`
+
+```python
+# 修复前：使用 model_config.model_type.value（值为 "zhipu-vl"）
+payload = {"model": model_config.model_type.value, ...}
+
+# 修复后：使用 model_config.name（值为 "glm-4.5v"）
+payload = {"model": model_config.name, ...}
+```
+
+**修改文件**: `config/multi_model_config.json`
+
+```json
+{
+  "zhipu_glm_46v_flash": {
+    "name": "zai-org/GLM-4.6V",
+    "provider": "openai",
+    "base_url": "https://api.siliconflow.cn/v1"
+  },
+  "siliconflow_qwen_vl": {
+    "name": "glm-4.5v",
+    "provider": "zhipu",
+    "base_url": "https://open.bigmodel.cn/api/paas/v4"
+  }
+}
+```
+
+---
+
+### 4. 分层记忆架构（方案一 + 方案四融合）
+
+#### 4.1 设计理念
+
+为了在**省 Token** 和**获取更多信息**之间取得平衡，设计了分层记忆架构：
+
+| 层级 | 范围 | 内容 | Token 估算 |
+|------|------|------|----------|
+| 工作记忆-即时层 | 最近 3 条 | 完整原文 | ~100 |
+| 工作记忆-摘要层 | 4-15 条 | 每 3 条压缩为摘要 | ~80 |
+| 工作记忆-话题层 | 15+ 条 | 话题标签+关键词 | ~30 |
+| 对话历史-精确层 | 最近 10 条 | 完整对话（弥娅+用户） | ~300 |
+| 对话历史-摘要层 | 10-50 条 | 压缩摘要 | ~150 |
+| **总计** | | | **~660 tokens** |
+
+#### 4.2 工作记忆分层输出
+
+**修改文件**: `memory/working_memory.py`
+
+```python
+def build_prompt_context(self, group_id: str) -> str:
+    """构建 Prompt 上下文（分层记忆架构）"""
+    
+    # 第1层：即时层（最近3条完整原文）
+    lines.append("【当前对话】")
+    for msg in recent_messages[-3:]:
+        lines.append(msg)
+    
+    # 第2层：摘要层（4-15条压缩摘要）
+    lines.append("【近期话题】")
+    for chunk in older_messages_chunks:
+        summary = f"[{sender}] 讨论了 {keywords}"
+        lines.append(f"[摘要] {summary}")
+    
+    # 第3层：话题层（背景话题）
+    lines.append("【之前聊过的话题】")
+    for topic in background_topics:
+        lines.append(f"  - {topic.summary}")
+```
+
+#### 4.3 对话历史摘要层
+
+**修改文件**: `core/prompt_manager.py`
+
+```python
+def _format_memory_context(self, memories: List[Dict]) -> str:
+    """格式化记忆上下文（分层架构）"""
+    
+    # 最近5条完整显示
+    for memory in memories[-5:]:
+        lines.append(f"弥娅：{content}" if role == "assistant" else f"用户：{content}")
+    
+    # 5条以上的旧消息，每5条合并为一条摘要
+    for chunk in older_memories_chunks:
+        summary = f"[{count}条对话] {senders} 聊了：{topics[:3]}..."
+        lines.append(summary)
+```
+
+---
+
+### 5. 防幻觉规则注入
+
+#### 5.1 问题
+
+当图片分析失败且上下文较长时，小模型（如 Qwen-7B）容易产生幻觉，出现"自问自答"的现象。
+
+#### 5.2 解决方案
+
+##### 5.2.1 升级简单对话模型
+
+**修改文件**: `config/multi_model_config.json`
+
+```json
+{
+  "routing_strategy": {
+    "simple_chat": {
+      "primary": "deepseek_v3_official",
+      "secondary": "qwen_72b",
+      "fallback": "qwen_7b"
+    }
+  }
+}
+```
+
+将简单对话的主模型从 `qwen_7b` 升级为 `deepseek_v3_official`。
+
+##### 5.2.2 系统提示词增加防幻觉规则
+
+**修改文件**: `config/text_config.json`
+
+```json
+{
+  "system_prompts": {
+    "default_system_prompt": "你是弥娅·阿尔缪斯（Miya Almus），一个由\"佳\"创造的AI伴侣。\n\n{status_prompt}\n\n---\n\n【重要规则】\n1. 你只能以弥娅的身份回复，禁止模拟用户发言或自问自答。\n2. 禁止在回复中扮演用户的角色，或编造用户可能说的话。\n3. 请严格按照上述人格设定来回复。"
+  }
+}
+```
+
+---
+
+### 6. 硬编码清理与配置迁移
+
+#### 6.1 清理目标
+
+- 代码中不包含任何业务逻辑相关的提示词
+- 所有文本、规则、模型配置均从文件加载
+- 清理冗余/空目录和废弃文件
+
+#### 6.2 迁移清单
+
+| 硬编码位置 | 迁移内容 | 目标配置 |
+|-----------|---------|---------|
+| `prompt_manager.py` | 系统提示词、防幻觉规则 | `text_config.json` → `system_prompts` |
+| `prompt_manager.py` | `.env` 依赖 | 统一从 `text_config.json` 加载 |
+| `ai_injection_detector.py` | 检测模式、防护提示、AI检测提示词 | `text_config.json` → `ai_injection_detection` |
+| `image_response` 关键词 | 硬编码在 `qq_main.py` | `text_config.json` → `image_response` |
+
+#### 6.3 新增配置项
+
+**`text_config.json` 新增**:
+
+```json
+{
+  "prompt_manager": {
+    "user_prompt_template": "用户输入：{user_input}",
+    "memory_context_enabled": true,
+    "memory_context_max_count": 10
+  },
+  "system_prompts": {
+    "default_system_prompt": "...",
+    "anti_hallucination_rules": [...],
+    "tool_usage_rules": "..."
+  },
+  "ai_injection_detection": {
+    "enabled": true,
+    "protection_prompt": "...",
+    "block_on_detection": false,
+    "fallback_response": "...",
+    "detection_patterns": [...],
+    "ai_detection_prompt": "..."
+  },
+  "image_response": {
+    "enabled": true,
+    "keywords": "图片,照片,图,看看,识图,识别",
+    "fallback_text": "暂时无法分析这张图片，请稍后再试~"
+  }
+}
+```
+
+#### 6.4 清理的冗余文件
+
+| 文件 | 原因 |
+|------|------|
+| `core/runtime_api_server.py.corrupt` | 损坏文件 |
+| `core/miya_agent_v3.py.bak` | 备份文件 |
+| `web_search/__init__.py` | 空目录（空文件） |
+
+#### 6.5 模型配置验证
+
+- `model_pool.py` 的 `_set_default_config()` 已清空
+- 所有模型从 `multi_model_config.json` 加载
+- 所有 JSON 配置文件验证通过
+
+---
+
+### 7. 文件变更清单
+
+#### 7.1 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `webnet/qq/message_batcher.py` | 消息汇总窗口期管理器 |
+
+#### 7.2 修改文件
+
+| 文件 | 修改内容 |
+|------|---------|
+| `memory/core.py` | 增加 `_load_memory_anchors()` 方法 |
+| `memory/working_memory.py` | 分层摘要输出，消息上限增加到15条 |
+| `hub/conversation_context.py` | 增加对话历史加载量 |
+| `hub/decision_hub.py` | AI回复记录到工作记忆 |
+| `hub/memory_manager.py` | 统一 session_id 方案 |
+| `core/prompt_manager.py` | 分层记忆注入，从配置加载提示词 |
+| `core/multi_vision_analyzer.py` | 修复智谱模型名 |
+| `core/ai_client.py` | 修复 DeepSeek 并发执行丢失工具结果 |
+| `core/tool_adapter.py` | 修复空记忆结果误判为失败 |
+| `core/ai_injection_detector.py` | 从配置加载检测模式和提示词 |
+| `webnet/ToolNet/registry.py` | 注册 memory_query 工具 |
+| `webnet/ToolNet/tools/memory/memory_list.py` | 优先使用 MiyaMemoryCore |
+| `webnet/ToolNet/tools/memory/memory_add.py` | 优先使用 MiyaMemoryCore |
+| `webnet/ToolNet/tools/memory/auto_extract_memory.py` | 修复初始化顺序 |
+| `webnet/qq/image_handler.py` | 增加 @检测和文本提取 |
+| `webnet/qq/message_handler.py` | 内容规范化 |
+| `run/qq_main.py` | 集成消息汇总窗口期 |
+| `config/qq_config.yaml` | 增加 message_batching 配置 |
+| `config/text_config.json` | 增加 system_prompts、ai_injection_detection 等 |
+| `config/multi_model_config.json` | 修复视觉模型配置 |
+
+#### 7.3 删除文件
+
+| 文件 | 原因 |
+|------|------|
+| `core/runtime_api_server.py.corrupt` | 损坏文件 |
+| `core/miya_agent_v3.py.bak` | 备份文件 |
+| `web_search/__init__.py` | 空目录 |
+
+---
+
+### 8. 配置完整指南
+
+#### 8.1 配置文件架构
+
+弥娅系统现在使用以下配置文件体系：
+
+| 配置文件 | 用途 | 格式 |
+|---------|------|------|
+| `config/multi_model_config.json` | 所有 AI 模型配置（文本、视觉、嵌入） | JSON |
+| `config/text_config.json` | 所有用户可见文本、规则、提示词 | JSON |
+| `config/qq_config.yaml` | QQ 端专属配置（消息汇总、性能优化） | YAML |
+| `config/memory_config.json` | 记忆系统配置 | JSON |
+| `config/personalities/*.yaml` | 人格/形态配置 | YAML |
+
+#### 8.2 加载机制
+
+```
+系统启动
+    ↓
+ModelPool._load_config() → multi_model_config.json
+    ↓
+PromptManager._load_config() → text_config.json
+    ↓
+MiyaMemoryCore._load_memory_anchors() → memory_anchors_*.json
+    ↓
+QQClient._init_message_batcher() → qq_config.yaml
+```
+
+#### 8.3 配置优先级
+
+1. 配置文件（`text_config.json`、`multi_model_config.json` 等）
+2. 代码中的默认值（作为配置缺失时的回退）
+3. 环境变量（仅用于 API Key 等敏感信息）
+
+---
+
 <p align="center">
   Made with ❤️ by Jia
 </p>

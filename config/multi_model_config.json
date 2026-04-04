@@ -77,11 +77,11 @@
       "quality": "excellent"
     },
     "zhipu_glm_46v_flash": {
-      "name": "glm-4.6v-flash",
-      "provider": "zhipu",
-      "base_url": "https://open.bigmodel.cn/api/paas/v4",
-      "api_key": "e5fa59fd212f4e078addc12d7c7e10a2.E5fa59fd212f4e078addc12d7c7e10a2",
-      "description": "智谱GLM-4.6V-Flash 视觉模型",
+      "name": "zai-org/GLM-4.6V",
+      "provider": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-bdkzuyoohrlmxkmzzxkjkgnyuinotvrguqvmupngurhwxioo",
+      "description": "GLM-4.6V 视觉模型（硅基流动）",
       "capabilities": [
         "image_description",
         "vision_understanding",
@@ -93,14 +93,14 @@
         "output": 0.001
       },
       "latency": "fast",
-      "quality": "good"
+      "quality": "excellent"
     },
     "siliconflow_qwen_vl": {
-      "name": "Qwen/Qwen3-VL-32B-Instruct",
-      "provider": "openai",
-      "base_url": "https://api.siliconflow.cn/v1",
-      "api_key": "sk-bdkzuyoohrlmxkmzzxkjkgnyuinotvrguqvmupngurhwxioo",
-      "description": "Qwen3-VL-32B 视觉模型（硅基流动）",
+      "name": "glm-4.5v",
+      "provider": "zhipu",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "api_key": "e5fa59fd212f4e078add10159a7f2e6a.xvkaX9Ej99nIYHa8",
+      "description": "GLM-4.5V 视觉模型（智谱）",
       "capabilities": [
         "image_description",
         "vision_understanding",
@@ -108,8 +108,8 @@
       ],
       "type": "vision",
       "cost_per_1k_tokens": {
-        "input": 0.002,
-        "output": 0.002
+        "input": 0.001,
+        "output": 0.001
       },
       "latency": "medium",
       "quality": "excellent"
@@ -257,9 +257,9 @@
   },
   "routing_strategy": {
     "simple_chat": {
-      "primary": "qwen_7b",
-      "secondary": "llama_3_1_8b",
-      "fallback": "deepseek_v3_official"
+      "primary": "deepseek_v3_official",
+      "secondary": "qwen_72b",
+      "fallback": "qwen_7b"
     },
     "complex_reasoning": {
       "primary": "deepseek_r1_official",

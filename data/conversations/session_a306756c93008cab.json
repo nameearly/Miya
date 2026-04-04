@@ -174,5 +174,80 @@
       "sender": "",
       "chat_label": "群聊_1092980378"
     }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，看看这个 [图片]",
+    "timestamp": "2026-04-04T18:57:27.278174",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，看看她是谁",
+    "timestamp": "2026-04-04T19:43:32.830321",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "看看她是谁",
+    "timestamp": "2026-04-04T20:15:01.586058",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "看看她是谁",
+    "timestamp": "2026-04-04T20:27:24.336192",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "[图片]",
+    "timestamp": "2026-04-04T20:28:13.696648",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 0,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
   }
 ]

@@ -247,7 +247,7 @@ class WorkingMemoryManager:
 
     def __init__(
         self,
-        max_recent_messages: int = 5,
+        max_recent_messages: int = 15,
         max_background_topics: int = 5,
         topic_decay_rate: float = 0.3,
         topic_switch_threshold: int = 3,
@@ -397,39 +397,75 @@ class WorkingMemoryManager:
 
     def build_prompt_context(self, group_id: str) -> str:
         """
-        构建 Prompt 上下文（核心方法）
+        构建 Prompt 上下文（分层记忆架构）
 
-        返回格式化的上下文文本，包含：
-        1. 当前对话（最近 3-5 条）
-        2. 背景摘要（折叠的旧话题）
-        3. 话题切换提示（如果检测到漂移）
+        分层策略：
+        1. 即时层（最近3条）：完整原文，让AI理解当前对话
+        2. 摘要层（4-15条）：一句话摘要，保留话题脉络
+        3. 话题层（15+条）：话题标签+关键词，提供背景
         """
         state = self._get_state(group_id)
         if not state.recent_messages and not state.background_topics:
             return ""
 
         lines = []
+        total_msgs = len(state.recent_messages)
 
-        # 1. 当前对话
-        if state.recent_messages:
+        # === 第1层：即时层（最近3条完整原文）===
+        recent_count = min(3, total_msgs)
+        if recent_count > 0:
             lines.append("【当前对话】")
-            lines.extend(state.recent_messages[-self.max_recent :])
+            for msg in state.recent_messages[-recent_count:]:
+                lines.append(msg)
 
-        # 2. 背景摘要
+        # === 第2层：摘要层（4-15条压缩摘要）===
+        if total_msgs > 3:
+            older_msgs = state.recent_messages[:-recent_count]
+            # 每3条压缩为一条摘要
+            summary_msgs = []
+            for i in range(0, len(older_msgs), 3):
+                chunk = older_msgs[i : i + 3]
+                if len(chunk) == 1:
+                    summary_msgs.append(chunk[0])
+                else:
+                    # 提取关键信息
+                    senders = []
+                    keywords = []
+                    for msg in chunk:
+                        if ":" in msg:
+                            sender, content = msg.split(":", 1)
+                            senders.append(sender.strip())
+                            # 提取内容中的关键词（去掉语气词）
+                            words = [w for w in content.strip().split() if len(w) > 1]
+                            keywords.extend(words[:2])
+                    unique_senders = list(dict.fromkeys(senders))
+                    unique_keywords = list(dict.fromkeys(keywords))[:5]
+                    if unique_senders and unique_keywords:
+                        summary = f"{'/'.join(unique_senders)} 讨论了 {'/'.join(unique_keywords)}"
+                    elif unique_senders:
+                        summary = f"{'/'.join(unique_senders)} 聊了几句"
+                    else:
+                        summary = "几条短消息"
+                    summary_msgs.append(f"[摘要] {summary}")
+
+            if summary_msgs:
+                lines.append("\n【近期话题】")
+                lines.extend(summary_msgs[-5:])  # 最多5条摘要
+
+        # === 第3层：话题层（背景话题）===
         if state.background_topics:
-            lines.append("\n【背景话题】")
-            for topic in state.background_topics[-3:]:
-                if topic.weight > 0.15:  # 只显示有一定权重的背景话题
-                    lines.append(f"  {topic.summary}")
+            active_topics = [t for t in state.background_topics[-3:] if t.weight > 0.15]
+            if active_topics:
+                lines.append("\n【之前聊过的话题】")
+                for topic in active_topics:
+                    lines.append(f"  - {topic.summary}")
 
-        # 3. 话题切换提示
-        if state.topic_switch_count > 0:
+        # === 话题关键词提示 ===
+        if state.recent_messages:
             current_keywords = self.drift_detector.get_current_topic_keywords(group_id)
             if current_keywords:
                 kw_str = "、".join(list(current_keywords)[:5])
-                lines.append(
-                    f"\n[系统提示] 当前话题关键词：{kw_str}。请顺着当前话题聊，不要提及已折叠的旧话题。"
-                )
+                lines.append(f"\n[当前话题关键词] {kw_str}")
 
         return "\n".join(lines)
 

@@ -11,7 +11,7 @@ import logging
 import asyncio
 from pathlib import Path
 from datetime import datetime
-from typing import Any
+from typing import Any, List, Optional
 
 # 添加项目根目录到路径
 project_root = Path(__file__).parent.parent
@@ -150,6 +150,9 @@ class MiyaQQ:
             superadmin_qq=superadmin_qq,
         )
 
+        # 初始化消息汇总窗口期管理器
+        self._init_message_batcher()
+
         self.logger.info("QQNet 配置完成")
 
     def _init_tts_system(self):
@@ -178,6 +181,53 @@ class MiyaQQ:
         except Exception as e:
             self.logger.warning(f"TTS系统初始化失败: {e}")
             self.tts_net = None
+
+    def _init_message_batcher(self):
+        """初始化消息汇总窗口期管理器"""
+        try:
+            from webnet.qq.message_batcher import MessageBatcher
+            import yaml
+
+            config_path = Path(__file__).parent.parent / "config" / "qq_config.yaml"
+            batch_config = {}
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    full_config = yaml.safe_load(f)
+                    batch_config = full_config.get("qq", {}).get("message_batching", {})
+
+            enabled = batch_config.get("enabled", True)
+            if not enabled:
+                self.message_batcher = None
+                self.logger.info("[消息汇总] 消息汇总窗口期已禁用")
+                return
+
+            async def send_status(group_id, message):
+                """发送状态提示回调"""
+                if self.qq_net and group_id:
+                    try:
+                        await self.qq_net.send_group_message(group_id, message)
+                    except Exception as e:
+                        self.logger.warning(f"[消息汇总] 发送状态提示失败: {e}")
+
+            self.message_batcher = MessageBatcher(
+                window_seconds=batch_config.get("window_seconds", 5.0),
+                max_window_seconds=batch_config.get("max_window_seconds", 10.0),
+                max_messages=batch_config.get("max_messages", 15),
+                only_group=batch_config.get("only_group", True),
+                status_message=batch_config.get("status_message", ""),
+                send_status_callback=send_status,
+                cooldown_seconds=batch_config.get("cooldown_seconds", 3.0),
+            )
+
+            self.logger.info(
+                f"[消息汇总] 消息汇总窗口期已启用: "
+                f"window={batch_config.get('window_seconds', 8.0)}s, "
+                f"max_window={batch_config.get('max_window_seconds', 15.0)}s, "
+                f"max_messages={batch_config.get('max_messages', 20)}"
+            )
+        except Exception as e:
+            self.logger.warning(f"[消息汇总] 消息汇总窗口期初始化失败: {e}")
+            self.message_batcher = None
 
     def _register_mlink_nodes(self):
         """注册 M-Link 节点"""
@@ -247,54 +297,297 @@ class MiyaQQ:
                 self.logger.info(f"    @弥娅: 是")
             self.logger.info(f"    内容: {msg_preview}")
 
-            # 构建感知数据（修复：poke等消息也要根据group_id判断群聊/私聊）
+            # 检查是否启用消息汇总窗口期
+            if self.message_batcher:
+                msg_type = qq_message.message_type
+                if msg_type not in ["group", "private"]:
+                    if qq_message.group_id and qq_message.group_id > 0:
+                        msg_type = "group"
+                    else:
+                        msg_type = "private"
+
+                should_wait = await self.message_batcher.submit_message(
+                    message_type=msg_type,
+                    group_id=qq_message.group_id,
+                    user_id=qq_message.sender_id,
+                    sender_name=qq_message.sender_name,
+                    content=qq_message.message,
+                    is_at_bot=qq_message.is_at_bot,
+                    raw_event=getattr(qq_message, "raw_event", None),
+                )
+
+                if should_wait:
+                    # 消息已加入窗口队列，等待窗口期结束后由后台任务处理
+                    return
+                # should_wait=False 表示私聊或窗口已满，继续正常处理
+
+            # 单条消息的正常处理流程
+            await self._process_single_message(qq_message)
+
+        except Exception as e:
+            self.logger.error(f"处理QQ消息失败: {e}", exc_info=True)
+
+    async def _process_single_message(self, qq_message: Any) -> None:
+        """处理单条消息"""
+        await self._process_message_with_perception(qq_message, qq_message.message)
+
+    async def _batch_consumer_loop(self) -> None:
+        """后台消费窗口期批次消息的循环"""
+        processing_keys = set()  # 防止重复处理
+        while True:
+            try:
+                if not self.message_batcher:
+                    await asyncio.sleep(1)
+                    continue
+                result = await self.message_batcher.get_next_batch()
+                if result is None:
+                    continue
+
+                group_key, batch = result
+
+                # 防止重复处理同一批次
+                if group_key in processing_keys:
+                    continue
+                processing_keys.add(group_key)
+
+                self.logger.info(
+                    f"[消息汇总] 消费批次: {group_key}, {len(batch)} 条消息"
+                )
+                try:
+                    await self._process_message_batch(batch)
+                finally:
+                    processing_keys.discard(group_key)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.error(f"[消息汇总] 消费批次失败: {e}", exc_info=True)
+
+    async def _process_message_batch(self, batch: List) -> None:
+        """处理批量消息"""
+        if not batch:
+            return
+
+        # 使用最后一条消息的 qq_message 对象作为基础
+        last_msg = batch[-1]
+        first_msg = batch[0]
+
+        # 构建汇总内容
+        summarized_content = self._summarize_batch(batch)
+
+        # 创建一个临时的 perception 对象，包含汇总后的消息
+        # 收集所有图片分析结果
+        image_analyses = []
+        has_any_image = False
+        for msg in batch:
+            if hasattr(msg, "image_analysis") and msg.image_analysis:
+                image_analyses.append(
+                    {
+                        "sender": msg.sender_name,
+                        "analysis": msg.image_analysis,
+                    }
+                )
+                has_any_image = True
+
+        msg_type = first_msg.message_type
+        if msg_type not in ["group", "private"]:
+            group_id = first_msg.group_id
+            if group_id and group_id > 0:
+                msg_type = "group"
+            else:
+                msg_type = "private"
+
+        # 构建包含所有消息的 perception
+        perception = {
+            "source": "qq",
+            "message_type": msg_type,
+            "raw_message_type": first_msg.message_type,
+            "user_id": last_msg.user_id,
+            "sender_id": last_msg.user_id,
+            "sender_name": last_msg.sender_name,
+            "group_id": first_msg.group_id,
+            "group_name": getattr(first_msg, "group_name", ""),
+            "content": summarized_content,
+            "is_at_bot": any(m.is_at_bot for m in batch),
+            "at_list": [],
+            "bot_qq": self.qq_net.bot_qq if self.qq_net else 0,
+            "timestamp": datetime.now().isoformat(),
+            "message_id": last_msg.raw_event.get("message_id", 0)
+            if last_msg.raw_event
+            else 0,
+            "reply": None,
+            "files": [],
+            "has_media": has_any_image,
+            "has_image": has_any_image,
+            "image_analysis": image_analyses[0]["analysis"] if image_analyses else None,
+            "batch_image_analyses": image_analyses if len(image_analyses) > 1 else None,
+            "batch_info": {
+                "is_batch": True,
+                "message_count": len(batch),
+                "time_span": f"{batch[-1].timestamp - batch[0].timestamp:.1f}秒",
+            },
+        }
+
+        # 如果有图片分析结果，直接注入到 perception 的 _image_analysis 字段
+        if has_any_image and image_analyses:
+            perception["_image_analysis"] = image_analyses[0]["analysis"]
+            if len(image_analyses) > 1:
+                perception["_batch_image_analyses"] = image_analyses
+
+        class TempQQMessage:
+            def __init__(
+                self,
+                msg_type,
+                group_id,
+                sender_id,
+                sender_name,
+                message,
+                is_at_bot,
+                has_image=False,
+                image_analysis=None,
+                image_response="",
+            ):
+                self.message_type = msg_type
+                self.group_id = group_id
+                self.sender_id = sender_id
+                self.sender_name = sender_name
+                self.message = message
+                self.is_at_bot = is_at_bot
+                self.reply = None
+                self.files = []
+                self.has_media = has_image
+                self.has_image = has_image
+                self.image_analysis = image_analysis
+                self.image_response = image_response
+                self.at_list = []
+
+        temp_qq_message = TempQQMessage(
+            msg_type=msg_type,
+            group_id=first_msg.group_id,
+            sender_id=last_msg.user_id,
+            sender_name=last_msg.sender_name,
+            message=summarized_content,
+            is_at_bot=any(m.is_at_bot for m in batch),
+            has_image=has_any_image,
+            image_analysis=image_analyses[0]["analysis"] if image_analyses else None,
+        )
+
+        await self._process_message_with_perception(
+            temp_qq_message, summarized_content, perception
+        )
+
+        await self._process_message_with_perception(
+            temp_qq_message, summarized_content, perception
+        )
+
+    def _summarize_batch(self, batch: List) -> str:
+        """将多条消息汇总为一段文本，包含图片分析结果"""
+        # 过滤空消息
+        valid_msgs = [m for m in batch if m.content and str(m.content).strip()]
+        if not valid_msgs:
+            return batch[-1].content if batch else ""
+
+        if len(valid_msgs) == 1:
+            msg = valid_msgs[0]
+            content = msg.content
+            if hasattr(msg, "image_analysis") and msg.image_analysis:
+                analysis = msg.image_analysis
+                desc = analysis.get("description", "")
+                if desc:
+                    return f"[图片描述] {desc}\n\n用户消息: {content if isinstance(content, str) else '[图片]'}"
+            return content if isinstance(content, str) else "[图片]"
+
+        lines = ["【群聊消息汇总】"]
+        for msg in valid_msgs:
+            sender = msg.sender_name or "未知用户"
+            content = msg.content
+            image_desc = ""
+
+            if isinstance(content, list):
+                text_parts = []
+                for item in content:
+                    if isinstance(item, dict):
+                        if item.get("type") == "text":
+                            text_parts.append(item.get("data", {}).get("text", ""))
+                        elif item.get("type") == "image":
+                            text_parts.append("[图片]")
+                    elif isinstance(item, str):
+                        text_parts.append(item)
+                content = " ".join(text_parts) if text_parts else "[图片]"
+
+                if hasattr(msg, "image_analysis") and msg.image_analysis:
+                    analysis = msg.image_analysis
+                    desc = analysis.get("description", "")
+                    if desc:
+                        image_desc = f" (图片内容: {desc[:80]})"
+
+            # 再次检查内容是否为空
+            if not content or not str(content).strip():
+                continue
+
+            lines.append(f"[{sender}] {content}{image_desc}")
+
+        if len(lines) <= 1:
+            # 所有消息都被过滤了，返回最后一条原始消息
+            return batch[-1].content if batch else ""
+
+        return "\n".join(lines)
+
+    async def _process_message_with_perception(
+        self, qq_message: Any, content: Any, override_perception: Optional[dict] = None
+    ) -> None:
+        """使用感知数据处理消息"""
+        try:
+            # 构建感知数据
             msg_type = qq_message.message_type
-            # 如果是poke或其他特殊消息，根据group_id判断
             if msg_type not in ["group", "private"]:
                 if qq_message.group_id and qq_message.group_id > 0:
                     msg_type = "group"
                 else:
                     msg_type = "private"
 
-            perception = {
-                "source": "qq",
-                "message_type": msg_type,
-                "raw_message_type": qq_message.message_type,
-                "user_id": qq_message.sender_id,
-                "sender_id": qq_message.sender_id,
-                "sender_name": qq_message.sender_name,
-                "group_id": qq_message.group_id,
-                "group_name": qq_message.group_name,
-                "content": qq_message.message,
-                "is_at_bot": qq_message.is_at_bot,
-                "at_list": qq_message.at_list,
-                "bot_qq": self.qq_net.bot_qq if self.qq_net else 0,
-                "timestamp": datetime.now().isoformat(),
-                "message_id": qq_message.message_id,
-                "reply": {
-                    "message_id": qq_message.reply.message_id,
-                    "sender_name": qq_message.reply.sender_name,
-                    "content": qq_message.reply.content,
-                }
-                if qq_message.reply
-                else None,
-                "files": [
-                    {
-                        "file_id": f.file_id,
-                        "name": f.name,
-                        "size": f.size,
-                        "file_type": f.file_type,
+            if override_perception:
+                perception = override_perception
+            else:
+                perception = {
+                    "source": "qq",
+                    "message_type": msg_type,
+                    "raw_message_type": qq_message.message_type,
+                    "user_id": qq_message.sender_id,
+                    "sender_id": qq_message.sender_id,
+                    "sender_name": qq_message.sender_name,
+                    "group_id": qq_message.group_id,
+                    "group_name": qq_message.group_name,
+                    "content": qq_message.message,
+                    "is_at_bot": qq_message.is_at_bot,
+                    "at_list": qq_message.at_list,
+                    "bot_qq": self.qq_net.bot_qq if self.qq_net else 0,
+                    "timestamp": datetime.now().isoformat(),
+                    "message_id": qq_message.message_id,
+                    "reply": {
+                        "message_id": qq_message.reply.message_id,
+                        "sender_name": qq_message.reply.sender_name,
+                        "content": qq_message.reply.content,
                     }
-                    for f in qq_message.files
-                ]
-                if qq_message.files
-                else [],
-                "has_media": qq_message.has_media,
-                "has_image": qq_message.has_image,
-                "image_analysis": qq_message.image_analysis,
-            }
+                    if qq_message.reply
+                    else None,
+                    "files": [
+                        {
+                            "file_id": f.file_id,
+                            "name": f.name,
+                            "size": f.size,
+                            "file_type": f.file_type,
+                        }
+                        for f in qq_message.files
+                    ]
+                    if qq_message.files
+                    else [],
+                    "has_media": qq_message.has_media,
+                    "has_image": qq_message.has_image,
+                    "image_analysis": qq_message.image_analysis,
+                }
 
-            # 【修复】检查消息是否已有图片分析回复，如果有则直接发送
+            # 检查消息是否已有图片分析回复
             img_keywords_str = ""
             try:
                 from core.text_loader import get_text
@@ -319,10 +612,9 @@ class MiyaQQ:
                         await self._send_qq_response(qq_message, msg_content)
                         return
 
-            # 检查用户输入是否是TTS切换指令
+            # 检查TTS切换指令
             content_str = str(perception.get("content", "")).strip().lower()
             direct_response = None
-
             if content_str in ["/voice", "/语音"]:
                 if self.qq_net:
                     _ = self.qq_net.set_tts_mode("voice")
@@ -332,16 +624,14 @@ class MiyaQQ:
                     _ = self.qq_net.set_tts_mode("text")
                 direct_response = "[OK] 已切换为文本模式"
 
-            # 如果是直接命令，直接发送响应
             if direct_response:
                 await self._send_qq_response(qq_message, direct_response)
                 return
 
-            # 通过新版 DecisionHub 处理（使用 ToolNet 架构）
+            # 通过 DecisionHub 处理
             if self.miya.mlink and self.miya.decision_hub:
                 from mlink.message import Message, MessageType
 
-                # 创建 M-Link 消息
                 message = Message(
                     msg_type=MessageType.DATA.value,
                     content=perception,
@@ -350,61 +640,44 @@ class MiyaQQ:
                     priority=1,
                 )
 
-                # 通过 M-Link 发送消息
-                available_nodes = ["decision_hub"]
-                success = await self.miya.mlink.send(message, available_nodes)
+                success = await self.miya.mlink.send(message, ["decision_hub"])
 
                 if success:
-                    # 决策处理开始
                     self.logger.info("决策处理 -> 开始")
-
-                    # 记录处理开始时间，用于检测延迟
                     import time
 
                     start_time = time.time()
 
-                    # 收集处理信息
                     tool_info = ""
                     tool_calls = []
                     memory_info = ""
 
-                    # 获取工具调用信息
                     if hasattr(self.miya.decision_hub, "tool_subnet"):
                         tool_info = (
                             self.miya.decision_hub.tool_subnet.get_last_execution_info()
                         )
-
-                    # 获取ToolNet的工具调用记录
                     if hasattr(self.miya.decision_hub, "_last_tool_calls"):
                         tool_calls = self.miya.decision_hub._last_tool_calls or []
-
-                    # 获取记忆操作信息
                     if hasattr(self.miya.decision_hub, "memory_manager"):
                         mm = self.miya.decision_hub.memory_manager
                         if hasattr(mm, "_last_operation"):
                             memory_info = mm._last_operation
 
-                    # 记录工具调用
                     if tool_calls:
                         self.logger.info(f"工具调用 -> {len(tool_calls)} 个工具")
                     if tool_info:
                         self.logger.info(f"工具详情 -> {tool_info}")
-
-                    # 记录记忆操作
                     if memory_info:
                         self.logger.info(f"记忆操作 -> {memory_info}")
 
-                    # 记录消息分析
                     perception = message.content
                     content_preview = perception.get("content", "")[:50]
                     self.logger.info(f"消息分析 -> {content_preview}...")
 
-                    # 处理感知数据
                     response_text = await self.miya.decision_hub.process_perception(
                         message
                     )
 
-                    # 显示模型调用信息
                     last_model = getattr(
                         self.miya.decision_hub, "_last_selected_model", ""
                     )
@@ -416,19 +689,13 @@ class MiyaQQ:
                             f"[模型调用] 使用模型: {last_model} | 任务类型: {last_task_type}"
                         )
 
-                    # 记录处理耗时
                     process_time = time.time() - start_time
                     self.logger.info(f"处理完成 -> 耗时: {process_time:.3f}秒")
 
-                    # 记录并发送响应
                     if response_text:
                         response_preview = response_text[:100]
                         self.logger.info(f"弥娅回复 -> {response_preview}...")
-
-                        # 发送响应
                         await self._send_qq_response(qq_message, response_text)
-
-                        # 处理完成
                         self.logger.info(f"消息处理 -> 完成")
                     else:
                         self.logger.warning("弥娅无回复内容")
@@ -552,7 +819,14 @@ class MiyaQQ:
                     except Exception as e:
                         self.logger.warning(f"定时任务调度器启动失败: {e}")
 
-                # 5. 启动消息接收循环
+                # 5. 启动消息汇总窗口期消费者
+                if self.message_batcher:
+                    self._batch_consumer_task = asyncio.create_task(
+                        self._batch_consumer_loop()
+                    )
+                    self.logger.info("消息汇总消费者已启动")
+
+                # 6. 启动消息接收循环
                 self.logger.info("启动消息接收循环...")
 
                 if self.miya.identity:
@@ -577,6 +851,14 @@ class MiyaQQ:
     async def cleanup(self):
         """清理资源"""
         self.logger.info("正在清理资源...")
+        if self.message_batcher:
+            await self.message_batcher.shutdown()
+        if hasattr(self, "_batch_consumer_task") and self._batch_consumer_task:
+            self._batch_consumer_task.cancel()
+            try:
+                await self._batch_consumer_task
+            except asyncio.CancelledError:
+                pass
         if self.qq_net:
             await self.qq_net.stop()
         self.logger.info("已停止")

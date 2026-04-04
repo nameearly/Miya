@@ -373,5 +373,65 @@
       "sender": "咕",
       "chat_label": "群聊_1092980378"
     }
+  },
+  {
+    "role": "user",
+    "content": "咕 拍了拍你",
+    "timestamp": "2026-04-04T17:53:24.061313",
+    "session_id": "qq_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 2911746585,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "咕",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": " 这张表情包在干什么",
+    "timestamp": "2026-04-04T17:53:36.272124",
+    "session_id": "qq_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 2911746585,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "咕",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "",
+    "timestamp": "2026-04-04T17:53:56.648866",
+    "session_id": "qq_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 2911746585,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "咕",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅也变笨了",
+    "timestamp": "2026-04-04T19:19:44.230683",
+    "session_id": "qq_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 2911746585,
+      "group_id": 1092980378,
+      "message_type": "group",
+      "sender": "咕",
+      "chat_label": "群聊_1092980378"
+    }
   }
 ]

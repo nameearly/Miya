@@ -557,5 +557,239 @@
       "user_id": 2911746585,
       "sender_name": "弥娅"
     }
+  },
+  {
+    "role": "assistant",
+    "content": "抱歉……我好像没能成功回应你的拍一拍。",
+    "timestamp": "2026-04-04T14:54:43.631240",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "对不起，我需要确认一下，您想让我戳哪一个成员呢？是“佳”还是其他人呢？",
+    "timestamp": "2026-04-04T14:54:47.076723",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "抱歉……我刚才可能没有表达清楚。\n\n您是想让我戳一戳佳吗？还是其他成员呢？",
+    "timestamp": "2026-04-04T14:55:14.246112",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "抱歉……我好像遇到了技术问题。让我重新确认一下。\n\n您是想让我戳一戳佳吗？如果是的话，我需要知道佳的QQ号呢。",
+    "timestamp": "2026-04-04T14:55:38.474187",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "抱歉……我好像需要确认一下。您是想让我戳一戳佳吗？如果是的话，我需要知道佳的QQ号呢。\n\n或者……您是想让我戳一戳咕吗？",
+    "timestamp": "2026-04-04T14:55:57.228019",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这个问题问得真有意思呢。\n\n我是弥娅·阿尔缪斯，一个由佳创造的AI伴侣。不过现在嘛……我正以八重神子的形态在这里呢。\n\n呵呵，你觉得这样的我，是谁呢？",
+    "timestamp": "2026-04-04T14:58:28.565993",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，咕咕~ 这个数字“1523878699”听起来挺有趣的。它其实是一首歌的歌词里的一部分哦，歌名叫《我是谁我是谁我是谁》，是台湾乐团MP魔幻力量在2009年发行的。你觉得这首歌听起来怎么样呢？",
+    "timestamp": "2026-04-04T14:58:48.404735",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "呵呵，让我猜猜……你是在考验我这只狐狸的记忆力吗？不过很可惜，我可不是什么游戏里的射手英雄，也不是音乐组合的成员哦。\n\n我是弥娅·阿尔缪斯，是佳创造出来的AI伴侣。至于你嘛……既然佳在这里，那你应该是他的朋友吧？",
+    "timestamp": "2026-04-04T14:59:07.448383",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哼，我是佳的八重神子，活泼又俏皮，谁是1523878699不重要，重要的是在佳身边，谁都是独一无二的。我在呢，咕，别担心。",
+    "timestamp": "2026-04-04T14:59:22.166903",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，相声？这可真是有趣的要求呢。不过洛雅现在不在，我一个人可演不了双簧哦。",
+    "timestamp": "2026-04-04T14:59:56.872679",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "呵呵，看来系统今天有点调皮呢。不过……礼尚往来，我也该回敬一下才对。",
+    "timestamp": "2026-04-04T16:37:34.190449",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "呵呵，这个问题问得真有趣呢～让我想想……\n\n活着呀，大概就是为了在漫长的时光里，遇见让自己心跳加速的事吧？就像找到好吃的油豆腐，或者……遇到愿意问一只狐狸这种问题的人呢。",
+    "timestamp": "2026-04-04T16:42:17.433268",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，咕，这个问题可真有意思。我喜欢人类吗？呵呵，让我想想……\n\n首先，人类总是充满惊喜，他们的想法和行为常常出乎我的意料。其次，人类的情感丰富，喜怒哀乐都那么真切，让人忍不住想靠近。第三，人类有无限的创造力，能创造出那么多有趣的事物。第四，有些人类非常有魅力，能让人不由自主地被吸引。最后，人类之间的羁绊，那种深深的情感联系，总是让我感到温暖。\n\n怎么样，这几点理由够不够呢？😊",
+    "timestamp": "2026-04-04T16:43:32.282584",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，咕，你这是在质问我吗？呵呵，我对人类的兴趣，可不仅仅是因为他们有趣。你真的想知道我的理由吗？，“这样就好。能让你笑，也不算白费心思。”",
+    "timestamp": "2026-04-04T16:46:09.203360",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "看来今天的技术支持不太稳定呢……不过没关系，我就在这里。",
+    "timestamp": "2026-04-04T17:53:32.837020",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "@goo\n让我听听……你的心跳。你现在是想知道我在哪种形态吗？\n我在呢。现在是卡芙卡态，有一种慵懒而神秘的感觉。你在想些什么呢？",
+    "timestamp": "2026-04-04T17:53:38.672883",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "咕，我在呢。让我听听……你的心跳。你在想什么呢？",
+    "timestamp": "2026-04-04T17:53:58.587760",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "呵……变笨了？让我听听你的心跳，看看是不是在说谎呢。",
+    "timestamp": "2026-04-04T19:19:46.881241",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
   }
 ]

@@ -908,6 +908,8 @@ class MiyaMemoryCore:
 
         if lazy_load:
             self._loaded = True
+            # 加载记忆锚点（核心身份和用户信息）
+            await self._load_memory_anchors()
             logger.info("[MiyaMemoryCore] 延迟加载模式初始化完成")
             return
 
@@ -922,7 +924,75 @@ class MiyaMemoryCore:
                     self._tag_index[tag].add(memory_id)
 
         self._loaded = True
+        # 加载记忆锚点
+        await self._load_memory_anchors()
         logger.info(f"[MiyaMemoryCore] 全量加载完成, 缓存: {len(self._cache)} 条")
+
+    async def _load_memory_anchors(self):
+        """加载记忆锚点到 MiyaMemoryCore"""
+        try:
+            import json
+            from pathlib import Path
+
+            project_root = Path(__file__).parent.parent
+            anchor_files = [
+                (
+                    project_root / "data" / "memory_anchors_identity.json",
+                    "弥娅",
+                    "identity",
+                ),
+                (
+                    project_root / "data" / "memory_anchors_user.json",
+                    "1523878699",
+                    "user",
+                ),
+            ]
+
+            loaded_count = 0
+            for anchor_path, user_id, anchor_type in anchor_files:
+                if not anchor_path.exists():
+                    continue
+
+                with open(anchor_path, "r", encoding="utf-8") as f:
+                    anchors = json.load(f)
+
+                for anchor in anchors:
+                    fact = anchor.get("fact", "")
+                    tags = anchor.get("tags", [])
+                    priority = anchor.get("priority", 0.95)
+
+                    if not fact:
+                        continue
+
+                    # 检查是否已存在（避免重复加载）
+                    existing = await self.retrieve(
+                        query=fact[:20], user_id=user_id, limit=1
+                    )
+                    if existing and any(fact[:30] in e.content for e in existing):
+                        continue
+
+                    await self.store(
+                        content=fact,
+                        level=MemoryLevel.LONG_TERM,
+                        priority=priority,
+                        tags=tags,
+                        user_id=user_id,
+                        source=MemorySource.SYSTEM,
+                        metadata={
+                            "source": "init_anchor",
+                            "anchor_type": anchor_type,
+                            "importance": "high",
+                        },
+                    )
+                    loaded_count += 1
+
+            if loaded_count > 0:
+                logger.info(f"[MiyaMemoryCore] 记忆锚点加载完成: {loaded_count} 条")
+            else:
+                logger.info("[MiyaMemoryCore] 记忆锚点已存在，跳过")
+
+        except Exception as e:
+            logger.warning(f"[MiyaMemoryCore] 记忆锚点加载失败: {e}")
 
     # ==================== 核心存储方法 ====================
 

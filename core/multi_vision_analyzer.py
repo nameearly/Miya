@@ -445,7 +445,7 @@ class MultiVisionAnalyzer:
             # 智谱API格式
             url = f"{model_config.api_base}/chat/completions"
             payload = {
-                "model": model_config.model_type.value,
+                "model": model_config.name,
                 "messages": [
                     {
                         "role": "user",

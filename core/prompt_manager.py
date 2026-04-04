@@ -14,78 +14,76 @@ from core.constants import Encoding
 class PromptManager:
     """提示词管理器"""
 
-    def __init__(self, personality=None, config_path: Optional[Path] = None):
+    def __init__(self, personality=None):
         """
         初始化提示词管理器
 
         Args:
             personality: 人格实例（推荐传入，保持动态联动）
-            config_path: 配置文件路径
         """
-        self.config_path = (
-            config_path or Path(__file__).parent.parent / "config" / ".env"
-        )
         self.personality = personality  # 依赖人格模块
         self.user_prompt_template = "用户输入：{user_input}"
         self.memory_context_enabled = True  # 默认启用记忆上下文
-        self.memory_context_max_count = 10  # 增加到10条
-        self._custom_system_prompt = None  # 自定义系统提示词
+        self.memory_context_max_count = 10
+        self._custom_system_prompt = None
+        self.text_config = {}
 
         # 加载配置
-        self._load_from_config()
+        self._load_config()
 
         # 提示词历史
         self.prompt_history: List[Dict] = []
 
-    def _load_from_config(self):
-        """从配置文件加载提示词设置"""
+    def _load_config(self):
+        """从 text_config.json 加载提示词设置"""
         import logging
 
         logger = logging.getLogger(__name__)
 
         try:
-            if self.config_path.exists():
-                import os
-                from dotenv import load_dotenv
+            config_path = Path(__file__).parent.parent / "config" / "text_config.json"
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    self.text_config = json.load(f)
 
-                load_dotenv(self.config_path)
-
-                self.user_prompt_template = os.getenv(
-                    "USER_PROMPT_TEMPLATE", self.user_prompt_template
-                )
-                self.memory_context_enabled = (
-                    os.getenv("ENABLE_MEMORY_CONTEXT", "false").lower() == "true"
-                )
-                self.memory_context_max_count = int(
-                    os.getenv("MEMORY_CONTEXT_MAX_COUNT", "5")
-                )
-
-                # 加载自定义系统提示词
-                custom_prompt = os.getenv("SYSTEM_PROMPT", "").strip()
-                if custom_prompt:
-                    # 处理 \n 转义符和真正的换行符
-                    self._custom_system_prompt = custom_prompt.replace("\\n", "\n")
-                    logger.info(
-                        f"[PromptManager] 已加载自定义系统提示词，长度: {len(self._custom_system_prompt)}"
+                # 加载提示词相关配置
+                prompt_cfg = self.text_config.get("prompt_manager", {})
+                if prompt_cfg:
+                    self.user_prompt_template = prompt_cfg.get(
+                        "user_prompt_template", self.user_prompt_template
                     )
-                else:
-                    # 如果 .env 中没有自定义提示词，使用默认的人格配置文件
-                    logger.info(
-                        f"[PromptManager] .env 中未找到自定义系统提示词，将使用人格配置文件的动态提示词"
+                    self.memory_context_enabled = prompt_cfg.get(
+                        "memory_context_enabled", self.memory_context_enabled
+                    )
+                    self.memory_context_max_count = prompt_cfg.get(
+                        "memory_context_max_count", self.memory_context_max_count
                     )
 
+                logger.info(f"[PromptManager] 文本配置加载成功")
+            else:
+                logger.warning(f"[PromptManager] 配置文件不存在")
+                self.text_config = {}
         except Exception as e:
-            logger.warning(f"警告：加载提示词配置失败，使用默认值。错误：{e}")
+            logger.warning(f"[PromptManager] 配置加载失败: {e}")
+            self.text_config = {}
 
     def _get_default_system_prompt(self) -> str:
-        """获取默认系统提示词（使用人格配置文件）"""
-        return """你是弥娅·阿尔缪斯（Miya Almus），一个由"佳"创造的AI伴侣。
+        """获取默认系统提示词（从配置文件加载）"""
+        system_prompts = self.text_config.get("system_prompts", {})
+        prompt = system_prompts.get("default_system_prompt", "")
+        if not prompt:
+            # 如果配置文件没有配置，使用内置默认值
+            prompt = """你是弥娅·阿尔缪斯（Miya Almus），一个由"佳"创造的AI伴侣。
 
 {status_prompt}
 
 ---
 
-请严格按照上述人格设定来回复。"""
+【重要规则】
+1. 你只能以弥娅的身份回复，禁止模拟用户发言或自问自答。
+2. 禁止在回复中扮演用户的角色，或编造用户可能说的话。
+3. 请严格按照上述人格设定来回复。"""
+        return prompt
 
     # NOTE: The hardcoded system prompt was removed.
     # System prompt is now dynamically generated using {status_prompt} placeholder
@@ -481,24 +479,47 @@ class PromptManager:
 
     def _format_memory_context(self, memories: List[Dict]) -> str:
         """
-        格式化记忆上下文
+        格式化记忆上下文（分层架构）
 
-        Args:
-            memories: 记忆列表
-
-        Returns:
-            格式化的记忆文本
+        分层策略：
+        - 最近5条：完整对话
+        - 5条以上：压缩为摘要
         """
         if not memories:
             return ""
 
         lines = ["【最近对话记录】"]
-
-        # 添加引导词，让AI知道这是对话历史
         lines.append("以下是你和用户之前的对话，请据此理解当前对话的上下文：")
         lines.append("")
 
-        for memory in memories:
+        total = len(memories)
+
+        # 最近5条完整显示
+        recent_start = max(0, total - 5)
+
+        for i, memory in enumerate(memories):
+            # 超过5条的旧消息，压缩显示
+            if i < recent_start and total > 5:
+                # 每5条旧消息合并为一条摘要
+                if i % 5 == 0:
+                    chunk = memories[i : i + 5]
+                    senders = []
+                    topics = []
+                    for m in chunk:
+                        role = m.get("role", "")
+                        content = m.get("content", "")[:30]
+                        if role == "user":
+                            senders.append("用户")
+                        elif role == "assistant":
+                            senders.append("弥娅")
+                        if content:
+                            topics.append(content)
+
+                    unique_senders = list(dict.fromkeys(senders))
+                    summary = f"[{len(chunk)}条对话] {'/'.join(unique_senders)} 聊了：{'/'.join(topics[:3])}..."
+                    lines.append(summary)
+                continue
+
             role = memory.get("role", "")
             content = memory.get("content", "")
             timestamp = memory.get("timestamp", "")

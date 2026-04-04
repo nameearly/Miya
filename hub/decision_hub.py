@@ -826,6 +826,24 @@ class DecisionHub:
             perception["response"] = response
             await self.memory_manager.store_unified_memory(perception, "assistant")
 
+            # 【修复】将 AI 回复也添加到工作记忆中
+            try:
+                msg_type = perception.get("message_type", "")
+                group_id = perception.get("group_id")
+                if msg_type == "group" and group_id:
+                    from memory.working_memory import get_working_memory
+
+                    wm = get_working_memory()
+                    group_id_str = str(group_id)
+                    wm.add_message(
+                        group_id=group_id_str,
+                        sender="弥娅",
+                        content=response[:200],  # 限制长度避免过长
+                        is_at_bot=False,
+                    )
+            except Exception as e:
+                logger.debug(f"[决策层] 工作记忆存储AI回复失败: {e}")
+
             # 【新增】智能记忆 - 自动提取重要内容记忆
             try:
                 user_input = perception.get("content", "")
@@ -848,19 +866,36 @@ class DecisionHub:
         return response
 
     async def _generate_response_cross_platform(
-        self, content: str, platform: str, context: dict
+        self, content, platform: str, context: dict
     ) -> str:
         """
         生成响应（跨平台统一）
 
         Args:
-            content: 用户输入
+            content: 用户输入（可能是字符串或列表）
             platform: 平台类型 ('terminal', 'pc_ui', 'qq')
             context: 上下文信息
 
         Returns:
             响应文本
         """
+        # 规范化 content 为字符串
+        if isinstance(content, list):
+            text_parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    item_type = item.get("type", "")
+                    item_data = item.get("data", {})
+                    if item_type == "text":
+                        text_parts.append(item_data.get("text", ""))
+                    elif item_type == "image":
+                        text_parts.append("[图片]")
+                elif isinstance(item, str):
+                    text_parts.append(item)
+            content = " ".join(text_parts) if text_parts else ""
+        elif not isinstance(content, str):
+            content = str(content) if content else ""
+
         sender_name = context.get("sender_name", "用户")
         user_id = context.get("user_id", "unknown")
 

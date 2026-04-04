@@ -80,8 +80,8 @@ class ConversationContextManager:
         self,
         memory_net,
         enable_conversation_context: bool = True,
-        conversation_context_max_count: int = 10,
-        conversation_context_max_tokens: int = 2000,
+        conversation_context_max_count: int = 20,
+        conversation_context_max_tokens: int = 6000,
     ):
         """
         初始化对话上下文管理器
@@ -174,13 +174,12 @@ class ConversationContextManager:
         self, session_id: str, current_input: str = ""
     ) -> List[Dict]:
         """
-        获取对话历史上下文（动态智能加载）
+        获取对话历史上下文（分层摘要架构）
 
-        智能记忆策略：
-        - 短期对话：加载最近5-8条，确保连贯性
-        - 群聊讨论：检测到深度讨论时加载更多
-        - 长期记忆：只有用户明确问"你还记得..."时才加载历史
-        - 话题连续性：检测话题变化，保持同一话题的上下文
+        分层策略：
+        - 精确层（最近10条）：完整对话
+        - 摘要层（10-50条）：每5条压缩为一条摘要
+        - 回忆模式：加载50条完整历史
 
         Args:
             session_id: 会话ID
@@ -203,14 +202,14 @@ class ConversationContextManager:
 
         # 根据情况决定加载数量
         if needs_recall:
-            max_messages = 30
+            max_messages = 50
             logger.info(f"[对话上下文] 用户正在回忆过去，加载历史对话: {session_id}")
         elif is_deep_discussion:
-            max_messages = 15
-            logger.debug(f"[对话上下文] 检测到深度讨论，加载15条: {session_id}")
+            max_messages = 30
+            logger.debug(f"[对话上下文] 检测到深度讨论，加载30条: {session_id}")
         else:
-            max_messages = 8
-            logger.debug(f"[对话上下文] 正常对话，加载8条: {session_id}")
+            max_messages = 20
+            logger.debug(f"[对话上下文] 正常对话，加载20条: {session_id}")
 
         try:
             messages = await self.memory_net.conversation_history.get_history(
@@ -231,15 +230,14 @@ class ConversationContextManager:
                     else messages
                 )
             elif is_deep_discussion:
-                # 深度讨论时加载更多上下文
                 recent_messages = (
                     messages[-max_messages:]
                     if len(messages) > max_messages
                     else messages
                 )
             else:
-                # 正常对话加载最近5条（从3条增加到5条）
-                recent_messages = messages[-5:] if len(messages) > 5 else messages
+                # 正常对话加载最近15条
+                recent_messages = messages[-15:] if len(messages) > 15 else messages
 
             logger.debug(f"[对话上下文] 加载对话历史: {len(recent_messages)} 条")
 

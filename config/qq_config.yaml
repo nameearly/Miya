@@ -157,6 +157,17 @@ qq:
       collect_stats: true
       stats_interval: 3600                # 统计收集间隔（秒）
 
+  # ===== 消息汇总窗口期配置 =====
+  # 用于群聊中消息密集时，收集一段时间内的消息再统一回复
+  message_batching:
+    enabled: true                         # 是否启用消息汇总窗口
+    window_seconds: 5                     # 窗口期时长（秒），收到新消息会重置计时
+    max_window_seconds: 10                # 最大窗口期（防止无限等待）
+    max_messages: 15                      # 窗口期内最大消息数量，超过则立即处理
+    only_group: true                      # 是否仅对群聊生效（私聊始终即时回复）
+    cooldown_seconds: 3                   # 两条消息间隔小于此时长才触发窗口期
+    status_message: ""                    # 窗口期内的状态提示（留空则不发送）
+
   # ===== 性能优化 =====
   performance:
     cache:

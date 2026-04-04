@@ -946,120 +946,139 @@ class DeepSeekClient(BaseAIClient):
                         return_exceptions=True,
                     )
 
-                    # 处理结果
+                    # 处理并发结果并添加到消息中
                     for tool_result in tool_results:
                         if isinstance(tool_result, Exception):
                             logger.error(f"[AIClient] 并发工具执行异常: {tool_result}")
                             continue
 
                         tool_call, result = tool_result
+
+                        # 检查是否是直接返回工具
+                        direct_return_tools = [
+                            "horoscope",
+                            "wenchang_dijun",
+                            "terminal_command",
+                            "multi_terminal",
+                        ]
+                        if tool_call.function.name in direct_return_tools:
+                            return result
+
+                        current_messages.append(
+                            AIMessage(
+                                role="tool", content=result, tool_call_id=tool_call.id
+                            )
+                        )
                 else:
                     # 串行执行
                     pass
 
-                # 恢复原有的串行执行逻辑用于无法并发的情况
-                for tool_call in tool_calls:
-                    from .tool_adapter import get_tool_adapter
+                # 串行执行逻辑（仅在非并发模式下执行）
+                if not can_concurrent:
+                    for tool_call in tool_calls:
+                        from .tool_adapter import get_tool_adapter
 
-                    adapter = get_tool_adapter()
+                        adapter = get_tool_adapter()
 
-                    # 解析工具参数（使用 JSON 而不是 eval）
-                    arguments_str = tool_call.function.arguments
+                        # 解析工具参数（使用 JSON 而不是 eval）
+                        arguments_str = tool_call.function.arguments
 
-                    # 尝试解析 JSON，如果失败则尝试修复
-                    try:
-                        tool_args = json.loads(arguments_str)
-                    except json.JSONDecodeError as e:
-                        logger.error(f"[AIClient] JSON解析失败: {arguments_str}")
-                        logger.error(f"[AIClient] 错误详情: {e}")
-
-                        fixed_str = arguments_str
-
-                        # 修复常见的 JSON 格式问题
+                        # 尝试解析 JSON，如果失败则尝试修复
                         try:
-                            # 1. 移除末尾多余的逗号
-                            fixed_str = fixed_str.rstrip(", ")
-                        except Exception:
-                            pass
+                            tool_args = json.loads(arguments_str)
+                        except json.JSONDecodeError as e:
+                            logger.error(f"[AIClient] JSON解析失败: {arguments_str}")
+                            logger.error(f"[AIClient] 错误详情: {e}")
 
-                        try:
-                            tool_args = json.loads(fixed_str)
-                            logger.info(f"[AIClient] JSON修复成功（移除逗号）")
-                        except Exception as e2:
-                            # 2. 尝试修复中文值没有引号的问题（如 "target_id": 用户 -> "target_id": "用户"）
-                            import re
+                            fixed_str = arguments_str
+
+                            # 修复常见的 JSON 格式问题
+                            try:
+                                # 1. 移除末尾多余的逗号
+                                fixed_str = fixed_str.rstrip(", ")
+                            except Exception:
+                                pass
 
                             try:
-                                # 匹配 "key": 值（值是中文或英文但没有引号）
-                                def add_quotes(match):
-                                    key_part = match.group(1)
-                                    value_part = match.group(2)
-                                    # 如果值不包含引号，则添加引号
-                                    if '"' not in value_part:
-                                        value_part = '"' + value_part + '"'
-                                    return key_part + value_part
+                                tool_args = json.loads(fixed_str)
+                                logger.info(f"[AIClient] JSON修复成功（移除逗号）")
+                            except Exception as e2:
+                                # 2. 尝试修复中文值没有引号的问题（如 "target_id": 用户 -> "target_id": "用户"）
+                                import re
 
-                                fixed_str2 = re.sub(
-                                    r'("[\w\u4e00-\u9fa5]+":\s*)([\w\u4e00-\u9fa5]+)',
-                                    add_quotes,
-                                    fixed_str,
-                                )
-                                tool_args = json.loads(fixed_str2)
-                                logger.info(
-                                    f"[AIClient] JSON修复成功（修复中文值）: {fixed_str2}"
-                                )
-                            except Exception as e3:
-                                logger.error(f"[AIClient] JSON修复也失败: {e2}, {e3}")
-                                # 即使JSON解析失败，也要添加工具响应消息，避免API报错
-                                error_result = json.dumps(
-                                    {
-                                        "success": False,
-                                        "error": f"JSON解析失败: {e}",
-                                        "raw_arguments": arguments_str,
-                                    },
-                                    ensure_ascii=False,
-                                )
-                                current_messages.append(
-                                    AIMessage(
-                                        role="tool",
-                                        content=error_result,
-                                        tool_call_id=tool_call.id,
+                                try:
+                                    # 匹配 "key": 值（值是中文或英文但没有引号）
+                                    def add_quotes(match):
+                                        key_part = match.group(1)
+                                        value_part = match.group(2)
+                                        # 如果值不包含引号，则添加引号
+                                        if '"' not in value_part:
+                                            value_part = '"' + value_part + '"'
+                                        return key_part + value_part
+
+                                    fixed_str2 = re.sub(
+                                        r'("[\w\u4e00-\u9fa5]+":\s*)([\w\u4e00-\u9fa5]+)',
+                                        add_quotes,
+                                        fixed_str,
                                     )
-                                )
-                                continue
+                                    tool_args = json.loads(fixed_str2)
+                                    logger.info(
+                                        f"[AIClient] JSON修复成功（修复中文值）: {fixed_str2}"
+                                    )
+                                except Exception as e3:
+                                    logger.error(
+                                        f"[AIClient] JSON修复也失败: {e2}, {e3}"
+                                    )
+                                    # 即使JSON解析失败，也要添加工具响应消息，避免API报错
+                                    error_result = json.dumps(
+                                        {
+                                            "success": False,
+                                            "error": f"JSON解析失败: {e}",
+                                            "raw_arguments": arguments_str,
+                                        },
+                                        ensure_ascii=False,
+                                    )
+                                    current_messages.append(
+                                        AIMessage(
+                                            role="tool",
+                                            content=error_result,
+                                            tool_call_id=tool_call.id,
+                                        )
+                                    )
+                                    continue
 
-                    logger.info(
-                        f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
-                    )
-
-                    result = await adapter.execute_tool(
-                        tool_call.function.name, tool_args, self.tool_context or {}
-                    )
-
-                    logger.info(
-                        f"[AIClient] 工具执行结果: {result[:200] if result else '(无结果)'}"
-                    )
-
-                    # 检查是否是直接返回工具（如运势、抽签等）
-                    # 这些工具返回的结果已经是格式化的，直接返回给用户
-                    direct_return_tools = [
-                        "horoscope",
-                        "wenchang_dijun",
-                        "terminal_command",
-                        "multi_terminal",
-                    ]
-                    if tool_call.function.name in direct_return_tools:
                         logger.info(
-                            f"[AIClient] 检测到直接返回工具: {tool_call.function.name}，直接返回结果"
+                            f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
                         )
-                        return result
 
-                    # 添加工具结果消息
-                    current_messages.append(
-                        AIMessage(
-                            role="tool", content=result, tool_call_id=tool_call.id
+                        result = await adapter.execute_tool(
+                            tool_call.function.name, tool_args, self.tool_context or {}
                         )
-                    )
+
+                        logger.info(
+                            f"[AIClient] 工具执行结果: {result[:200] if result else '(无结果)'}"
+                        )
+
+                        # 检查是否是直接返回工具（如运势、抽签等）
+                        # 这些工具返回的结果已经是格式化的，直接返回给用户
+                        direct_return_tools = [
+                            "horoscope",
+                            "wenchang_dijun",
+                            "terminal_command",
+                            "multi_terminal",
+                        ]
+                        if tool_call.function.name in direct_return_tools:
+                            logger.info(
+                                f"[AIClient] 检测到直接返回工具: {tool_call.function.name}，直接返回结果"
+                            )
+                            return result
+
+                        # 添加工具结果消息
+                        current_messages.append(
+                            AIMessage(
+                                role="tool", content=result, tool_call_id=tool_call.id
+                            )
+                        )
 
                 iteration += 1
 

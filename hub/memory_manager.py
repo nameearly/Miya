@@ -68,6 +68,21 @@ class MemoryManager:
                 logger.warning(f"[记忆管理器] 统一记忆初始化失败: {e}")
 
             content = perception.get("content", "")
+            # 处理列表类型内容（如包含图片的混合消息）
+            if isinstance(content, list):
+                text_parts = []
+                for item in content:
+                    if isinstance(item, dict):
+                        item_type = item.get("type", "")
+                        item_data = item.get("data", {})
+                        if item_type == "text":
+                            text_parts.append(item_data.get("text", ""))
+                        elif item_type == "image":
+                            text_parts.append("[图片]")
+                    elif isinstance(item, str):
+                        text_parts.append(item)
+                content = " ".join(text_parts) if text_parts else ""
+
             user_id = perception.get("user_id", "unknown")
             group_id = perception.get("group_id", "")
             platform = perception.get("platform", "qq")
@@ -76,15 +91,12 @@ class MemoryManager:
 
             logger.info(f"[记忆管理器] 收到消息: {content[:50]}...")
 
-            # 存储到 MemoryNet 对话历史（用metadata标签区分群聊/私聊）
+            # 存储到 MemoryNet 对话历史（统一 session_id 方案，确保存储和检索一致）
             if self.memory_net and self.memory_net.conversation_history:
-                # 群聊 session_id 包含 group_id，避免不同群的对话混合
-                if message_type == "group" and group_id:
-                    session_id = f"qq_{group_id}_{user_id}"
-                else:
-                    session_id = f"qq_{user_id}"
+                # 统一使用 platform_user_id 格式，群聊信息通过 metadata 区分
+                session_id = f"qq_{user_id}"
 
-                # 在metadata中添加标签，不影响内容识别
+                # 在metadata中添加标签，区分群聊/私聊
                 metadata = {
                     "user_id": user_id,
                     "group_id": group_id,

@@ -74,17 +74,67 @@ class QQImageHandler:
 
             # 构建消息对象（附加 image_analysis）
             message = QQMessage.from_dict(event)
+
+            # 从消息段中提取文本内容（混合消息：文字+图片）
+            raw_message = event.get("message", [])
+            text_content = self._extract_text_from_segments(raw_message)
+            if text_content:
+                message.message = text_content
+
+            # 检测是否@了机器人
+            message.is_at_bot = self._is_at_bot(raw_message)
+            message.at_list = self._extract_at_list(raw_message)
+
             message.image_data = image_data
             message.image_info = image_info
             message.image_analysis = analysis_result
             message.has_image = True
 
-            logger.info(f"[QQImageHandler] 图片消息处理完成")
+            logger.info(
+                f"[QQImageHandler] 图片消息处理完成, 文本: {text_content[:50] if text_content else '无'}, at_bot: {message.is_at_bot}"
+            )
             return message
 
         except Exception as e:
             logger.error(f"[QQImageHandler] 处理图片消息失败: {e}", exc_info=True)
             return None
+
+    def _extract_text_from_segments(self, segments) -> str:
+        """从消息段中提取文本内容"""
+        if not segments:
+            return ""
+        text_parts = []
+        for seg in segments:
+            if isinstance(seg, dict):
+                seg_type = seg.get("type", "")
+                if seg_type == "text":
+                    text_parts.append(seg.get("data", {}).get("text", ""))
+        return " ".join(text_parts).strip()
+
+    def _is_at_bot(self, segments) -> bool:
+        """检测是否@了机器人"""
+        if not self.qq_net or not self.qq_net.bot_qq:
+            return False
+        bot_qq_str = str(self.qq_net.bot_qq)
+        for seg in segments:
+            if isinstance(seg, dict) and seg.get("type") == "at":
+                at_qq = str(seg.get("data", {}).get("qq", ""))
+                if at_qq == bot_qq_str:
+                    return True
+        return False
+
+    def _extract_at_list(self, segments) -> list:
+        """提取@列表"""
+        at_list = []
+        for seg in segments:
+            if isinstance(seg, dict) and seg.get("type") == "at":
+                at_qq = seg.get("data", {}).get("qq", "")
+                if at_qq and at_qq != "all":
+                    try:
+                        at_list.append(int(at_qq))
+                    except (ValueError, TypeError):
+                        pass
+        return at_list
 
     async def _auto_save_emoji(self, event: Dict, image_data: bytes, image_info: Dict):
         """自动保存用户发送的表情包"""

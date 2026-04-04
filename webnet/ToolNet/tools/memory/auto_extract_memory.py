@@ -69,57 +69,31 @@ class AutoExtractMemory(BaseTool):
             tags = ["通用"]
 
         try:
-            # 方法1: 写入统一记忆系统（会触发自动分类）
+            # 方法1: 写入统一记忆系统（优先使用 MiyaMemoryCore）
             try:
-                from memory.unified_memory import (
-                    get_unified_memory,
-                    init_unified_memory,
-                    MemoryCategory,
+                from memory import get_memory_core, MemoryLevel, MemorySource
+
+                core = await get_memory_core()
+
+                memory_id = await core.store(
+                    content=fact,
+                    level=MemoryLevel.LONG_TERM,
+                    priority=importance,
+                    tags=tags,
+                    user_id=str(context.user_id) if context.user_id else "unknown",
+                    group_id=str(context.group_id) if context.group_id else "",
+                    source=MemorySource.AUTO_EXTRACT,
+                    metadata={
+                        "source": "auto_extract_tool",
+                        "importance": importance,
+                    },
                 )
+                logger.info(f"[AutoExtractMemory] 已存储到 MiyaMemoryCore: {memory_id}")
 
-                unified = get_unified_memory("data/memory")
-                await init_unified_memory("data/memory")
+                return f"✅ 已记住：{fact}\n   标签: {', '.join(tags)}"
 
-                priority = importance
-                # 使用 IMPORTANT 分类，不要传 None 否则会被覆盖
-                category = (
-                    MemoryCategory.IMPORTANT
-                    if importance >= 0.8
-                    else MemoryCategory.EMOTION
-                )
-
-                add_method = getattr(unified, "add_short_term", None)
-                if add_method and asyncio.iscoroutinefunction(add_method):
-                    memory_id = await add_method(
-                        content=fact,
-                        user_id=str(context.user_id) if context.user_id else "unknown",
-                        group_id=str(context.group_id) if context.group_id else "",
-                        priority=priority,
-                        tags=tags,
-                        metadata={
-                            "source": "auto_extract_tool",
-                            "importance": importance,
-                        },
-                        category=category,
-                    )
-                    logger.info(
-                        f"[AutoExtractMemory] 已存储到统一记忆系统: {memory_id}, category={category.value}"
-                    )
-
-                    cat_names = {
-                        MemoryCategory.EMOTION: "情感类",
-                        MemoryCategory.IMPORTANT: "重要记录",
-                        MemoryCategory.CHAT: "闲聊类",
-                        MemoryCategory.DAILY: "日常类",
-                        MemoryCategory.TASK: "任务类",
-                        MemoryCategory.KNOWLEDGE: "知识类",
-                    }
-                    return f"✅ 已记住：{fact}\n   标签: {', '.join(tags)}\n   分类: {cat_names.get(category, '未分类')}"
-
-            except ImportError:
-                logger.debug("统一记忆系统不可用")
             except Exception as e:
-                logger.warning(f"统一记忆系统存储失败: {e}")
+                logger.warning(f"MiyaMemoryCore 存储失败，尝试旧系统: {e}")
 
             # 方法2: 写入 Undefined 轻量记忆系统
             try:

@@ -8,6 +8,7 @@
 4. 统一记忆系统接口
 5. 支持工具降级机制
 """
+
 import logging
 from typing import Dict, Any, Optional, List
 from webnet.ToolNet.base import ToolContext
@@ -73,10 +74,7 @@ class ToolAdapter:
         self.logger.debug("情绪系统已设置")
 
     def enable_native_mode(
-        self,
-        tool_registry,
-        emotion_system=None,
-        memory_engine=None
+        self, tool_registry, emotion_system=None, memory_engine=None
     ):
         """
         启用原生M-Link模式
@@ -94,7 +92,7 @@ class ToolAdapter:
                 emotion_system=emotion_system,
                 memory_engine=memory_engine,
                 enable_perception=True,
-                enable_mlink=True
+                enable_mlink=True,
             )
 
             self.enable_native = True
@@ -109,7 +107,7 @@ class ToolAdapter:
         tool_name: str,
         args: Dict[str, Any],
         context: Dict[str, Any],
-        enable_fallback: bool = True
+        enable_fallback: bool = True,
     ) -> str:
         """
         执行工具
@@ -137,9 +135,13 @@ class ToolAdapter:
         if enable_fallback and not self._is_success_result(result):
             fallback_tools = TOOL_FALLBACK_MAP.get(tool_name, [])
             for fallback_tool in fallback_tools:
-                logger.info(f"[降级机制] 主工具 {tool_name} 失败，尝试降级工具: {fallback_tool}")
+                logger.info(
+                    f"[降级机制] 主工具 {tool_name} 失败，尝试降级工具: {fallback_tool}"
+                )
                 try:
-                    result = await self._do_execute_tool(fallback_tool, args, filtered_context)
+                    result = await self._do_execute_tool(
+                        fallback_tool, args, filtered_context
+                    )
                     if self._is_success_result(result):
                         logger.info(f"[降级机制] 降级工具 {fallback_tool} 执行成功")
                         # 添加降级提示
@@ -159,18 +161,34 @@ class ToolAdapter:
         """准备工具上下文"""
         # 添加额外上下文
         if self.life_subnet:
-            context['lifenet'] = self.life_subnet
+            context["lifenet"] = self.life_subnet
         if self.unified_memory:
-            context['unified_memory'] = self.unified_memory
+            context["unified_memory"] = self.unified_memory
 
         # 过滤掉 ToolContext 不支持的参数
         supported_fields = {
-            'qq_net', 'onebot_client', 'send_like_callback',
-            'memory_engine', 'unified_memory', 'memory_net', 'emotion',
-            'personality', 'scheduler', 'lifenet', 'request_id',
-            'group_id', 'user_id', 'message_type', 'sender_name',
-            'is_at_bot', 'at_list', 'game_mode', 'game_mode_manager',
-            'game_mode_adapter', 'bot_qq', 'superadmin'
+            "qq_net",
+            "onebot_client",
+            "send_like_callback",
+            "memory_engine",
+            "unified_memory",
+            "memory_net",
+            "emotion",
+            "personality",
+            "scheduler",
+            "lifenet",
+            "request_id",
+            "group_id",
+            "user_id",
+            "message_type",
+            "sender_name",
+            "is_at_bot",
+            "at_list",
+            "game_mode",
+            "game_mode_manager",
+            "game_mode_adapter",
+            "bot_qq",
+            "superadmin",
         }
         filtered_context = {k: v for k, v in context.items() if k in supported_fields}
 
@@ -180,12 +198,31 @@ class ToolAdapter:
         """判断工具执行是否成功"""
         if not result:
             return False
-        # 失败的关键字
+        # 失败的关键字（排除记忆系统正常的空结果提示）
         failure_keywords = [
-            "错误", "失败", "未找到", "不可用", "无法",
-            "Error", "Failed", "Not Found", "Unavailable", "Cannot",
-            "执行失败", "连接失败", "timeout", "Timeout"
+            "错误",
+            "失败",
+            "不可用",
+            "Error",
+            "Failed",
+            "Not Found",
+            "Unavailable",
+            "Cannot",
+            "执行失败",
+            "连接失败",
+            "timeout",
+            "Timeout",
         ]
+        # 记忆系统正常的空结果不算失败
+        empty_but_success = [
+            "暂无记忆",
+            "暂无记录",
+            "未找到匹配",
+            "暂无",
+        ]
+        for phrase in empty_but_success:
+            if phrase in result:
+                return True
         # 如果结果包含这些关键字，认为是失败的
         result_lower = result.lower()
         for keyword in failure_keywords:
@@ -194,10 +231,7 @@ class ToolAdapter:
         return True
 
     async def _do_execute_tool(
-        self,
-        tool_name: str,
-        args: Dict[str, Any],
-        tool_context: ToolContext
+        self, tool_name: str, args: Dict[str, Any], tool_context: ToolContext
     ) -> str:
         """
         执行单个工具
@@ -215,9 +249,7 @@ class ToolAdapter:
             if self.enable_native and self.mlink_subnet:
                 # 原生模式：使用M-Link子网
                 result = await self.mlink_subnet.execute_tool(
-                    tool_name,
-                    args,
-                    tool_context
+                    tool_name, args, tool_context
                 )
             else:
                 # 兼容模式：直接调用注册表
@@ -237,9 +269,7 @@ class ToolAdapter:
             return f"错误：工具执行失败 - {str(e)}"
 
     async def execute_tool_batch(
-        self,
-        tool_calls: list,
-        context: Dict[str, Any]
+        self, tool_calls: list, context: Dict[str, Any]
     ) -> list:
         """
         批量执行工具
@@ -252,18 +282,34 @@ class ToolAdapter:
             结果列表
         """
         # 添加额外上下文
-        context['lifenet'] = self.life_subnet
+        context["lifenet"] = self.life_subnet
         if self.unified_memory:
-            context['unified_memory'] = self.unified_memory
+            context["unified_memory"] = self.unified_memory
 
         # 过滤掉 ToolContext 不支持的参数
         supported_fields = {
-            'qq_net', 'onebot_client', 'send_like_callback',
-            'memory_engine', 'unified_memory', 'memory_net', 'emotion',
-            'personality', 'scheduler', 'lifenet', 'request_id',
-            'group_id', 'user_id', 'message_type', 'sender_name',
-            'is_at_bot', 'at_list', 'game_mode', 'game_mode_manager',
-            'game_mode_adapter', 'bot_qq', 'superadmin'
+            "qq_net",
+            "onebot_client",
+            "send_like_callback",
+            "memory_engine",
+            "unified_memory",
+            "memory_net",
+            "emotion",
+            "personality",
+            "scheduler",
+            "lifenet",
+            "request_id",
+            "group_id",
+            "user_id",
+            "message_type",
+            "sender_name",
+            "is_at_bot",
+            "at_list",
+            "game_mode",
+            "game_mode_manager",
+            "game_mode_adapter",
+            "bot_qq",
+            "superadmin",
         }
         filtered_context = {k: v for k, v in context.items() if k in supported_fields}
 
@@ -276,8 +322,8 @@ class ToolAdapter:
         # 兼容模式逐个执行
         results = []
         for call in tool_calls:
-            tool_name = call.get('tool_name')
-            args = call.get('args', {})
+            tool_name = call.get("tool_name")
+            args = call.get("args", {})
             result = await self.execute_tool(tool_name, args, context)
             results.append(result)
 
@@ -289,11 +335,11 @@ class ToolAdapter:
             return self.mlink_subnet.get_stats()
         elif self.tool_registry:
             return {
-                'mode': 'compatibility',
-                'total_tools': len(self.tool_registry.tools)
+                "mode": "compatibility",
+                "total_tools": len(self.tool_registry.tools),
             }
         else:
-            return {'mode': 'uninitialized'}
+            return {"mode": "uninitialized"}
 
     def health_check(self) -> bool:
         """健康检查"""
