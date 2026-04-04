@@ -1,126 +1,6 @@
 [
   {
     "role": "user",
-    "content": "正在更新弥娅的记忆系统，添加本地SQLite数据库，加强记忆检索性能：)",
-    "timestamp": "2026-04-03T16:33:29.304751",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅?",
-    "timestamp": "2026-04-03T16:42:42.212245",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅，倘若现在有两艘船，一艘有1000人一艘有100人，你只能保下其中一艘，你保哪个",
-    "timestamp": "2026-04-03T16:43:39.367816",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": " 不要逃避问题，请回答",
-    "timestamp": "2026-04-03T16:45:28.827943",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅的记忆系统还没调校好，等会儿再问她复杂的问题：)",
-    "timestamp": "2026-04-03T16:46:07.167064",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅，侧石记忆系统",
-    "timestamp": "2026-04-03T16:50:37.864012",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": " 等会儿再修一下识图功能",
-    "timestamp": "2026-04-03T16:51:20.882313",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "记忆系统成功咧，现在应该更智能一点了",
-    "timestamp": "2026-04-03T17:05:30.082915",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
     "content": "弥娅，我饿了",
     "timestamp": "2026-04-03T17:07:37.411437",
     "session_id": "group_1092980378",
@@ -2988,6 +2868,126 @@
     "role": "user",
     "content": "提示词还得改一下哇(",
     "timestamp": "2026-04-04T21:07:43.016612",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "/形态 bianka",
+    "timestamp": "2026-04-04T21:42:39.493194",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "抱歉，你没有权限执行此命令哦～ 只有超级管理员、群主、群管理员才能使用呢。",
+    "timestamp": "2026-04-04T21:42:40.005042",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 3933327707,
+      "sender_name": "洛雅",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "还早呢",
+    "timestamp": "2026-04-04T22:02:28.151310",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "对我来说还算早的哇",
+    "timestamp": "2026-04-04T22:03:14.043494",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，你刚才分析出这个表情包的信息了吗",
+    "timestamp": "2026-04-04T22:10:36.774173",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "没事了，只是你的后台日志显示，你的视觉识别程序已经把图片都分析出来了，我就问一下(",
+    "timestamp": "2026-04-04T22:13:15.696636",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "?",
+    "timestamp": "2026-04-04T22:13:27.355579",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅?",
+    "timestamp": "2026-04-04T22:14:41.962779",
     "session_id": "group_1092980378",
     "images": [],
     "agent_id": "miya_default",

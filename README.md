@@ -1610,10 +1610,10 @@ Miya/
 │   ├── runtime_api_start.py  # 运行时 API
 │   └── multi_terminal_main_v2.py  # 多终端模式
 │
-├── prompts/              # 提示词模板
-│   ├── miya_core.json    # 核心人格提示
-│   ├── default.txt       # 默认对话
-│   └── trpg_*.txt        # TRPG 模板
+├── config/               # 配置文件（核心配置）
+│   ├── personalities/    # YAML 人格/形态配置
+│   ├── text_config.json  # 文本、规则、提示词
+│   └── multi_model_config.json # AI 模型池配置
 │
 ├── setup/                # 安装脚本
 │   ├── requirements/     # 预置依赖集
@@ -2228,49 +2228,50 @@ self.base_emotions = {
 
 ### 提示词系统配置
 
-提示词系统位于 `prompts/` 目录。
+> **注意**：自 v4.3.2 起，提示词系统已迁移到 YAML 人格配置 + JSON 文本配置架构。旧的 `config/personalities/` 目录已废弃并删除。
 
-#### 1. 文件结构
+#### 1. 新架构文件结构
 
 ```
-prompts/
-├── default.txt           # 默认系统提示词（完整人设）
-├── miya_core.json       # JSON格式核心配置
-├── README.md            # 提示词配置指南
-├── archive/             # 旧版本备份
-└── system_prompts.md   # 系统提示词说明
+config/
+├── personalities/        # YAML 人格/形态配置
+│   ├── _base.yaml       # 基础人格（所有形态继承）
+│   ├── kafka.yaml       # 卡芙卡形态
+│   ├── jingliu.yaml     # 镜流形态
+│   └── ...              # 其他形态
+├── text_config.json     # 文本、规则、系统提示词
+└── multi_model_config.json # AI 模型池配置
 ```
 
-#### 2. default.txt
+#### 2. 基础人格配置 (`config/personalities/_base.yaml`)
 
-完整的系统提示词模板，包含：
-- 十四神格交响人格定义
-- 说话原则和禁忌
-- 工具调用规则
-- 记忆管理规则
+包含弥娅的核心身份、七重灵魂特质、行为约束、情绪响应等。
 
-#### 3. miya_core.json
+#### 3. 系统提示词 (`config/text_config.json`)
 
 ```json
 {
-  "system_prompt": "核心人设...",
-  "user_prompt_template": "用户输入：{user_input}",
-  "personality_context_enabled": true,
-  "memory_context_enabled": true,
-  "memory_context_max_count": 15,
-  "emotion_response_system_enabled": true,
-  "fourteen_gods_enabled": true
+  "system_prompts": {
+    "default_system_prompt": "你是弥娅·阿尔缪斯...",
+    "anti_hallucination_rules": ["..."],
+    "tool_usage_rules": "..."
+  }
 }
 ```
 
-#### 4. 加载提示词
+#### 4. 记忆锚点 (`data/memory_anchors_*.json`)
+
+包含弥娅的自我认知和关于佳的核心信息，启动时自动加载。
+
+#### 5. 加载提示词
 
 ```python
 from core.prompt_manager import PromptManager
+from core.personality import Personality
 
-pm = PromptManager()
+personality = Personality()
+pm = PromptManager(personality=personality)
 system_prompt = pm.get_system_prompt()
-print(system_prompt[:500])
 ```
 
 ### 人设配置流程图
@@ -2336,7 +2337,7 @@ greetings = {
 #### 3. 修改系统提示词
 
 ```python
-# 文件: prompts/default.txt
+# 文件: config/personalities/_base.yaml
 # 或在 config/.env 中设置
 
 SYSTEM_PROMPT=你的自定义提示词...
@@ -2345,6 +2346,8 @@ SYSTEM_PROMPT=你的自定义提示词...
 ---
 
 ## 🎯 系统提示词与人设提示词更换完全指南
+
+> **⚠️ 重要提示 (v4.3.2+)**：旧的 `config/personalities/` 目录已废弃并删除。所有提示词配置已迁移到 `config/personalities/`（YAML 人格）和 `config/text_config.json`（系统提示词、规则）。本指南已更新为新的架构说明。
 
 本节详细说明如何更换弥娅的系统提示词和人设提示词，包括原理分析、多种方法、代码示例和高级定制。
 
@@ -2359,8 +2362,8 @@ SYSTEM_PROMPT=你的自定义提示词...
 | **PromptManager** | `core/prompt_manager.py` | 提示词管理器，负责加载、组合和生成提示词 |
 | **人格向量系统** | `core/personality.py` | 控制人格特征、形态切换和情感表达 |
 | **情绪系统** | `hub/emotion.py` | 情绪染色，影响回复的语气和内容 |
-| **提示词模板** | `prompts/default.txt` | 默认系统提示词，包含完整人设定义 |
-| **配置文件** | `config/.env` | 环境变量配置，支持自定义提示词 |
+| **提示词模板** | `config/personalities/_base.yaml` | 默认系统提示词，包含完整人设定义 |
+| **配置文件** | `config/text_config.json` | 系统提示词、规则、文本配置 |
 
 #### 1.2 提示词加载流程
 
@@ -2373,11 +2376,11 @@ SYSTEM_PROMPT=你的自定义提示词...
 │     ↓                                                                   │
 │  2. _load_from_config() 加载配置                                         │
 │     ↓                                                                   │
-│  3. 检查 config/.env 中的 SYSTEM_PROMPT 变量                            │
+│  3. 检查 config/text_config.json 中的 system_prompts                    │
 │     ↓                                                                   │
 │  ┌─────────────────────┐    ┌─────────────────────┐                  │
 │  │ 如果存在自定义提示词   │    │ 如果不存在自定义提示词 │                  │
-│  │ 使用自定义内容         │    │ 加载 prompts/default.txt │              │
+│  │ 使用自定义内容         │    │ 加载 _base.yaml 默认人格 │              │
 │  └──────────┬──────────┘    └──────────┬──────────┘                  │
 │             ↓                           ↓                               │
 │  4. get_system_prompt() 返回最终提示词                                   │
@@ -2453,14 +2456,14 @@ SYSTEM_PROMPT=你是弥娅·阿尔缪斯。\n\n## 核心身份\n由佳创造...\
 python run/multi_terminal_main_v2.py
 ```
 
-**注意：** 环境变量中的 SYSTEM_PROMPT 优先级最高，会覆盖 `prompts/default.txt` 的内容。
+**注意：** 环境变量中的 SYSTEM_PROMPT 优先级最高，会覆盖 `config/personalities/_base.yaml` 的内容。
 
-#### 方法二：通过 prompts/default.txt 更换（推荐）
+#### 方法二：通过 config/personalities/_base.yaml 更换（推荐）
 
 **步骤 1：** 编辑提示词文件
 
 ```bash
-# 文件路径：prompts/default.txt
+# 文件路径：config/personalities/_base.yaml
 ```
 
 **文件结构说明：**
@@ -2588,7 +2591,7 @@ pm._custom_system_prompt = custom
 
 #### 方法四：通过配置文件更换（JSON 方式）
 
-**步骤 1：** 编辑 `prompts/miya_core.json`
+**步骤 1：** 编辑 `config/text_config.json`
 
 ```json
 {
@@ -2608,7 +2611,7 @@ pm._custom_system_prompt = custom
 from core.prompt_manager import PromptManager
 
 pm = PromptManager()
-pm.load_from_json('prompts/miya_core.json')
+pm.load_from_json('config/text_config.json')
 
 # 获取提示词
 prompt = pm.get_system_prompt()
@@ -2714,7 +2717,7 @@ print(profile['vectors'])
 
 #### 3.5 修改说话原则
 
-说话原则定义在 `prompts/default.txt` 中，可以直接编辑：
+说话原则定义在 `config/personalities/_base.yaml` 中，可以直接编辑：
 
 ```text
 ## 四、说话原则
@@ -2737,7 +2740,7 @@ print(profile['vectors'])
 
 #### 4.1 系统提示词可用变量
 
-在 `prompts/default.txt` 中可以使用以下变量：
+在 `config/personalities/_base.yaml` 中可以使用以下变量：
 
 | 变量 | 说明 | 示例 |
 |------|------|------|
@@ -2839,10 +2842,10 @@ companion_prompt = """
 class PromptVersionManager:
     def __init__(self):
         self.versions = {
-            "v1.0": "prompts/archive/v1.0_default.txt",
-            "v2.0": "prompts/archive/v2.0_default.txt", 
-            "v3.0": "prompts/archive/v3.0_default.txt",
-            "current": "prompts/default.txt"
+            "v1.0": "config/personalities/archive/v1.0_default.txt",
+            "v2.0": "config/personalities/archive/v2.0_default.txt", 
+            "v3.0": "config/personalities/archive/v3.0_default.txt",
+            "current": "config/personalities/_base.yaml"
         }
     
     def load_version(self, version: str) -> str:
@@ -2860,9 +2863,9 @@ class PromptVersionManager:
         from datetime import datetime
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = f"prompts/archive/backup_{timestamp}.txt"
+        backup_path = f"config/personalities/archive/backup_{timestamp}.txt"
         
-        shutil.copy("prompts/default.txt", backup_path)
+        shutil.copy("config/personalities/_base.yaml", backup_path)
         print(f"已备份到: {backup_path}")
 
 # 使用示例
@@ -2947,12 +2950,12 @@ pm = PromptManager()
 
 | 文件 | 路径 | 说明 |
 |------|------|------|
-| 默认系统提示词 | `prompts/default.txt` | 主要的提示词文件 |
-| JSON 配置 | `prompts/miya_core.json` | JSON 格式配置 |
+| 默认系统提示词 | `config/personalities/_base.yaml` | 主要的提示词文件 |
+| JSON 配置 | `config/text_config.json` | JSON 格式配置 |
 | 模式提示词 | `prompts/{mode}.txt` | 不同模式的提示词 |
-| 旧版本备份 | `prompts/archive/` | 历史版本备份 |
+| 旧版本备份 | `config/personalities/archive/` | 历史版本备份 |
 | 环境配置 | `config/.env` | SYSTEM_PROMPT 变量 |
-| 终端指南 | `prompts/ultra_terminal_guide.md` | 终端模式提示词 |
+| 终端指南 | `docs/terminal_guide.md` | 终端模式提示词 |
 
 ---
 
@@ -2976,8 +2979,8 @@ pm = PromptManager()
 #### Q3: 如何回滚到之前的提示词？
 
 **A:** 
-1. 使用 `prompts/archive/` 目录下的备份
-2. 使用 git 回滚：`git checkout prompts/default.txt`
+1. 使用 `config/personalities/archive/` 目录下的备份
+2. 使用 git 回滚：`git checkout config/personalities/_base.yaml`
 3. 手动恢复之前的版本
 
 #### Q4: 提示词中有特殊字符怎么办？
@@ -2991,7 +2994,7 @@ pm = PromptManager()
 
 ### 九、最佳实践建议
 
-1. **每次修改前备份** - 使用 `prompts/archive/` 目录
+1. **每次修改前备份** - 使用 `config/personalities/archive/` 目录
 2. **小步修改** - 每次只改一小部分，便于定位问题
 3. **版本记录** - 在提示词开头添加版本号和修改日志
 4. **测试验证** - 修改后及时测试效果
@@ -3005,7 +3008,7 @@ pm = PromptManager()
 - **人格系统模块**: `core/personality.py`
 - **情绪系统模块**: `hub/emotion.py`
 - **提示词配置指南**: `prompts/README.md`
-- **终端模式指南**: `prompts/ultra_terminal_guide.md`
+- **终端模式指南**: `docs/terminal_guide.md`
 
 ---
 
@@ -5653,7 +5656,7 @@ result = sensitive_filter.check("内容包含自定义敏感词")
 
 - 核心模块: `core/terminal_ultra.py`
 - 工具集成: `webnet/ToolNet/tools/terminal/ultra_terminal_tools.py`
-- 使用指南: `prompts/ultra_terminal_guide.md`
+- 使用指南: `docs/terminal_guide.md`
 
 #### 使用方法
 
@@ -6186,7 +6189,7 @@ asyncio.run(terminal_demo())
 |------|----------|------|
 | **核心模块** | `core/terminal_ultra.py` | TerminalUltra 主类，包含所有工具方法 |
 | **工具集成** | `webnet/ToolNet/tools/terminal/ultra_terminal_tools.py` | ToolNet 工具适配器 |
-| **使用指南** | `prompts/ultra_terminal_guide.md` | AI 提示词指南 |
+| **使用指南** | `docs/terminal_guide.md` | AI 提示词指南 |
 | **Agent代码** | `core/skills/agents/code_explorer/` | 代码探索 Agent |
 | **Agent代码** | `core/skills/agents/code_reviewer/` | 代码审查 Agent |
 | **Agent代码** | `core/skills/agents/code_architect/` | 架构设计 Agent |
@@ -7600,15 +7603,15 @@ p.gradient_to("jingliu", speed=0.15)  # 渐变速度0-1
 
 ## 📝 miya_core.json 核心配置文件详解
 
-`prompts/miya_core.json` 是弥娅的核心人设配置文件，被 `core/ai_client.py` 优先加载，是实际运行时使用的主要人设来源。
+`config/text_config.json` 是弥娅的核心人设配置文件，被 `core/ai_client.py` 优先加载，是实际运行时使用的主要人设来源。
 
 ### 文件位置与加载优先级
 
 ```
 提示词加载优先级（从高到低）：
 1. config/.env 中的 SYSTEM_PROMPT 变量
-2. prompts/miya_core.json（ai_client.py 加载）
-3. prompts/default.txt（prompt_manager.py 加载）
+2. config/text_config.json（ai_client.py 加载）
+3. config/personalities/_base.yaml（prompt_manager.py 加载）
 4. 内置默认提示词
 ```
 
