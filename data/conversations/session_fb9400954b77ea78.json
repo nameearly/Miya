@@ -2671,5 +2671,20 @@
       "sender": "佳",
       "chat_label": "群聊_1092980378"
     }
+  },
+  {
+    "role": "user",
+    "content": "佳 拍了拍你",
+    "timestamp": "2026-04-04T22:21:09.193331",
+    "session_id": "qq_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "佳",
+      "chat_label": "私聊"
+    }
   }
 ]

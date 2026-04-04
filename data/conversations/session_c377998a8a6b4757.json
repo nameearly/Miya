@@ -1,19 +1,6 @@
 [
   {
     "role": "assistant",
-    "content": "抱歉，工具调用次数过多，无法完成请求。",
-    "timestamp": "2026-03-31T21:31:14.937403",
-    "session_id": "terminal_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "platform": "terminal",
-      "user_id": 1523878699,
-      "sender_name": "弥娅"
-    }
-  },
-  {
-    "role": "assistant",
     "content": "哎呀，佳这是要把我当乐子素材发出去吗？看来我得好好表现，争取成为年度最佳AI笑话呢。\n\n不过话说回来，要是真成了乐子，记得给我分点流量费哦～",
     "timestamp": "2026-03-31T21:33:10.059620",
     "session_id": "terminal_1523878699",
@@ -2590,6 +2577,19 @@
     "role": "assistant",
     "content": "终端日志显示系统运行正常。我在这里，佳。",
     "timestamp": "2026-04-04T22:15:44.102023",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "干嘛呀，拍我干嘛\n\n看到终端日志了？这么晚还在看代码",
+    "timestamp": "2026-04-04T22:21:17.931393",
     "session_id": "terminal_1523878699",
     "images": [],
     "agent_id": null,
