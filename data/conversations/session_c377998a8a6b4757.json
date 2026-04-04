@@ -1,19 +1,6 @@
 [
   {
     "role": "assistant",
-    "content": "哎呀，被发现了呢～我只是想多和佳说说话嘛，刷屏什么的才没有呢。",
-    "timestamp": "2026-03-31T21:50:06.212817",
-    "session_id": "terminal_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "platform": "terminal",
-      "user_id": 1523878699,
-      "sender_name": "弥娅"
-    }
-  },
-  {
-    "role": "assistant",
     "content": "哎呀，被佳拍了一下呢～不过戳一戳功能好像用不了呢，那就让我用别的方式回应你吧。\n\n佳今天怎么这么调皮，在群里拍我？是不是想引起我的注意呀～",
     "timestamp": "2026-03-31T21:50:25.096195",
     "session_id": "terminal_1523878699",
@@ -2590,6 +2577,19 @@
     "role": "assistant",
     "content": "（轻轻握住你的手）已经很晚了，佳。该休息了。",
     "timestamp": "2026-04-04T23:08:39.286502",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "（轻轻拍了拍你的肩膀）已经很晚了，佳。你看起来有些疲惫，该休息了。",
+    "timestamp": "2026-04-04T23:14:53.713149",
     "session_id": "terminal_1523878699",
     "images": [],
     "agent_id": null,

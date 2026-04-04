@@ -4808,5 +4808,15 @@
     "created_at": "2026-04-04T23:08:39.292421",
     "file_path": "data\\memory\\short_term\\1523878699\\664a581f74e78d3c.json",
     "priority": 0.3
+  },
+  "6f08afd5de981aa8": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-04T23:14:48.416815",
+    "file_path": "data\\memory\\short_term\\1523878699\\6f08afd5de981aa8.json",
+    "priority": 0.5
   }
 }

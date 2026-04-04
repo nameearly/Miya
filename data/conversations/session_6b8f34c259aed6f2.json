@@ -223,5 +223,20 @@
       "sender_name": "佳",
       "group_name": ""
     }
+  },
+  {
+    "role": "user",
+    "content": "唔……",
+    "timestamp": "2026-04-04T23:14:48.418829",
+    "session_id": "private_1523878699",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "private",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": ""
+    }
   }
 ]
