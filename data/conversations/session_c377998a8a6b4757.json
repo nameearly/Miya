@@ -1,19 +1,6 @@
 [
   {
     "role": "assistant",
-    "content": "哎呀，戳不回去呢。不过既然你拍了我，那我可要好好记下这笔账哦，小佳佳~",
-    "timestamp": "2026-03-31T21:49:22.773295",
-    "session_id": "terminal_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "platform": "terminal",
-      "user_id": 1523878699,
-      "sender_name": "弥娅"
-    }
-  },
-  {
-    "role": "assistant",
     "content": "哎呀，被发现了呢～我只是想多和佳说说话嘛，刷屏什么的才没有呢。",
     "timestamp": "2026-03-31T21:50:06.212817",
     "session_id": "terminal_1523878699",
@@ -2590,6 +2577,19 @@
     "role": "assistant",
     "content": "（轻轻握住你的手）别急，时间还够。我在呢。",
     "timestamp": "2026-04-04T22:59:05.205728",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "（轻轻握住你的手）已经很晚了，佳。该休息了。",
+    "timestamp": "2026-04-04T23:08:39.286502",
     "session_id": "terminal_1523878699",
     "images": [],
     "agent_id": null,
