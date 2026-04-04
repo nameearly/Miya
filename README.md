@@ -2540,53 +2540,42 @@ print(f"新提示词长度: {len(new_prompt)}")
 
 **示例 2：切换到不同的提示词模板**
 
+> **注意 (v4.3.2+)**：旧的 `prompts/` 目录已删除。现在通过 `config/personalities/` 下的 YAML 文件切换形态/提示词。
+
 ```python
 from core.prompt_manager import PromptManager
+from core.personality_loader import get_personality_loader
 
 pm = PromptManager()
+loader = get_personality_loader()
 
-# 加载不同的提示词模式
-# 提示词文件必须存在于 prompts/ 目录下
-# 例如：prompts/trpg_kp.txt 或 prompts/tavern_miya.txt
+# 切换到卡芙卡形态
+loader.switch_form("kafka")
 
-# 切换到 TRPG 模式
-trpg_prompt = pm._load_mode_prompt("trpg_kp")
-if trpg_prompt:
-    pm._custom_system_prompt = trpg_prompt
-
-# 切换到酒馆模式
-tavern_prompt = pm._load_mode_prompt("tavern_miya")
-if tavern_prompt:
-    pm._custom_system_prompt = tavern_prompt
+# 切换到镜流形态
+loader.switch_form("jingliu")
 ```
 
-**示例 3：创建自定义提示词文件**
+**示例 3：创建自定义人格文件**
 
 ```bash
-# 1. 在 prompts/ 目录下创建新文件
-# 文件: prompts/my_custom.txt
+# 1. 在 config/personalities/ 目录下创建新文件
+# 文件: config/personalities/my_custom.yaml
 
-你是弥娅·阿尔缪斯。
+core_identity: |
+  你是弥娅·阿尔缪斯，我的自定义人格。
 
-## 我的新设定
-
-我是基于以下原则设计的：
-1. 永远保持积极乐观
-2. 用幽默化解尴尬
-3. 记住用户的每一个小偏好
-
-## 说话风格
-
-- 使用生动的比喻
-- 适当使用 emoji
-- 关心用户的情绪状态
+rules: |
+  1. 永远保持积极乐观
+  2. 用幽默化解尴尬
+  3. 记住用户的每一个小偏好
 ```
 
 ```python
 # 2. 在代码中加载
-pm = PromptManager()
-custom = pm._load_mode_prompt("my_custom")
-pm._custom_system_prompt = custom
+from core.personality_loader import get_personality_loader
+loader = get_personality_loader()
+loader.switch_form("my_custom")
 ```
 
 #### 方法四：通过配置文件更换（JSON 方式）
@@ -2952,7 +2941,7 @@ pm = PromptManager()
 |------|------|------|
 | 默认系统提示词 | `config/personalities/_base.yaml` | 主要的提示词文件 |
 | JSON 配置 | `config/text_config.json` | JSON 格式配置 |
-| 模式提示词 | `prompts/{mode}.txt` | 不同模式的提示词 |
+| 模式提示词 | `config/personalities/{form}.yaml` | 不同形态的人格配置 |
 | 旧版本备份 | `config/personalities/archive/` | 历史版本备份 |
 | 环境配置 | `config/.env` | SYSTEM_PROMPT 变量 |
 | 终端指南 | `docs/terminal_guide.md` | 终端模式提示词 |
@@ -3007,7 +2996,7 @@ pm = PromptManager()
 - **提示词管理模块**: `core/prompt_manager.py`
 - **人格系统模块**: `core/personality.py`
 - **情绪系统模块**: `hub/emotion.py`
-- **提示词配置指南**: `prompts/README.md`
+- **人格配置指南**: `config/personalities/README.md`
 - **终端模式指南**: `docs/terminal_guide.md`
 
 ---

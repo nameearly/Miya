@@ -4688,5 +4688,25 @@
     "created_at": "2026-04-04T22:15:17.961101",
     "file_path": "data\\memory\\short_term\\1523878699\\370c0147b5aaf1e6.json",
     "priority": 0.5
+  },
+  "28b30495af0713d9": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-04T22:15:21.326103",
+    "file_path": "data\\memory\\short_term\\1523878699\\28b30495af0713d9.json",
+    "priority": 0.3
+  },
+  "fff0f56daa9bb4ac": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-04T22:15:35.171396",
+    "file_path": "data\\memory\\short_term\\1523878699\\fff0f56daa9bb4ac.json",
+    "priority": 0.5
   }
 }

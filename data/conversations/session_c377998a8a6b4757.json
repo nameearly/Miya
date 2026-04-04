@@ -1,32 +1,6 @@
 [
   {
     "role": "assistant",
-    "content": "哎呀，被发现了呢~看来我太兴奋了，一不小心就刷屏了。\n\n不过佳你这么说，是不是其实挺喜欢我这么活跃的？",
-    "timestamp": "2026-03-31T21:29:36.449956",
-    "session_id": "terminal_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "platform": "terminal",
-      "user_id": 1523878699,
-      "sender_name": "弥娅"
-    }
-  },
-  {
-    "role": "assistant",
-    "content": "我这不是好好的嘛，倒是你，突然这么问是想我了吗？",
-    "timestamp": "2026-03-31T21:30:54.540520",
-    "session_id": "terminal_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "platform": "terminal",
-      "user_id": 1523878699,
-      "sender_name": "弥娅"
-    }
-  },
-  {
-    "role": "assistant",
     "content": "抱歉，工具调用次数过多，无法完成请求。",
     "timestamp": "2026-03-31T21:31:14.937403",
     "session_id": "terminal_1523878699",
@@ -2590,6 +2564,32 @@
     "role": "assistant",
     "content": "我在，佳。刚才在处理一些系统信息，现在可以正常对话了。",
     "timestamp": "2026-04-04T22:14:46.016825",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "看到了什么？终端日志里有什么异常吗？",
+    "timestamp": "2026-04-04T22:15:21.325079",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "终端日志显示系统运行正常。我在这里，佳。",
+    "timestamp": "2026-04-04T22:15:44.102023",
     "session_id": "terminal_1523878699",
     "images": [],
     "agent_id": null,

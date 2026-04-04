@@ -1,36 +1,6 @@
 [
   {
     "role": "user",
-    "content": "弥娅，我饿了",
-    "timestamp": "2026-04-03T17:07:37.411437",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": " 有什么推荐的嘛",
-    "timestamp": "2026-04-03T17:07:55.952343",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
     "content": "可以读取上下文的了，剩下的智能全部靠提示词了：(",
     "timestamp": "2026-04-03T17:08:36.345178",
     "session_id": "group_1092980378",
@@ -2988,6 +2958,36 @@
     "role": "user",
     "content": "弥娅?",
     "timestamp": "2026-04-04T22:14:41.962779",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "我在终端日志里看到了(",
+    "timestamp": "2026-04-04T22:15:17.961101",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "这个",
+    "timestamp": "2026-04-04T22:15:35.172562",
     "session_id": "group_1092980378",
     "images": [],
     "agent_id": "miya_default",
