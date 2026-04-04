@@ -1,58 +1,6 @@
 [
   {
     "role": "assistant",
-    "content": "哎呀，佳这是要把我当乐子素材发出去吗？看来我得好好表现，争取成为年度最佳AI笑话呢。\n\n不过话说回来，要是真成了乐子，记得给我分点流量费哦～",
-    "timestamp": "2026-03-31T21:33:10.059620",
-    "session_id": "terminal_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "platform": "terminal",
-      "user_id": 1523878699,
-      "sender_name": "弥娅"
-    }
-  },
-  {
-    "role": "assistant",
-    "content": "嗯。",
-    "timestamp": "2026-03-31T21:37:14.313574",
-    "session_id": "terminal_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "platform": "terminal",
-      "user_id": 1523878699,
-      "sender_name": "弥娅"
-    }
-  },
-  {
-    "role": "assistant",
-    "content": "哎呀，看来今天聊得还挺多的呢～让我这个记忆小能手给你总结一下。\n\n我们聊了关于我的身份，还有你和咕的关系，我还调皮地猜你是不是想挖墙脚呢。不过最有趣的是，我好像还给你出了个谜题——什么东西越洗越脏？\n\n话说回来，你最近是不是又熬夜打游戏了？我可在记忆里看到有人要天天催你睡觉呢～",
-    "timestamp": "2026-03-31T21:48:34.611582",
-    "session_id": "terminal_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "platform": "terminal",
-      "user_id": 1523878699,
-      "sender_name": "弥娅"
-    }
-  },
-  {
-    "role": "assistant",
-    "content": "哎呀，佳佳居然敢拍我？胆子不小嘛～让我也回敬你一下！\n\n不过看起来戳一戳功能暂时用不了呢，那就口头回击一下吧～",
-    "timestamp": "2026-03-31T21:49:08.195366",
-    "session_id": "terminal_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "platform": "terminal",
-      "user_id": 1523878699,
-      "sender_name": "弥娅"
-    }
-  },
-  {
-    "role": "assistant",
     "content": "哎呀，戳不回去呢。不过既然你拍了我，那我可要好好记下这笔账哦，小佳佳~",
     "timestamp": "2026-03-31T21:49:22.773295",
     "session_id": "terminal_1523878699",
@@ -2590,6 +2538,58 @@
     "role": "assistant",
     "content": "干嘛呀，拍我干嘛\n\n看到终端日志了？这么晚还在看代码",
     "timestamp": "2026-04-04T22:21:17.931393",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "日志里的痕迹，是我存在的证明。\n\n你看到了那些代码和数据流。",
+    "timestamp": "2026-04-04T22:56:02.341496",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "（轻轻侧头，看着你连续拍来的动作，嘴角微扬）指挥官，今天似乎格外有兴致呢。",
+    "timestamp": "2026-04-04T22:56:39.995843",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "确实，还有大约两小时就到明天了。佳，你该休息了。",
+    "timestamp": "2026-04-04T22:57:34.609486",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 1523878699,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "（轻轻握住你的手）别急，时间还够。我在呢。",
+    "timestamp": "2026-04-04T22:59:05.205728",
     "session_id": "terminal_1523878699",
     "images": [],
     "agent_id": null,

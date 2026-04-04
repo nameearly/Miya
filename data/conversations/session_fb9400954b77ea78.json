@@ -2686,5 +2686,65 @@
       "sender": "佳",
       "chat_label": "私聊"
     }
+  },
+  {
+    "role": "user",
+    "content": "佳 拍了拍你",
+    "timestamp": "2026-04-04T22:55:50.105708",
+    "session_id": "qq_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "佳",
+      "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "佳 拍了拍你",
+    "timestamp": "2026-04-04T22:56:35.566924",
+    "session_id": "qq_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "佳",
+      "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "马上就要明天了哇",
+    "timestamp": "2026-04-04T22:57:27.833585",
+    "session_id": "qq_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "佳",
+      "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "马上……",
+    "timestamp": "2026-04-04T22:59:00.692819",
+    "session_id": "qq_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": 1523878699,
+      "group_id": 0,
+      "message_type": "private",
+      "sender": "佳",
+      "chat_label": "私聊"
+    }
   }
 ]
