@@ -234,9 +234,9 @@ echo Selected model: %MODEL_DISPLAY%
 echo.
 
 if "%TERMINAL_TYPE%"=="wt" (
-    start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
+    start "" wt node Open-ClaudeCode\package\cli.js
 ) else if "%TERMINAL_TYPE%"=="powershell" (
-    start "MIYA - %MODEL_DISPLAY%" powershell node Open-ClaudeCode\package\cli.js
+    start "" powershell node Open-ClaudeCode\package\cli.js
 ) else (
     node Open-ClaudeCode\package\cli.js
 )
@@ -343,9 +343,9 @@ set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
 echo Starting MIYA Terminal in %TERMINAL_TYPE%...
 
 if "%TERMINAL_TYPE%"=="wt" (
-    start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
+    start "" wt node Open-ClaudeCode\package\cli.js
 ) else if "%TERMINAL_TYPE%"=="powershell" (
-    start "MIYA - %MODEL_DISPLAY%" powershell node Open-ClaudeCode\package\cli.js
+    start "" powershell node Open-ClaudeCode\package\cli.js
 ) else (
     node Open-ClaudeCode\package\cli.js
 )
@@ -537,9 +537,9 @@ set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
 echo Starting MIYA Terminal in %TERMINAL_TYPE%...
 
 if "%TERMINAL_TYPE%"=="wt" (
-    start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+    start "" wt node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
 ) else if "%TERMINAL_TYPE%"=="powershell" (
-    start "MIYA - %MODEL_DISPLAY%" powershell node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+    start "" powershell node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
 ) else (
     node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
 )
