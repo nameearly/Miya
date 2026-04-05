@@ -524,6 +524,7 @@ if "%service_choice:4=%" neq "%service_choice%" (
     set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL%
     set CLAUDE_CODE_SKIP_AUTH=1
     set ANTHROPIC_MODEL=%DEFAULT_MODEL%
+    set ANTHROPIC_STREAMING=false
 )
 
 if "%service_choice:1=%" neq "%service_choice%" (
