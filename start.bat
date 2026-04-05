@@ -223,10 +223,17 @@ set CLAUDE_CODE_SKIP_AUTH=1
 set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
-echo Starting MIYA Terminal...
+echo Starting MIYA Terminal in %TERMINAL_TYPE%...
 echo Selected model: %MODEL_DISPLAY%
 echo.
-node Open-ClaudeCode\package\cli.js
+
+if "%TERMINAL_TYPE%"=="wt" (
+    start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
+) else if "%TERMINAL_TYPE%"=="powershell" (
+    start "MIYA - %MODEL_DISPLAY%" powershell node Open-ClaudeCode\package\cli.js
+) else (
+    node Open-ClaudeCode\package\cli.js
+)
 
 echo.
 echo Stopping background Model Bridge...
@@ -327,8 +334,15 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
-echo Starting MIYA Terminal...
-node Open-ClaudeCode\package\cli.js
+echo Starting MIYA Terminal in %TERMINAL_TYPE%...
+
+if "%TERMINAL_TYPE%"=="wt" (
+    start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
+) else if "%TERMINAL_TYPE%"=="powershell" (
+    start "MIYA - %MODEL_DISPLAY%" powershell node Open-ClaudeCode\package\cli.js
+) else (
+    node Open-ClaudeCode\package\cli.js
+)
 
 echo.
 echo Stopping background services...
@@ -514,8 +528,15 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
-echo Starting MIYA Terminal...
-node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+echo Starting MIYA Terminal in %TERMINAL_TYPE%...
+
+if "%TERMINAL_TYPE%"=="wt" (
+    start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+) else if "%TERMINAL_TYPE%"=="powershell" (
+    start "MIYA - %MODEL_DISPLAY%" powershell node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+) else (
+    node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+)
 
 echo.
 echo Stopping background Model Bridge...
