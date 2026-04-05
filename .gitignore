@@ -60,6 +60,12 @@ config/advanced_config.json
 config/tts_config.json
 config/web_search_config.json
 config/terminal_whitelist.json
+config/api_keys.json
+config/api_keys.example.json
+
+# Claude settings (may contain API keys)
+.claude/settings.json
+.claude/settings.local.json
 
 # Cache
 .pytest_cache/
@@ -141,3 +147,30 @@ $null
 4.0.0
 41.0.0
 node_modules
+
+# Miya Bridge PID
+.miya_bridge.pid
+
+# Bridge logs
+bridge.log
+bridge_stdout.log
+mcpserver/model-bridge/bridge.log
+mcpserver/model-bridge/__pycache__/
+
+# Kill scripts
+kill_bridge.bat
+
+# Null device (Windows)
+nul
+
+# API keys example
+config/api_keys.example.json
+
+# Open-ClaudeCode build artifacts
+Open-ClaudeCode/package/bun.lock
+Open-ClaudeCode/package/cli.js.map
+Open-ClaudeCode/package/sdk-tools.d.ts
+Open-ClaudeCode/package/vendor/
+Open-ClaudeCode/src/
+Open-ClaudeCode/test.png
+Open-ClaudeCode/examples/

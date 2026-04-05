@@ -12388,21 +12388,160 @@ start.bat
 
 选择 `[1] MIYA Terminal` 即可启动 ClaudeCode + 弥娅MCP + 模型桥接。
 
+#### 模型选择功能 (v4.3.2+)
+
+弥娅终端支持动态选择 AI 模型，通过主菜单的 `[M]` 选项或在启动时选择。
+
+```
+MAIN MENU:
+
+  === Core Modes ===
+  [1] MIYA Terminal     - Claude Code with Miya Soul
+  [2] QQ Client         - QQ Bot Client
+  [3] Web Client        - Web Interface Client
+
+  === Combined Startup ===
+  [4] Full System       - QQ + Web + MIYA Terminal
+  [5] Custom Launch     - Select services to start
+
+  === System Tools ===
+  [6] Model Bridge      - Start Miya Model Bridge
+  [7] MCP Setup         - Install Miya MCP dependencies
+  [8] Diagnostics       - Check system status
+  [9] Test Suite        - Run tests
+
+  === Quick Start ===
+  [Q] Quick Start       - Fast launch MIYA Terminal
+  [M] Select Model      - Choose AI model
+
+  [0] Exit
+
+  Current model: miya-deepseek_v3_official
+```
+
+选择 `[M] Select Model` 后可选择：
+
+```
+SELECT MODEL
+
+Available models:
+
+  [1] DeepSeek V3     - Fast, good for general tasks
+  [2] DeepSeek R1      - Reasoning model, complex tasks  
+  [3] Qwen 72B         - High performance, good quality
+  [4] Qwen 7B          - Fast, lightweight
+  [5] Claude (Real)    - Requires API key
+
+  [R] Return to main menu
+```
+
+#### 支持的模型
+
+| 模型 ID | 名称 | 特点 | 状态 |
+|---------|------|------|------|
+| `miya-deepseek_v3_official` | DeepSeek V3 | 快速响应，通用模型 | ✅ 默认 |
+| `miya-deepseek_r1_official` | DeepSeek R1 | 深度推理模型 | ✅ |
+| `miya-qwen_72b` | Qwen 2.5 72B | 高性能，高质量 | ✅ |
+| `miya-qwen_7b` | Qwen 2.5 7B | 快速，轻量 | ✅ |
+| `miya-claude_sonnet` | Claude Sonnet 4 | 真实 Claude API | ⚠️ 需要 key |
+
+#### 使用真实 Claude API
+
+选择选项 5 或设置环境变量后，可使用真实的 Claude API：
+
+```cmd
+# 设置 API key
+set ANTHROPIC_API_KEY=sk-ant-api03-xxx...
+
+# 重启终端
+start.bat
+```
+
+需要 Anthropic API key（可能需要代理访问）。
+
+#### 动态窗口标题
+
+启动后，终端窗口标题会动态显示当前使用的模型：
+
+```
+MIYA - deepseek_v3_official
+```
+
+这让你一目了然地知道当前使用的是哪个模型。
+
 #### 启动流程
 
 ```
 start.bat [1]
     ↓
-1. 清理残留的 Model Bridge 进程
-2. 启动 Model Bridge (后台，端口 8888)
-3. 等待 3 秒确保 Bridge 就绪
-4. 启动 ClaudeCode (node cli.js)
+1. 选择模型 [M] → 选择 DeepSeek V3 / Qwen 72B / Claude 等
+    ↓
+2. 清理残留的 Model Bridge 进程
+    ↓
+3. 启动 Model Bridge (后台，端口 8888)
+    ↓
+4. 等待 3 秒确保 Bridge 就绪
+    ↓
+5. 启动 ClaudeCode (node cli.js)
    - ANTHROPIC_BASE_URL=http://localhost:8888
-   - ANTHROPIC_AUTH_TOKEN=miya-qwen_72b
+   - ANTHROPIC_AUTH_TOKEN=miya-deepseek_v3_official (根据选择)
    - CLAUDE_CODE_SKIP_AUTH=1
-5. ClaudeCode 加载 CLAUDE.md (弥娅人设)
-6. ClaudeCode 加载 .mcp.json (弥娅MCP)
+   - ANTHROPIC_MODEL=miya-deepseek_v3_official
+   - 窗口标题: MIYA - deepseek_v3_official
+    ↓
+6. ClaudeCode 加载 CLAUDE.md (弥娅人设)
+    ↓
+7. ClaudeCode 加载 .mcp.json (弥娅MCP)
+    ↓
+8. 通过 Model Bridge 调用选择的模型
 ```
+
+#### 模型池架构
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    弥娅模型池 (Multi-Model Pool)                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   ┌─────────────────────────────────────────────────────────────────┐   │
+│   │                    Model Bridge Server                         │   │
+│   │                  (mcpserver/model-bridge/)                    │   │
+│   │  ┌──────────────────────────────────────────────────────────┐  │   │
+│   │  │  Anthropic API 格式 ←→ OpenAI API 格式 ←→ 响应转换     │  │   │
+│   │  │  支持 Claude / DeepSeek / Qwen / GLM 等多模型           │  │   │
+│   │  └──────────────────────────────────────────────────────────┘  │   │
+│   └─────────────────────────────────────────────────────────────────┘   │
+│                                    │                                   │
+│   ┌────────────────────────────────┴────────────────────────────────┐   │
+│   │                    配置文件层                                      │   │
+│   │                  (config/multi_model_config.json)                 │   │
+│   │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐             │   │
+│   │  │ DeepSeek │ │  Qwen    │ │   GLM    │ │ Claude   │             │   │
+│   │  │   V3     │ │  72B     │ │  4.6V    │ │ Sonnet   │             │   │
+│   │  └──────────┘ └──────────┘ └──────────┘ └──────────┘             │   │
+│   └──────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 路由策略
+
+模型池根据任务类型自动选择合适的模型：
+
+| 任务类型 | 主模型 | 备选模型 | 回退模型 |
+|----------|--------|----------|----------|
+| 简单聊天 | DeepSeek V3 | Qwen 72B | Qwen 7B |
+| 复杂推理 | DeepSeek R1 | R1 Distill 7B | Qwen 72B |
+| 代码分析 | DeepSeek V3 | Qwen 72B | R1 Distill 7B |
+| 代码生成 | DeepSeek V3 | Qwen 72B | Gemma 2 9B |
+| 工具调用 | DeepSeek V3 | Qwen 72B | DeepSeek V3 |
+| Agent 模式 | Claude Sonnet | Claude Haiku | Qwen 72B |
+
+#### 响应时间说明
+
+由于国内网络访问 AI API 存在延迟，通过 Model Bridge 调用的响应时间约为 4-5 秒。这是正常的网络延迟。
+
+直接调用 API（不经过 Bridge）约为 2-3 秒。
 
 ### 安装依赖
 

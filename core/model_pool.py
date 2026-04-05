@@ -237,6 +237,7 @@ class ModelPool:
                         "siliconflow": ModelProvider.SILICONFLOW,
                         "zhipu": ModelProvider.ZHIPU,
                         "deepseek": ModelProvider.DEEPSEEK,
+                        "anthropic": ModelProvider.OPENAI,  # Anthropic 使用 OpenAI 兼容格式
                     }
                     provider = provider_map.get(provider_name, ModelProvider.OPENAI)
 

@@ -3,6 +3,8 @@ chcp 65001 >nul
 title MIYA AI Virtual Avatar System - Powered by Claude Code
 color 0B
 
+set DEFAULT_MODEL=miya-deepseek_v3_official
+
 :main_menu
 cls
 echo ================================================================================
@@ -30,11 +32,13 @@ echo   [9] Test Suite        - Run tests
 echo.
 echo   === Quick Start ===
 echo   [Q] Quick Start       - Fast launch MIYA Terminal
+echo   [M] Select Model      - Choose AI model
 echo.
 echo   [0] Exit              - Close launcher
 echo.
+echo Current model: %DEFAULT_MODEL%
 echo ================================================================================
-set /p choice=Enter your choice [0-9, Q]:
+set /p choice=Enter your choice [0-9, M, Q]:
 
 if "%choice%"=="0" goto :exit
 if "%choice%"=="1" goto :miya_terminal
@@ -47,6 +51,7 @@ if "%choice%"=="7" goto :mcp_setup
 if "%choice%"=="8" goto :diagnostics
 if "%choice%"=="9" goto :testing
 if /i "%choice%"=="Q" goto :quick_start
+if /i "%choice%"=="M" goto :model_select
 
 echo.
 echo [ERROR] Invalid choice! Please enter a valid option.
@@ -60,6 +65,34 @@ echo Thank you for using MIYA AI System v4.3.1 Dynamic Edition!
 echo ================================================================================
 timeout /t 2 >nul
 exit /b 0
+
+:model_select
+cls
+echo ================================================================================
+echo                          SELECT MODEL
+echo ================================================================================
+echo.
+echo Available models:
+echo.
+echo   [1] DeepSeek V3     - Fast, good for general tasks
+echo   [2] DeepSeek R1      - Reasoning model, complex tasks  
+echo   [3] Qwen 72B         - High performance, good quality
+echo   [4] Qwen 7B          - Fast, lightweight
+echo   [5] Claude (Real)    - Requires API key (option A from main menu)
+echo.
+echo   [R] Return to main menu
+echo.
+echo Current: %DEFAULT_MODEL%
+echo ================================================================================
+set /p model_choice=Select model [1-5, R]:
+
+if "%model_choice%"=="1" set DEFAULT_MODEL=miya-deepseek_v3_official && goto :main_menu
+if "%model_choice%"=="2" set DEFAULT_MODEL=miya-deepseek_r1_official && goto :main_menu
+if "%model_choice%"=="3" set DEFAULT_MODEL=miya-qwen_72b && goto :main_menu
+if "%model_choice%"=="4" set DEFAULT_MODEL=miya-qwen_7b && goto :main_menu
+if "%model_choice%"=="5" goto :claude_api_mode
+if /i "%model_choice%"=="R" goto :main_menu
+goto :model_select
 
 :model_bridge
 cls
@@ -129,8 +162,12 @@ if exist "mcpserver\miya\server.py" (
 
 REM Check Model Bridge
 echo [INFO] Cleaning up any existing Model Bridge processes...
-taskkill /F /FI "WINDOWTITLE eq MIYA Model Bridge" >nul 2>nul
-taskkill /F /IM pythonw.exe /FI "WINDOWTITLE eq MIYA Model Bridge" >nul 2>nul
+if exist .miya_bridge.pid (
+    for /f %%a in (.miya_bridge.pid) do (
+        taskkill /F /PID %%a >nul 2>nul
+    )
+    del .miya_bridge.pid >nul 2>nul
+)
 timeout /t 1 >nul
 
 if exist "mcpserver\model-bridge\server.py" (
@@ -146,15 +183,20 @@ if exist "mcpserver\model-bridge\server.py" (
 echo.
 echo Starting MIYA Terminal...
 echo ================================================================================
+echo Selected model: %DEFAULT_MODEL%
 echo.
+
+REM Extract model display name (remove miya- prefix)
+set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
 
 REM Launch Claude Code with Miya configuration
 set ANTHROPIC_BASE_URL=http://localhost:8888
-set ANTHROPIC_AUTH_TOKEN=miya-qwen_72b
+set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL%
 set CLAUDE_CODE_SKIP_AUTH=1
-set ANTHROPIC_MODEL=miya-qwen_72b
+set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 
-echo Starting Claude Code with Miya Model Bridge...
+title MIYA - %MODEL_DISPLAY%
+echo Starting Claude Code with Miya Model Bridge (%MODEL_DISPLAY%)...
 echo.
 node Open-ClaudeCode\package\cli.js
 
@@ -247,15 +289,15 @@ echo [4/4] Starting MIYA Terminal (in current window)...
 echo.
 echo ================================================================================
 echo MIYA Terminal starting...
-echo ================================================================================
+echo Selected model: %DEFAULT_MODEL%
 echo.
 set ANTHROPIC_BASE_URL=http://localhost:8888
-set ANTHROPIC_AUTH_TOKEN=miya-qwen_72b
+set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL%
 set CLAUDE_CODE_SKIP_AUTH=1
+set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 
-set ANTHROPIC_BASE_URL=http://localhost:8888
-set ANTHROPIC_AUTH_TOKEN=miya-qwen_72b
-set CLAUDE_CODE_SKIP_AUTH=1
+set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
+title MIYA - %MODEL_DISPLAY%
 
 node Open-ClaudeCode\package\cli.js
 
@@ -436,9 +478,13 @@ if exist "mcpserver\model-bridge\server.py" (
 )
 
 set ANTHROPIC_BASE_URL=http://localhost:8888
-set ANTHROPIC_AUTH_TOKEN=miya-qwen_72b
+set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL%
 set CLAUDE_CODE_SKIP_AUTH=1
 set CLAUDE_CODE_ENTRYPOINT=local
+set ANTHROPIC_MODEL=%DEFAULT_MODEL%
+
+set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
+title MIYA - %MODEL_DISPLAY%
 
 node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
 
@@ -475,13 +521,15 @@ if "%service_choice:4=%" neq "%service_choice%" (
     timeout /t 3 >nul
     echo [OK] Model Bridge started
     set ANTHROPIC_BASE_URL=http://localhost:8888
-    set ANTHROPIC_AUTH_TOKEN=miya-qwen_72b
+    set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL%
     set CLAUDE_CODE_SKIP_AUTH=1
+    set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 )
 
 if "%service_choice:1=%" neq "%service_choice%" (
     echo [2/4] Starting MIYA Terminal...
-    start "MIYA Terminal" /B cmd /c "set ANTHROPIC_BASE_URL=http://localhost:8888 && set ANTHROPIC_AUTH_TOKEN=miya-qwen_72b && set CLAUDE_CODE_SKIP_AUTH=1 && node Open-ClaudeCode\package\cli.js"
+    set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
+    start "MIYA - %MODEL_DISPLAY%" /B cmd /c "set ANTHROPIC_BASE_URL=http://localhost:8888 && set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL% && set CLAUDE_CODE_SKIP_AUTH=1 && set ANTHROPIC_MODEL=%DEFAULT_MODEL% && title MIYA - %MODEL_DISPLAY% && node Open-ClaudeCode\package\cli.js"
     timeout /t 2 >nul
     echo [OK] MIYA Terminal started in new window
 )
@@ -510,6 +558,94 @@ echo.
 echo [SUMMARY] Services started
 pause
 goto :main_menu
+
+:claude_api_mode
+cls
+echo ================================================================================
+echo CLAUDE API MODE
+echo ================================================================================
+echo.
+echo This mode uses the real Claude API for full Claude Code capabilities.
+echo You need to have ANTHROPIC_API_KEY set in your environment.
+echo.
+echo IMPORTANT: This requires an Anthropic API key.
+echo Set it with: set ANTHROPIC_API_KEY=sk-ant-api03-xxx...
+echo.
+echo Features:
+echo   - Full Claude Code terminal capabilities
+echo   - Best code analysis and reasoning
+echo.
+echo ================================================================================
+echo.
+
+if defined ANTHROPIC_API_KEY (
+    echo [OK] Claude API key detected
+    set DEFAULT_MODEL=miya-claude_sonnet
+    goto :miya_terminal
+) else (
+    echo [ERROR] No Claude API key found!
+    echo Please set ANTHROPIC_API_KEY environment variable
+    echo Example: set ANTHROPIC_API_KEY=sk-ant-api03-xxx...
+    echo.
+    pause
+    goto :model_select
+)
+
+goto :model_select
+
+:end_of_file
+
+REM Check if Claude Code CLI exists
+if exist "Open-ClaudeCode\package\cli.js" (
+    echo [OK] Claude Code found
+) else (
+    echo [ERROR] Claude Code not found at Open-ClaudeCode\package\cli.js
+    pause
+    goto :main_menu
+)
+
+REM Check Model Bridge
+echo [INFO] Cleaning up any existing Model Bridge processes...
+if exist .miya_bridge.pid (
+    for /f %%a in (.miya_bridge.pid) do (
+        taskkill /F /PID %%a >nul 2>nul
+    )
+    del .miya_bridge.pid >nul 2>nul
+)
+timeout /t 1 >nul
+
+if exist "mcpserver\model-bridge\server.py" (
+    echo [OK] Miya Model Bridge found
+    echo Starting Model Bridge in background...
+    start "MIYA Model Bridge" /MIN /B pythonw mcpserver\model-bridge\server.py >nul 2>&1
+    timeout /t 3 >nul
+    echo [OK] Model Bridge started at http://localhost:8888
+) else (
+    echo [WARNING] Miya Model Bridge not found
+)
+
+echo.
+echo Starting MIYA Terminal (Chinese Models)...
+echo Selected model: %DEFAULT_MODEL%
+echo.
+
+set ANTHROPIC_BASE_URL=http://localhost:8888
+set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL%
+set CLAUDE_CODE_SKIP_AUTH=1
+set ANTHROPIC_MODEL=%DEFAULT_MODEL%
+
+set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
+title MIYA - %MODEL_DISPLAY%
+
+echo Starting Claude Code with Miya Model Bridge (Chinese Models)...
+echo.
+node Open-ClaudeCode\package\cli.js
+
+echo.
+echo Stopping background Model Bridge...
+taskkill /F /FI "WINDOWTITLE eq MIYA Model Bridge" >nul 2>nul
+echo [OK] Cleanup completed.
+goto :restart_prompt
 
 :restart_prompt
 echo.

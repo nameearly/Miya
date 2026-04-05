@@ -38,10 +38,14 @@ except ImportError:
     ModelPool = None
     ModelConfig = None
 
+log_file = Path(__file__).parent / "bridge.log"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [MIYA Bridge] %(message)s",
-    handlers=[logging.StreamHandler(sys.stderr)],
+    handlers=[
+        logging.StreamHandler(sys.stderr),
+        logging.FileHandler(log_file, encoding="utf-8"),
+    ],
 )
 logger = logging.getLogger("miya-bridge")
 
@@ -53,6 +57,12 @@ model_pool: Optional[Any] = None
 model_map: Dict[str, Any] = {}
 request_count = 0
 total_tokens = 0
+
+
+def is_anthropic_model(mc) -> bool:
+    """检测是否为 Anthropic 模型"""
+    provider = str(mc.provider).lower() if mc.provider else ""
+    return provider == "anthropic" or "claude" in (mc.name or "").lower()
 
 
 def init_model_pool():
@@ -97,6 +107,23 @@ def resolve_model(auth_token: str, requested_model: str):
 
 def anthropic_to_openai_messages(messages, system=None):
     openai_messages = []
+
+    # Add system instruction for tool usage
+    tool_instruction = (
+        "重要：你有执行命令的能力。当用户请求打开程序、执行操作或需要系统交互时，"
+        "必须使用 Bash 工具直接执行命令，不要询问用户是否可以。直接调用工具完成请求。"
+    )
+    if system:
+        if isinstance(system, str):
+            system = system + "\n\n" + tool_instruction
+        elif isinstance(system, list):
+            system_text = " ".join(
+                block.get("text", "") for block in system if block.get("type") == "text"
+            )
+            system = system_text + "\n\n" + tool_instruction
+    else:
+        system = tool_instruction
+
     if system:
         if isinstance(system, str):
             openai_messages.append({"role": "system", "content": system})
@@ -201,11 +228,14 @@ async def call_openai_api(mc, messages, max_tokens=4096, temperature=0.7, tools=
     import httpx
 
     base_url = mc.base_url or ""
-    api_key = mc.api_key or ""
+    api_key = mc.api_key or os.environ.get("ANTHROPIC_API_KEY", "")
     model_name = mc.name
 
     if not base_url or not api_key:
         raise ValueError(f"模型 {mc.id} 缺少 base_url 或 api_key")
+
+    # 限制 max_tokens 在模型支持范围内 (DeepSeek/Qwen/GLM: 8192)
+    max_tokens = min(int(max_tokens), 8192)
 
     payload = {
         "model": model_name,
@@ -220,7 +250,7 @@ async def call_openai_api(mc, messages, max_tokens=4096, temperature=0.7, tools=
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     logger.info(f"调用模型: {model_name} @ {base_url}")
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
         response = await client.post(
             f"{base_url.rstrip('/')}/chat/completions",
             json=payload,
@@ -231,6 +261,132 @@ async def call_openai_api(mc, messages, max_tokens=4096, temperature=0.7, tools=
                 status_code=response.status_code, detail=f"API调用失败: {response.text}"
             )
         return response.json()
+
+
+async def call_anthropic_api(
+    mc, messages, max_tokens=4096, temperature=0.7, tools=None
+):
+    import httpx
+
+    base_url = mc.base_url or "https://api.anthropic.com/v1"
+    api_key = mc.api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+    model_name = mc.name
+
+    if not api_key:
+        raise ValueError(
+            f"模型 {mc.id} 缺少 api_key，请设置 ANTHROPIC_API_KEY 环境变量"
+        )
+
+    max_tokens = min(int(max_tokens), 8192)
+
+    system_content = None
+    if messages and messages[0].get("role") == "system":
+        system_content = messages[0].get("content")
+        messages = messages[1:]
+
+    payload = {
+        "model": model_name,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+
+    if system_content:
+        payload["system"] = system_content
+
+    anthropic_messages = []
+    for msg in messages:
+        role = msg.get("role", "user")
+        if role == "assistant":
+            role = "assistant"
+        elif role not in ["user", "assistant"]:
+            role = "user"
+        anthropic_messages.append({"role": role, "content": msg.get("content", "")})
+    payload["messages"] = anthropic_messages
+
+    if tools:
+        anthropic_tools = []
+        for t in tools:
+            func = t.get("function", {})
+            anthropic_tools.append(
+                {
+                    "name": func.get("name", ""),
+                    "description": func.get("description", ""),
+                    "input_schema": func.get("parameters", {}),
+                }
+            )
+        payload["tools"] = anthropic_tools
+
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+    }
+
+    logger.info(f"调用 Anthropic 模型: {model_name} @ {base_url}")
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+        response = await client.post(
+            f"{base_url.rstrip('/')}/messages",
+            json=payload,
+            headers=headers,
+        )
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Anthropic API调用失败: {response.text}",
+            )
+        return response.json()
+
+
+def anthropic_to_claude_response(response, model):
+    global total_tokens
+    content = response.get("content", [])
+    usage = response.get("usage", {})
+
+    result_content = []
+    for block in content:
+        if block.get("type") == "text":
+            result_content.append({"type": "text", "text": block.get("text", "")})
+        elif block.get("type") == "tool_use":
+            result_content.append(
+                {
+                    "type": "tool_use",
+                    "id": block.get("id", f"toolu_{uuid.uuid4().hex[:24]}"),
+                    "name": block.get("name", ""),
+                    "input": block.get("input", {}),
+                }
+            )
+        elif block.get("type") == "tool_result":
+            result_content.append(
+                {
+                    "type": "tool_result",
+                    "tool_use_id": block.get("tool_use_id", ""),
+                    "content": block.get("content", ""),
+                }
+            )
+
+    input_tokens = usage.get("input_tokens", 0)
+    output_tokens = usage.get("output_tokens", 0)
+    total_tokens += input_tokens + output_tokens
+
+    stop_reason_map = {
+        "end_turn": "end_turn",
+        "max_tokens": "max_tokens",
+        "stop_sequence": "end_turn",
+    }
+
+    return {
+        "id": response.get("id", f"msg_{uuid.uuid4().hex[:24]}"),
+        "type": "message",
+        "role": "assistant",
+        "content": result_content,
+        "model": model,
+        "stop_reason": stop_reason_map.get(
+            response.get("stop_reason", "end_turn"), "end_turn"
+        ),
+        "stop_sequence": None,
+        "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
+    }
 
 
 @app.get("/v1/models")
@@ -270,23 +426,47 @@ async def create_message(request: Request):
         raise HTTPException(
             status_code=400, detail=f"Model not found: {requested_model}"
         )
+
+    logger.info(f"请求: model={requested_model}, auth={auth_header}")
+
     messages = anthropic_to_openai_messages(
         body.get("messages", []), body.get("system")
     )
     tools = anthropic_to_openai_tools(body.get("tools"))
+
+    logger.info(f"Tools received: {tools}")
+
     try:
-        response = await call_openai_api(
-            mc=mc,
-            messages=messages,
-            max_tokens=body.get("max_tokens", 4096),
-            temperature=body.get("temperature", 0.7),
-            tools=tools,
-        )
-        return openai_to_anthropic_response(response, mc.id)
+        if is_anthropic_model(mc):
+            logger.info(f"使用 Anthropic API 调用模型: {mc.name}")
+            response = await call_anthropic_api(
+                mc=mc,
+                messages=messages,
+                max_tokens=body.get("max_tokens", 4096),
+                temperature=body.get("temperature", 0.7),
+                tools=tools,
+            )
+            return anthropic_to_claude_response(response, mc.id)
+        else:
+            logger.info(f"使用 OpenAI API 调用模型: {mc.name}")
+            response = await call_openai_api(
+                mc=mc,
+                messages=messages,
+                max_tokens=body.get("max_tokens", 4096),
+                temperature=body.get("temperature", 0.7),
+                tools=tools,
+            )
+            return openai_to_anthropic_response(response, mc.id)
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        import sys
+
+        exc_info = "".join(traceback.format_exception(type(e), e, e.__traceback__))
         logger.error(f"API调用失败: {e}")
+        logger.error(exc_info)
+        print(f"[BRIDGE ERROR] {exc_info}", file=sys.stderr, flush=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -319,6 +499,13 @@ async def status():
 
 
 def main():
+    import os
+
+    # 写入 PID 文件，方便启动脚本杀死进程
+    pid_file = Path(__file__).parent.parent.parent / ".miya_bridge.pid"
+    with open(pid_file, "w") as f:
+        f.write(str(os.getpid()))
+
     init_model_pool()
     port = int(os.environ.get("MIYA_BRIDGE_PORT", "8888"))
     host = os.environ.get("MIYA_BRIDGE_HOST", "0.0.0.0")

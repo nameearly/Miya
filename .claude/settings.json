@@ -1,4 +1,7 @@
 {
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://localhost:8888"
+  },
   "permissions": {
     "allow": [
       "Bash(*)",
@@ -10,6 +13,5 @@
     ]
   },
   "language": "zh",
-  "theme": "dark",
-  "model": "miya-qwen_72b"
+  "theme": "dark"
 }
