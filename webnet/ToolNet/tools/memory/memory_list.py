@@ -36,8 +36,9 @@ class MemoryList(BaseTool):
             },
         }
 
-    async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
+    async def execute(self, context: ToolContext, **kwargs) -> str:
         """执行工具 - 优先使用 MiyaMemoryCore"""
+        args = kwargs
         limit = args.get("limit", 10)
         tag = args.get("tag")
         user_id = str(context.user_id) if context.user_id else None
@@ -79,30 +80,33 @@ class MemoryList(BaseTool):
                 results = filtered[:limit]
 
             if not results:
-                return f"📭 记忆中暂无记录"
+                return "[INFO] No memories found"
 
-            result_lines = [f"📚 记忆列表（共 {len(results)} 条）", "=" * 40]
+            result_lines = [
+                f"[INFO] Memory list (total {len(results)} memories)",
+                "-" * 40,
+            ]
             for i, mem in enumerate(results, 1):
                 content_preview = (
                     mem.content[:120] + "..." if len(mem.content) > 120 else mem.content
                 )
-                tags_str = ", ".join(mem.tags) if mem.tags else "无"
+                tags_str = ", ".join(mem.tags) if mem.tags else "none"
                 level_label = {
-                    "long_term": "长期",
-                    "short_term": "短期",
-                    "dialogue": "对话",
-                    "semantic": "语义",
-                    "knowledge": "知识",
+                    "long_term": "long_term",
+                    "short_term": "short_term",
+                    "dialogue": "dialogue",
+                    "semantic": "semantic",
+                    "knowledge": "knowledge",
                 }.get(
                     mem.level.value if hasattr(mem.level, "value") else str(mem.level),
-                    mem.level.value if hasattr(mem.level, "value") else "?",
+                    mem.level.value if hasattr(mem.level, "value") else "unknown",
                 )
 
                 result_lines.append(f"{i}. [{level_label}] {content_preview}")
-                result_lines.append(f"   标签: {tags_str}")
-                result_lines.append(f"   用户: {mem.user_id}")
+                result_lines.append(f"   tags: {tags_str}")
+                result_lines.append(f"   user_id: {mem.user_id}")
                 result_lines.append(
-                    f"   时间: {mem.created_at[:16] if mem.created_at else '未知'}"
+                    f"   created_at: {mem.created_at[:16] if mem.created_at else 'unknown'}"
                 )
                 result_lines.append("")
 
@@ -123,9 +127,9 @@ class MemoryList(BaseTool):
                 memories = await adapter.get_all(limit)
 
             if not memories:
-                return f"📭 Undefined轻量记忆中暂无记忆"
+                return "[INFO] No memories found in Undefined lightweight memory system"
 
-            result = f"📚 记忆列表（Undefined轻量记忆）\n共 {len(memories)} 条\n\n"
+            result = f"[INFO] Memory list (Undefined lightweight memory system)\nTotal {len(memories)} memories\n\n"
             for i, mem in enumerate(memories, 1):
                 if isinstance(mem, dict):
                     content = mem.get("content", "")
@@ -141,11 +145,11 @@ class MemoryList(BaseTool):
                 content_preview = (
                     content[:100] + "..." if len(content) > 100 else content
                 )
-                tags_str = ", ".join(tags) if tags else "无"
+                tags_str = ", ".join(tags) if tags else "none"
                 result += f"{i}. **{mem_id}**\n"
-                result += f"   时间: {created_at}\n"
-                result += f"   内容: {content_preview}\n"
-                result += f"   标签: {tags_str}\n\n"
+                result += f"   created_at: {created_at}\n"
+                result += f"   content: {content_preview}\n"
+                result += f"   tags: {tags_str}\n\n"
 
             return result
         except Exception as e:
@@ -160,9 +164,9 @@ class MemoryList(BaseTool):
                 )
 
                 if not results:
-                    return f"📭 认知记忆系统中暂无记忆"
+                    return "[INFO] No memories found in cognitive memory system"
 
-                result = f"📚 记忆列表（认知记忆系统）\n共 {len(results)} 条\n\n"
+                result = f"[INFO] Memory list (cognitive memory system)\nTotal {len(results)} memories\n\n"
                 for i, mem in enumerate(results, 1):
                     content_preview = (
                         mem.get("content", "")[:100] + "..."
@@ -170,13 +174,13 @@ class MemoryList(BaseTool):
                         else mem.get("content", "")
                     )
                     result += f"{i}. **{mem.get('id', 'unknown')}**\n"
-                    result += f"   内容: {content_preview}\n"
+                    result += f"   content: {content_preview}\n"
                     tags = mem.get("tags", [])
-                    tag_str = ", ".join(tags) if tags else "无"
-                    result += f"   标签: {tag_str}\n\n"
+                    tag_str = ", ".join(tags) if tags else "none"
+                    result += f"   tags: {tag_str}\n\n"
 
                 return result
             except Exception as e:
                 logger.error(f"[MemoryList] 认知记忆系统失败: {e}", exc_info=True)
 
-        return "⚠️ 记忆系统未初始化，无法列出记忆"
+        return "[INFO] Memory system not initialized, unable to list memories"

@@ -259,7 +259,35 @@ class ToolAdapter:
                     return f"错误：未找到工具 '{tool_name}'"
 
                 logger.info(f"执行工具: {tool_name}, 参数: {args}")
-                result = await tool.execute(args, tool_context)
+
+                # 处理不同工具的execute方法签名
+                import inspect
+
+                try:
+                    sig = inspect.signature(tool.execute)
+                    params = list(sig.parameters.keys())
+
+                    if (
+                        len(params) == 3
+                        and params[0] == "self"
+                        and params[1] == "args"
+                        and params[2] == "context"
+                    ):
+                        # 新版工具签名: execute(self, args: Dict, context: ToolContext)
+                        result = await tool.execute(args, tool_context)
+                    else:
+                        # 旧版或其他签名: execute(self, context, **kwargs) 或类似
+                        result = await tool.execute(tool_context, **args)
+                except Exception:
+                    # 如果检测失败，尝试两种常见签名
+                    try:
+                        result = await tool.execute(args, tool_context)
+                    except TypeError as e:
+                        if "got an unexpected keyword argument" in str(e):
+                            result = await tool.execute(tool_context, **args)
+                        else:
+                            raise
+
                 logger.info(f"工具执行完成: {tool_name}")
 
             return result
