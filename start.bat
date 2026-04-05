@@ -227,7 +227,7 @@ if "%TERMINAL_TYPE%"=="cmd" (
     echo Starting MIYA Terminal in cmd...
     echo Selected model: %MODEL_DISPLAY%
     echo.
-    node Open-ClaudeCode\package\cli.js
+    cmd /c "node Open-ClaudeCode\package\cli.js"
 ) else (
     echo Starting MIYA Terminal in %TERMINAL_TYPE%...
     echo Selected model: %MODEL_DISPLAY%
@@ -337,7 +337,7 @@ set ANTHROPIC_STREAMING=false
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
 if "%TERMINAL_TYPE%"=="cmd" (
     echo Starting MIYA Terminal in cmd...
-    node Open-ClaudeCode\package\cli.js
+    cmd /c "node Open-ClaudeCode\package\cli.js"
 ) else (
     echo Starting MIYA Terminal in %TERMINAL_TYPE%...
     echo.
@@ -530,7 +530,7 @@ set ANTHROPIC_STREAMING=false
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
 if "%TERMINAL_TYPE%"=="cmd" (
     echo Starting MIYA Terminal in cmd...
-    node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+    cmd /c "node Open-ClaudeCode\package\cli.js --settings .claude\settings.json"
 ) else (
     echo Starting MIYA Terminal in %TERMINAL_TYPE%...
     echo.
