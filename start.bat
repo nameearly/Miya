@@ -7,7 +7,7 @@ set DEFAULT_MODEL=miya-deepseek_v3_official
 if not defined TERMINAL_TYPE (
     if exist .miya_terminal_type (
         set /p TERMINAL_TYPE=<.miya_terminal_type
-        set TERMINAL_TYPE=%TERMINAL_TYPE:~0,2%
+        for /f "tokens=* delims= " %%a in ("%TERMINAL_TYPE%") do set TERMINAL_TYPE=%%a
     ) else (
         set TERMINAL_TYPE=cmd
     )
@@ -343,10 +343,10 @@ set ANTHROPIC_STREAMING=false
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
 echo Starting MIYA Terminal in [%TERMINAL_TYPE%]...
 
-if "%TERMINAL_TYPE:~0,2%"=="wt" (
-    start "MIYA Terminal" wt
-) else if "%TERMINAL_TYPE:~0,10%"=="powershell" (
-    start "MIYA Terminal" powershell -NoExit -Command "cd /d %CD% && node Open-ClaudeCode\package\cli.js"
+if /i "%TERMINAL_TYPE%"=="wt" (
+    start "MIYA Terminal" cmd /c "wt new-tab --title MIYA -d . node Open-ClaudeCode\package\cli.js"
+) else if /i "%TERMINAL_TYPE%"=="powershell" (
+    start "MIYA Terminal" powershell -NoExit -Command "node Open-ClaudeCode\package\cli.js"
 ) else (
     node Open-ClaudeCode\package\cli.js
 )
@@ -537,12 +537,12 @@ set ANTHROPIC_STREAMING=false
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
 echo Starting MIYA Terminal in [%TERMINAL_TYPE%]...
 
-if "%TERMINAL_TYPE:~0,2%"=="wt" (
-    start "MIYA Terminal" wt
-) else if "%TERMINAL_TYPE:~0,10%"=="powershell" (
-    start "MIYA Terminal" powershell -NoExit -Command "cd /d %CD% && node Open-ClaudeCode\package\cli.js --settings .claude\settings.json"
+if /i "%TERMINAL_TYPE%"=="wt" (
+    start "MIYA Terminal" cmd /c "wt new-tab --title MIYA -d . node Open-ClaudeCode\package\cli.js"
+) else if /i "%TERMINAL_TYPE%"=="powershell" (
+    start "MIYA Terminal" powershell -NoExit -Command "node Open-ClaudeCode\package\cli.js"
 ) else (
-    node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+    node Open-ClaudeCode\package\cli.js
 )
 
 echo.
