@@ -223,11 +223,18 @@ set CLAUDE_CODE_SKIP_AUTH=1
 set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
-echo Starting MIYA Terminal in %TERMINAL_TYPE%...
-echo Selected model: %MODEL_DISPLAY%
-echo.
-echo Press any key to exit after closing the terminal...
-start "MIYA - %MODEL_DISPLAY%" %TERMINAL_TYPE% node Open-ClaudeCode\package\cli.js
+if "%TERMINAL_TYPE%"=="cmd" (
+    echo Starting MIYA Terminal in cmd...
+    echo Selected model: %MODEL_DISPLAY%
+    echo.
+    node Open-ClaudeCode\package\cli.js
+) else (
+    echo Starting MIYA Terminal in %TERMINAL_TYPE%...
+    echo Selected model: %MODEL_DISPLAY%
+    echo.
+    echo Press any key to exit after closing the terminal...
+    start "MIYA - %MODEL_DISPLAY%" %TERMINAL_TYPE% node Open-ClaudeCode\package\cli.js
+)
 
 echo.
 echo Stopping background Model Bridge...
@@ -328,10 +335,14 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
-echo Starting MIYA Terminal in %TERMINAL_TYPE%...
-echo Selected model: %MODEL_DISPLAY%
-echo.
-start "MIYA - %MODEL_DISPLAY%" %TERMINAL_TYPE% node Open-ClaudeCode\package\cli.js
+if "%TERMINAL_TYPE%"=="cmd" (
+    echo Starting MIYA Terminal in cmd...
+    node Open-ClaudeCode\package\cli.js
+) else (
+    echo Starting MIYA Terminal in %TERMINAL_TYPE%...
+    echo.
+    start "MIYA - %MODEL_DISPLAY%" %TERMINAL_TYPE% node Open-ClaudeCode\package\cli.js
+)
 
 echo.
 echo Stopping background services...
@@ -517,10 +528,14 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
-echo Starting MIYA Terminal in %TERMINAL_TYPE%...
-echo.
-
-start "MIYA - %MODEL_DISPLAY%" %TERMINAL_TYPE% node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+if "%TERMINAL_TYPE%"=="cmd" (
+    echo Starting MIYA Terminal in cmd...
+    node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+) else (
+    echo Starting MIYA Terminal in %TERMINAL_TYPE%...
+    echo.
+    start "MIYA - %MODEL_DISPLAY%" %TERMINAL_TYPE% node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+)
 
 echo.
 echo Stopping background Model Bridge...
