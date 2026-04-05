@@ -7,6 +7,7 @@ set DEFAULT_MODEL=miya-deepseek_v3_official
 if not defined TERMINAL_TYPE (
     if exist .miya_terminal_type (
         set /p TERMINAL_TYPE=<.miya_terminal_type
+        for /f "tokens=1" %%a in ("%TERMINAL_TYPE%") do set TERMINAL_TYPE=%%a
     ) else (
         set TERMINAL_TYPE=cmd
     )
