@@ -578,30 +578,30 @@ class MiyaQQ:
                     "image_analysis": qq_message.image_analysis,
                 }
 
-            # 检查消息是否已有图片分析回复
-            img_keywords_str = ""
-            try:
-                from core.text_loader import get_text
+            # 检查消息是否已有图片分析回复（已禁用，直接走决策层）
+            # img_keywords_str = ""
+            # try:
+            #     from core.text_loader import get_text
 
-                img_keywords_str = get_text("image_response.keywords", "")
-            except Exception:
-                pass
+            #     img_keywords_str = get_text("image_response.keywords", "")
+            # except Exception:
+            #     pass
 
-            if hasattr(qq_message, "image_response") and qq_message.image_response:
-                self.logger.info("[图片回复] 检测到图片分析回复，直接发送")
-                await self._send_qq_response(qq_message, qq_message.image_response)
-                return
+            # if hasattr(qq_message, "image_response") and qq_message.image_response:
+            #     self.logger.info("[图片回复] 检测到图片分析回复，直接发送")
+            #     await self._send_qq_response(qq_message, qq_message.image_response)
+            #     return
 
-            if hasattr(qq_message, "message") and qq_message.message:
-                msg_content = qq_message.message
-                if img_keywords_str:
-                    keywords = [
-                        k.strip() for k in img_keywords_str.split(",") if k.strip()
-                    ]
-                    if any(kw in msg_content for kw in keywords):
-                        self.logger.info("[图片回复] 检测到图片分析回复内容，直接发送")
-                        await self._send_qq_response(qq_message, msg_content)
-                        return
+            # if hasattr(qq_message, "message") and qq_message.message:
+            #     msg_content = qq_message.message
+            #     if img_keywords_str:
+            #         keywords = [
+            #             k.strip() for k in img_keywords_str.split(",") if k.strip()
+            #         ]
+            #         if any(kw in msg_content for kw in keywords):
+            #             self.logger.info("[图片回复] 检测到图片分析回复内容，直接发送")
+            #             await self._send_qq_response(qq_message, msg_content)
+            #             return
 
             # 检查TTS切换指令
             content_str = str(perception.get("content", "")).strip().lower()
