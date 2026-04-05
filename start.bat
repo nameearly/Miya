@@ -4,7 +4,13 @@ title MIYA AI Virtual Avatar System - Powered by Claude Code
 color 0B
 
 set DEFAULT_MODEL=miya-deepseek_v3_official
-if not defined TERMINAL_TYPE set TERMINAL_TYPE=cmd
+if not defined TERMINAL_TYPE (
+    if exist .miya_terminal_type (
+        set /p TERMINAL_TYPE=<.miya_terminal_type
+    ) else (
+        set TERMINAL_TYPE=cmd
+    )
+)
 
 :main_menu
 cls
@@ -115,9 +121,9 @@ echo Current: %TERMINAL_TYPE%
 echo ================================================================================
 set /p term_choice=Select terminal [1-3, R]:
 
-if "%term_choice%"=="1" set TERMINAL_TYPE=wt && goto :main_menu
-if "%term_choice%"=="2" set TERMINAL_TYPE=powershell && goto :main_menu
-if "%term_choice%"=="3" set TERMINAL_TYPE=cmd && goto :main_menu
+if "%term_choice%"=="1" set TERMINAL_TYPE=wt && echo wt > .miya_terminal_type && goto :main_menu
+if "%term_choice%"=="2" set TERMINAL_TYPE=powershell && echo powershell > .miya_terminal_type && goto :main_menu
+if "%term_choice%"=="3" set TERMINAL_TYPE=cmd && echo cmd > .miya_terminal_type && goto :main_menu
 if /i "%term_choice%"=="R" goto :main_menu
 goto :terminal_select
 

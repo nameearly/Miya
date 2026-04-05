@@ -151,6 +151,9 @@ node_modules
 # Miya Bridge PID
 .miya_bridge.pid
 
+# Terminal type preference
+.miya_terminal_type
+
 # Bridge logs
 bridge.log
 bridge_stdout.log
