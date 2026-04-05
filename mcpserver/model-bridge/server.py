@@ -242,7 +242,6 @@ async def call_openai_api(mc, messages, max_tokens=4096, temperature=0.7, tools=
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "stream": False,
     }
     if tools:
         payload["tools"] = tools

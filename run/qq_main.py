@@ -13,6 +13,13 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any, List, Optional
 
+# 设置标准输出编码为UTF-8以正确显示中文
+if sys.platform == "win32":
+    import io
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
 # 添加项目根目录到路径
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -461,10 +468,6 @@ class MiyaQQ:
             is_at_bot=any(m.is_at_bot for m in batch),
             has_image=has_any_image,
             image_analysis=image_analyses[0]["analysis"] if image_analyses else None,
-        )
-
-        await self._process_message_with_perception(
-            temp_qq_message, summarized_content, perception
         )
 
         await self._process_message_with_perception(

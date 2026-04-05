@@ -121,6 +121,46 @@ if "%term_choice%"=="3" set TERMINAL_TYPE=cmd && echo cmd > .miya_terminal_type 
 if /i "%term_choice%"=="R" goto :main_menu
 goto :terminal_select
 
+:qq_client
+cls
+echo ================================================================================
+echo STARTING: QQ CLIENT
+echo ================================================================================
+echo.
+echo This starts the QQ Bot Client.
+echo.
+echo MCP Tools available in QQ mode:
+echo   - qq_send_group_message  - Send group message
+echo   - qq_send_private_message - Send private message
+echo   - qq_send_poke           - Send poke notification
+echo   - qq_get_group_list      - Get group list
+echo   - qq_get_friend_list     - Get friend list
+echo.
+echo Press Ctrl+C to stop.
+echo ================================================================================
+echo.
+
+REM Check if QQ client exists
+if exist "run\qq_main.py" (
+    echo [OK] QQ client found
+) else (
+    echo [ERROR] QQ client not found at run\qq_main.py
+    echo Please ensure the QQ client is properly set up.
+    pause
+    goto :main_menu
+)
+
+REM Start QQ Client
+echo Starting QQ Client...
+start "MIYA QQ" cmd /k "python run\qq_main.py"
+timeout /t 3 >nul
+echo [OK] QQ Client started
+echo.
+echo QQ Bot is now running. Close this window to stop the service.
+echo.
+pause
+goto :main_menu
+
 :model_bridge
 cls
 echo ================================================================================
@@ -221,112 +261,6 @@ set ANTHROPIC_BASE_URL=http://localhost:8888
 set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL%
 set CLAUDE_CODE_SKIP_AUTH=1
 set ANTHROPIC_MODEL=%DEFAULT_MODEL%
-set ANTHROPIC_STREAMING=false
-
-echo Starting MIYA Terminal in Windows Terminal...
-echo Selected model: %MODEL_DISPLAY%
-echo.
-echo IMPORTANT: Close the MIYA Terminal window when done to continue...
-start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
-timeout /t 2 >nul
-
-echo.
-echo Stopping background Model Bridge...
-taskkill /F /FI "WINDOWTITLE eq MIYA Model Bridge" >nul 2>nul
-echo [OK] Cleanup completed.
-pause
-goto :restart_prompt
-
-:web_client
-cls
-echo ================================================================================
-echo STARTING: WEB CLIENT
-echo ================================================================================
-echo.
-echo Starting Web Interface Client...
-echo.
-echo Access: http://localhost:8000
-echo.
-echo Press Ctrl+C to stop service.
-echo ================================================================================
-echo.
-call :check_file "webnet\web_main.py"
-if errorlevel 1 goto :file_error
-python webnet\web_main.py
-goto :restart_prompt
-
-:qq_client
-cls
-echo ================================================================================
-echo STARTING: QQ CLIENT
-echo ================================================================================
-echo.
-echo Starting QQ Bot Client...
-echo.
-echo Press Ctrl+C to stop service.
-echo ================================================================================
-echo.
-call :check_file "run\qq_main.py"
-if errorlevel 1 goto :file_error
-python run\qq_main.py
-goto :restart_prompt
-
-:full_system
-cls
-echo ================================================================================
-echo STARTING: FULL SYSTEM
-echo ================================================================================
-echo.
-echo This will start: Web + QQ + MIYA Terminal
-echo.
-echo Services:
-echo   1. Web Service (port 8000)
-echo   2. QQ Client
-echo   3. MIYA Terminal (Claude Code + Miya Soul + Model Bridge)
-echo.
-echo Access URLs:
-echo   Web: http://localhost:8000
-echo   Bridge: http://localhost:8888
-echo.
-echo Press Ctrl+C in terminal window to stop all services.
-echo ================================================================================
-echo.
-
-echo [1/4] Starting Model Bridge...
-call :check_file "mcpserver\model-bridge\server.py"
-if not errorlevel 1 (
-    start "MIYA Model Bridge" /B python mcpserver\model-bridge\server.py
-    timeout /t 3 >nul
-    echo [OK] Model Bridge started
-)
-
-echo [2/4] Starting Web Service...
-call :check_file "webnet\web_main.py"
-if not errorlevel 1 (
-    start "MIYA Web" /B python webnet\web_main.py
-    timeout /t 2 >nul
-    echo [OK] Web Service started
-)
-
-echo [3/4] Starting QQ Client...
-call :check_file "run\qq_main.py"
-if not errorlevel 1 (
-    start "MIYA QQ" /B python run\qq_main.py
-    timeout /t 2 >nul
-    echo [OK] QQ Client started
-)
-
-echo [4/4] Starting MIYA Terminal (in current window)...
-echo.
-echo ================================================================================
-echo MIYA Terminal starting...
-echo Selected model: %DEFAULT_MODEL%
-echo.
-set ANTHROPIC_BASE_URL=http://localhost:8888
-set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL%
-set CLAUDE_CODE_SKIP_AUTH=1
-set ANTHROPIC_MODEL=%DEFAULT_MODEL%
-set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
 echo Starting MIYA Terminal in Windows Terminal...
@@ -557,9 +491,8 @@ if "%service_choice:4=%" neq "%service_choice%" (
     echo [OK] Model Bridge started
     set ANTHROPIC_BASE_URL=http://localhost:8888
     set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL%
-    set CLAUDE_CODE_SKIP_AUTH=1
-    set ANTHROPIC_MODEL=%DEFAULT_MODEL%
-    set ANTHROPIC_STREAMING=false
+set CLAUDE_CODE_SKIP_AUTH=1
+set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 )
 
 if "%service_choice:1=%" neq "%service_choice%" (
