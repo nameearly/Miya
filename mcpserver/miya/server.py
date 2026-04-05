@@ -8,6 +8,7 @@ import json
 import sys
 import os
 import logging
+import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -23,6 +24,18 @@ except ImportError:
 
 # 弥娅路径
 MIYA_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(MIYA_ROOT))
+
+# 尝试导入 model_pool
+try:
+    from core.model_pool import get_model_pool, TaskType
+
+    MODEL_POOL_AVAILABLE = True
+except ImportError:
+    MODEL_POOL_AVAILABLE = False
+    TaskType = None
+    get_model_pool = None
+
 CONFIG_DIR = MIYA_ROOT / "config"
 MEMORY_DIR = MIYA_ROOT / ".miya"
 
@@ -238,10 +251,100 @@ class MiyaEmotion:
             return expressions.get(dominant, expressions["neutral"])[2]
 
 
+class MiyaModelSelector:
+    """弥娅模型选择器 - 调用原有 model_pool 的智能选择能力"""
+
+    def __init__(self):
+        self.model_pool = None
+        self._init_model_pool()
+
+    def _init_model_pool(self):
+        if MODEL_POOL_AVAILABLE:
+            try:
+                self.model_pool = get_model_pool()
+                logger.info("[ModelSelector] 模型池初始化成功")
+            except Exception as e:
+                logger.warning(f"[ModelSelector] 模型池初始化失败: {e}")
+
+    def list_models(self) -> dict:
+        """列出所有可用模型"""
+        if not self.model_pool:
+            return {"available": False, "error": "模型池不可用"}
+
+        try:
+            models = self.model_pool.list_all_models()
+            model_list = []
+            for m in models:
+                model_list.append(
+                    {
+                        "id": m.id,
+                        "name": m.name,
+                        "provider": str(m.provider) if m.provider else "",
+                        "type": str(m.type) if m.type else "",
+                        "description": m.description or "",
+                    }
+                )
+            return {"available": True, "models": model_list}
+        except Exception as e:
+            return {"available": False, "error": str(e)}
+
+    def select_model(self, task_type: str = None, priority: str = "balanced") -> dict:
+        """为任务选择最佳模型"""
+        if not self.model_pool:
+            return {"success": False, "error": "模型池不可用"}
+
+        try:
+            model_config = self.model_pool.select_model_for_task(
+                task_type or "simple_chat", "terminal", priority
+            )
+            if model_config:
+                return {
+                    "success": True,
+                    "model": {
+                        "id": model_config.id,
+                        "name": model_config.name,
+                        "provider": str(model_config.provider)
+                        if model_config.provider
+                        else "",
+                    },
+                    "task_type": task_type or "simple_chat",
+                }
+            return {"success": False, "error": "没有找到合适的模型"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def classify_task(self, user_input: str) -> dict:
+        """智能分类任务类型"""
+        if not self.model_pool:
+            return {"available": False, "error": "模型池不可用"}
+
+        try:
+            task_type = await self.model_pool.classify_task(user_input)
+            return {
+                "available": True,
+                "task_type": task_type.value if task_type else "simple_chat",
+            }
+        except Exception as e:
+            return {"available": False, "error": str(e)}
+
+    def get_task_types(self) -> dict:
+        """获取所有任务类型"""
+        if not MODEL_POOL_AVAILABLE:
+            return {"available": False}
+
+        if TaskType:
+            return {
+                "available": True,
+                "task_types": [t.value for t in TaskType],
+            }
+        return {"available": False}
+
+
 # 初始化弥娅核心模块
 personality = MiyaPersonality()
 memory = MiyaMemory()
 emotion = MiyaEmotion()
+model_selector = MiyaModelSelector()
 
 # 创建 MCP Server
 server = Server("miya-soul")
@@ -336,6 +439,50 @@ async def list_tools():
             description="获取弥娅系统完整状态（人格+记忆+情感）",
             inputSchema={"type": "object", "properties": {}, "required": []},
         ),
+        Tool(
+            name="miya_list_models",
+            description="列出弥娅模型池中所有可用的模型",
+            inputSchema={"type": "object", "properties": {}, "required": []},
+        ),
+        Tool(
+            name="miya_select_model",
+            description="为指定任务类型选择最佳模型（调用智能模型选择器）",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_type": {
+                        "type": "string",
+                        "description": "任务类型：simple_chat(简单聊天), complex_reasoning(复杂推理), code_analysis(代码分析), code_generation(代码生成), tool_calling(工具调用), creative_writing(创意写作), chinese_understanding(中文理解), summarization(总结), multimodal(多模态), task_planning(任务规划)",
+                        "default": "simple_chat",
+                    },
+                    "priority": {
+                        "type": "string",
+                        "description": "优先级：balanced(平衡), quality(质量优先), speed(速度优先), cost(成本优先)",
+                        "default": "balanced",
+                    },
+                },
+                "required": [],
+            },
+        ),
+        Tool(
+            name="miya_classify_task",
+            description="智能分类用户输入的任务类型",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "user_input": {
+                        "type": "string",
+                        "description": "用户输入内容",
+                    },
+                },
+                "required": ["user_input"],
+            },
+        ),
+        Tool(
+            name="miya_get_task_types",
+            description="获取所有可用的任务类型",
+            inputSchema={"type": "object", "properties": {}, "required": []},
+        ),
     ]
 
 
@@ -420,6 +567,41 @@ async def call_tool(name: str, arguments: dict):
                 )
             ]
 
+        elif name == "miya_list_models":
+            result = model_selector.list_models()
+            return [
+                TextContent(
+                    type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
+                )
+            ]
+
+        elif name == "miya_select_model":
+            result = model_selector.select_model(
+                task_type=arguments.get("task_type"),
+                priority=arguments.get("priority", "balanced"),
+            )
+            return [
+                TextContent(
+                    type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
+                )
+            ]
+
+        elif name == "miya_classify_task":
+            result = await model_selector.classify_task(arguments.get("user_input", ""))
+            return [
+                TextContent(
+                    type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
+                )
+            ]
+
+        elif name == "miya_get_task_types":
+            result = model_selector.get_task_types()
+            return [
+                TextContent(
+                    type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
+                )
+            ]
+
         else:
             return [TextContent(type="text", text=f"未知工具: {name}")]
 
@@ -433,6 +615,7 @@ async def main():
     logger.info(f"配置目录: {CONFIG_DIR}")
     logger.info(f"记忆目录: {MEMORY_DIR}")
     logger.info(f"已加载 {len(personality.personalities)} 个人格")
+    logger.info(f"模型池: {'可用' if model_selector.model_pool else '不可用'}")
 
     async with stdio_server() as (read_stream, write_stream):
         await server.run(

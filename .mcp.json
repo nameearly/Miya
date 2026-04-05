@@ -5,7 +5,20 @@
       "args": ["mcpserver/miya/server.py"],
       "env": {},
       "disabled": false,
-      "autoApprove": []
+      "autoApprove": [
+        "miya_get_status",
+        "miya_get_emotion",
+        "miya_get_personality",
+        "miya_get_memory",
+        "miya_save_memory",
+        "miya_recall",
+        "miya_set_emotion",
+        "miya_switch_personality",
+        "miya_list_models",
+        "miya_select_model",
+        "miya_classify_task",
+        "miya_get_task_types"
+      ]
     }
   }
 }
