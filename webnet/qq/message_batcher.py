@@ -45,6 +45,7 @@ class BatchWindow:
     is_flushing: bool = False  # 防止重复刷新
     window_start: float = 0.0
     last_reset: float = 0.0
+    processed_message_ids: set = field(default_factory=set)  # 已处理消息ID去重
 
 
 class MessageBatcher:
@@ -143,9 +144,23 @@ class MessageBatcher:
                 raw_event=raw_event,
             )
 
+            # 消息ID去重：从raw_event中提取消息ID
+            msg_id = None
+            if raw_event:
+                msg_id = raw_event.get("message_id") or raw_event.get("message_id")
+            if msg_id is None:
+                msg_id = f"{user_id}_{now}_{content}"
+
+            # 检查消息是否已处理过
+            if msg_id in window.processed_message_ids:
+                logger.info(f"[消息汇总] 消息已处理过，跳过: msg_id={msg_id}")
+                return False
+
             # 如果窗口正在活跃收集模式中
             if window.is_active:
                 window.messages.append(msg)
+                window.processed_message_ids.add(msg_id)
+                return True
 
             # 检查是否达到最大消息数
             if len(window.messages) >= self.max_messages:
@@ -157,16 +172,9 @@ class MessageBatcher:
                 window.messages.clear()
                 window.is_active = False
                 window.is_flushing = False
+                window.processed_message_ids.clear()  # 清空已处理消息ID
                 # 放入输出队列
                 await self.output_queue.put((group_key, batch))
-                return True
-
-                # 重置计时器
-                window.last_reset = now
-                await self._cancel_timer(window)
-                window.timer_task = asyncio.create_task(
-                    self._window_timer(group_key, window)
-                )
                 return True
 
             # 窗口不在活跃模式
@@ -176,6 +184,7 @@ class MessageBatcher:
                 # 把上次那条也加入队列（上次已经返回 False 被处理了，所以只收集这条及后续）
                 window.is_active = True
                 window.messages.append(msg)
+                window.processed_message_ids.add(msg_id)
                 window.window_start = now
                 window.last_reset = now
 
@@ -236,6 +245,7 @@ class MessageBatcher:
             batch = list(window.messages)
             window.messages.clear()
             window.is_active = False
+            window.processed_message_ids.clear()  # 清空已处理消息ID
             self._status_sent.pop(group_key, None)
 
             logger.info(f"[消息汇总] 窗口 {group_key} 超时，处理 {len(batch)} 条消息")
