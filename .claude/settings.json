@@ -1,6 +1,7 @@
 {
   "env": {
-    "ANTHROPIC_BASE_URL": "http://localhost:8888"
+    "ANTHROPIC_BASE_URL": "http://localhost:8888",
+    "ANTHROPIC_STREAMING": "false"
   },
   "permissions": {
     "allow": [
