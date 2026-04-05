@@ -116,15 +116,8 @@ from storage import (
 from config import Settings
 from core.constants import Encoding
 from hub.platform_adapters import get_adapter
-from webnet.ToolNet.tools.terminal import TerminalTool
 from core.system_detector import get_system_detector
 from core.autonomy_with_personality import get_autonomy_with_personality
-
-# 导入终端管理器
-from core.terminal_ultra import get_terminal_ultra
-from core.terminal_types import TerminalType
-from core.local_terminal_manager import LocalTerminalManager
-from core.ssh_terminal_manager import SSHTerminalManager
 
 
 class Miya:
@@ -283,10 +276,8 @@ class Miya:
         # 初始化平台适配器
         self.terminal_adapter = get_adapter("terminal")
 
-        # 【终端】初始化弥娅终端系统
-        self.terminal_ultra = get_terminal_ultra()
-        self.ssh_manager = SSHTerminalManager()
-        self.logger.info("[终端] 弥娅终端系统初始化完成")
+        # 【终端】Open-ClaudeCode 提供终端能力
+        self.logger.info("[终端] 终端功能由 Open-ClaudeCode 提供")
 
         # 【自主能力】初始化带人设的自主能力
         self.autonomy_with_personality = get_autonomy_with_personality(
@@ -368,14 +359,8 @@ class Miya:
         return neo4j
 
     def _init_terminal_tool(self):
-        """初始化终端工具"""
-        try:
-            terminal_tool = TerminalTool()
-            self.logger.info(f"  [工具] 终端工具初始化成功")
-            return terminal_tool
-        except Exception as e:
-            self.logger.warning(f"  [工具] 终端工具初始化失败: {e}")
-            return None
+        """终端功能已由 Open-ClaudeCode 提供"""
+        return None
 
     def _init_tool_subnet(self):
         """
@@ -415,26 +400,9 @@ class Miya:
             self.web_net = None
 
     def _init_cross_terminal(self):
-        """初始化跨端子网"""
-        try:
-            from webnet.CrossTerminalNet.hub import CrossTerminalHub
-
-            # 获取Redis客户端 - 使用redis_manager
-            try:
-                from storage.redis_manager import get_redis_client
-
-                redis_client = get_redis_client()
-            except ImportError:
-                redis_client = None
-                self.logger.warning("获取Redis客户端失败，使用None")
-
-            # 初始化跨端Hub
-            self.cross_terminal_hub = CrossTerminalHub(redis_client)
-            self.logger.info("CrossTerminal 跨端子网初始化成功")
-
-        except Exception as e:
-            self.logger.warning(f"CrossTerminal 跨端子网初始化失败: {e}")
-            self.cross_terminal_hub = None
+        """跨端功能已由 Open-ClaudeCode 提供"""
+        self.logger.info("跨端功能由 Open-ClaudeCode 提供")
+        self.cross_terminal_hub = None
 
     def _init_memory_system(self):
         """初始化全局记忆系统 (M-Link + MemoryNet)"""
@@ -1129,69 +1097,25 @@ def main():
                         continue
 
                     if user_input.lower() in ["yes", "y", "是", "确认"]:
-                        if (
-                            miya.decision_hub
-                            and miya.decision_hub.terminal_tool
-                            and miya.decision_hub.terminal_tool.pending_command
-                        ):
-                            # 确认执行待确认的命令
-                            command = miya.decision_hub.terminal_tool.pending_command
-                            result = miya.decision_hub.terminal_tool.execute(
-                                command, user_confirm=True
-                            )
-                            response = miya.decision_hub.terminal_tool.format_result(
-                                result
-                            )
-                            print(f"{miya.identity.name}: {response}\n")
-                            continue
-                        else:
-                            # 没有待确认的命令
-                            print(f"{miya.identity.name}: 当前没有待确认的命令。\n")
-                            continue
+                        print(
+                            f"{miya.identity.name}: 确认功能已由 Open-ClaudeCode 处理\n"
+                        )
+                        continue
 
                     if user_input.lower() in ["取消", "cancel", "no", "n"]:
-                        if (
-                            miya.decision_hub
-                            and miya.decision_hub.terminal_tool
-                            and miya.decision_hub.terminal_tool.pending_command
-                        ):
-                            # 取消待确认的命令
-                            command = miya.decision_hub.terminal_tool.pending_command
-                            result = miya.decision_hub.terminal_tool.execute(
-                                command, user_confirm=False
-                            )
-                            response = miya.decision_hub.terminal_tool.format_result(
-                                result
-                            )
-                            print(f"{miya.identity.name}: {response}\n")
-                            continue
-                        else:
-                            # 没有待确认的命令
-                            print(f"{miya.identity.name}: 当前没有待确认的命令。\n")
-                            continue
-
-                    # 检查是否是主终端的特殊命令
-                    if user_input.lower().startswith("switch "):
-                        # 切换终端
-                        terminal_name = user_input[7:].strip()
-                        print(f"\n[主终端] 切换到终端: {terminal_name}")
+                        print(
+                            f"{miya.identity.name}: 取消功能已由 Open-ClaudeCode 处理\n"
+                        )
                         continue
 
-                    if user_input.lower() == "list terminals":
-                        # 列出所有终端
-                        status = miya.miya_takeover_mode.get_all_terminals_status()
-                        print(f"\n=== 所有终端状态 ===")
-                        for tid, tstatus in status.items():
-                            print(
-                                f"  {tid}: {tstatus['name']} ({tstatus['type']}) - {tstatus.get('status', 'unknown')}"
-                            )
-                        print()
+                    if (
+                        user_input.lower().startswith("switch ")
+                        or user_input.lower() == "list terminals"
+                    ):
+                        print(
+                            f"{miya.identity.name}: 终端管理已由 Open-ClaudeCode 处理\n"
+                        )
                         continue
-
-                    # 使用弥娅接管模式处理输入
-                    await miya.miya_takeover_mode.handle_input(
-                        user_input, from_terminal="master"
-                    )
 
                 except KeyboardInterrupt:
                     print("\n\n检测到中断信号...")

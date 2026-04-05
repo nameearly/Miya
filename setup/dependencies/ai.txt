@@ -25,12 +25,9 @@ zhipuai>=4.0.0
 sentence-transformers>=2.2.0
 
 # ========== 深度学习框架 ==========
-# PyTorch (建议使用较宽松的版本约束以支持更多 CUDA 版本)
+# PyTorch (CPU 版本，避免下载 CUDA 依赖)
+# 如需 GPU 支持，请手动运行: pip install torch --index-url https://download.pytorch.org/whl/cu121
 torch>=2.0.0
-# 注意：如需特定 CUDA 版本，请使用：
-# CUDA 11.8: pip install torch --index-url https://download.pytorch.org/whl/cu118
-# CUDA 12.1: pip install torch --index-url https://download.pytorch.org/whl/cu121
-# CPU 版本: pip install torch --index-url https://download.pytorch.org/whl/cpu
 
 # ========== 文本处理 ==========
 # Hugging Face Transformers

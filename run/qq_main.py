@@ -260,17 +260,8 @@ class MiyaQQ:
             self.logger.error(f"M-Link 节点注册失败: {e}")
 
     def _register_cross_terminal(self):
-        """注册跨端终端"""
-        try:
-            from webnet.ToolNet.tools.cross_terminal.cross_terminal import (
-                get_cross_terminal_hub,
-            )
-
-            hub = get_cross_terminal_hub()
-            hub.register_terminal("qq")
-            self.logger.info("跨端终端 QQ 已注册")
-        except Exception as e:
-            self.logger.warning(f"跨端终端注册失败: {e}")
+        """跨端功能已由 Open-ClaudeCode 提供"""
+        self.logger.info("跨端功能由 Open-ClaudeCode 提供")
 
     async def _handle_qq_callback(self, qq_message: Any) -> None:
         """
@@ -652,7 +643,10 @@ class MiyaQQ:
                     tool_calls = []
                     memory_info = ""
 
-                    if hasattr(self.miya.decision_hub, "tool_subnet"):
+                    if (
+                        hasattr(self.miya.decision_hub, "tool_subnet")
+                        and self.miya.decision_hub.tool_subnet is not None
+                    ):
                         tool_info = (
                             self.miya.decision_hub.tool_subnet.get_last_execution_info()
                         )

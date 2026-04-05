@@ -292,46 +292,16 @@ class ToolRegistry:
         self.register(PythonInterpreter())
 
     def _load_terminal_tools(self):
-        """加载终端命令工具"""
-        # 使用新的 TerminalUltra 工具
-        try:
-            from core.terminal_ultra import get_terminal_ultra
-            from webnet.ToolNet.tools.terminal import TerminalTool
-
-            self.register(TerminalTool())
-            self.logger.info("已加载终端工具: TerminalTool (TerminalUltra)")
-        except Exception as e:
-            self.logger.warning(f"加载终端工具失败: {e}")
-
-        # 使用 terminal_ultra，旧的 terminal_net 已废弃
-        self._load_ultra_terminal_tools()
+        """终端功能已由 Open-ClaudeCode 提供"""
+        self.logger.info("终端功能由 Open-ClaudeCode 提供")
 
     def _load_terminal_net_tools(self):
-        """加载 terminal_net 目录的工具 - 已废弃，使用 TerminalUltra"""
-        self.logger.info("terminal_net 工具已废弃，使用 TerminalUltra")
+        """终端功能已由 Open-ClaudeCode 提供"""
+        self.logger.info("终端功能由 Open-ClaudeCode 提供")
 
     def _load_ultra_terminal_tools(self):
-        """加载超级终端工具 (Terminal Ultra) - 使用新的集成系统"""
-        try:
-            from core.terminal_ultra import get_terminal_ultra
-
-            ultra = get_terminal_ultra()
-            self.logger.info(f"已加载 TerminalUltra 工具: {ultra.get_tools_list()}")
-        except Exception as e:
-            self.logger.warning(f"加载 TerminalUltra 失败: {e}")
-
-            # 注册 Agent 工具 (4个)
-            self.register(CodeExplorerAgentTool())
-            self.register(CodeReviewerAgentTool())
-            self.register(CodeArchitectAgentTool())
-            self.register(TerminalAgentTool())
-
-            # 注册 Skills 工具 (1个)
-            self.register(ListSkillsTool())
-
-            self.logger.info("已加载超级终端工具: TerminalUltra (38 tools)")
-        except Exception as e:
-            self.logger.warning(f"加载超级终端工具失败: {e}")
+        """终端功能已由 Open-ClaudeCode 提供"""
+        self.logger.info("终端功能由 Open-ClaudeCode 提供")
 
     def _load_model_management_tools(self):
         """加载模型管理工具"""
@@ -344,165 +314,12 @@ class ToolRegistry:
             self.logger.warning(f"加载模型管理工具失败: {e}")
 
     def _load_cross_terminal_tools(self):
-        """加载跨端工具 - 使用简化版"""
-        try:
-            from webnet.ToolNet.tools.cross_terminal import CrossTerminalTool
-
-            self.register(CrossTerminalTool())
-            self.logger.info("已加载跨端工具: CrossTerminalTool")
-        except Exception as e:
-            self.logger.warning(f"加载跨端工具失败: {e}")
-
-        # 跨端工具已简化，不再加载具体工具
+        """跨端功能已由 Open-ClaudeCode 提供"""
+        self.logger.info("跨端功能由 Open-ClaudeCode 提供")
 
     def _register_cross_terminal_tool(self, name: str, func):
-        """注册跨端工具"""
-        from webnet.ToolNet.base import BaseTool
-
-        # 简化工具描述，避免API返回500错误
-        tool_defs = {
-            "send_to_desktop": {
-                "name": "send_to_desktop",
-                "description": "发送消息到桌面端显示。当用户说'发到桌面'、'提醒我'、'桌面上显示'时调用此工具。",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "content": {
-                            "type": "string",
-                            "description": "要发送的消息内容",
-                        },
-                        "notification": {
-                            "type": "boolean",
-                            "description": "是否显示通知",
-                            "default": True,
-                        },
-                    },
-                    "required": ["content"],
-                },
-            },
-            "execute_on_desktop": {
-                "name": "execute_on_desktop",
-                "description": "在桌面端执行系统命令打开应用程序。当用户说'打开我电脑上的火狐'、'打开桌面上的浏览器'、'打开QQ'时调用此工具。命令格式：start firefox(打开火狐), start chrome(打开Chrome), start qq(打开QQ), notepad(打开记事本), calc(打开计算器)。",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "command": {
-                            "type": "string",
-                            "description": "要执行的Windows命令",
-                        }
-                    },
-                    "required": ["command"],
-                },
-            },
-            "sync_state": {
-                "name": "sync_state",
-                "description": "同步配置状态到所有终端。当用户说'同步设置'、'同步配置'时调用。",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "key": {"type": "string", "description": "配置键"},
-                        "value": {"type": "string", "description": "配置值"},
-                    },
-                    "required": ["key", "value"],
-                },
-            },
-            "send_to_terminal": {
-                "name": "send_to_terminal",
-                "description": "发送消息到终端界面显示。当用户说'发到终端'、'在终端显示'时调用。",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "content": {"type": "string", "description": "要发送的消息内容"}
-                    },
-                    "required": ["content"],
-                },
-            },
-            "send_to_qq": {
-                "name": "send_to_qq",
-                "description": "通过桌面端或Web端发送消息到QQ。当用户在其他端说'给佳发消息'、'发送到QQ'时调用。",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "content": {
-                            "type": "string",
-                            "description": "要发送的消息内容",
-                        },
-                        "target_qq": {
-                            "type": "string",
-                            "description": "目标QQ号，可选",
-                        },
-                    },
-                    "required": ["content"],
-                },
-            },
-            "send_to_web": {
-                "name": "send_to_web",
-                "description": "发送消息到Web端界面显示。当用户说'发到Web'、'在网页显示'时调用。",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "content": {"type": "string", "description": "要发送的消息内容"}
-                    },
-                    "required": ["content"],
-                },
-            },
-        }
-
-        config = tool_defs.get(
-            name,
-            {
-                "name": name,
-                "description": "跨端工具",
-                "parameters": {"type": "object", "properties": {}},
-            },
-        )
-
-        # 创建包装类 - 不继承BaseTool以避免config属性冲突
-        class WrappedTool:
-            def __init__(self, func, config):
-                self.func = func
-                self._config = config
-                self.name = name
-
-            @property
-            def config(self):
-                return self._config
-
-            async def execute(self, args, context):
-                # args: 工具参数字典
-                # context: ToolContext 对象
-                return await self.func(context, args)
-
-            def get_schema(self):
-                return self._config
-
-            def validate_args(self, args):
-                """
-                验证参数（简化版）
-
-                Args:
-                    args: 参数字典或JSON字符串
-
-                Returns:
-                    (is_valid, error_message)
-                """
-                # 如果args是字符串，尝试解析为字典
-                import json
-
-                if isinstance(args, str):
-                    try:
-                        args = json.loads(args)
-                    except json.JSONDecodeError:
-                        return False, f"无效的JSON参数: {args}"
-
-                # 如果解析后不是字典，说明参数格式错误
-                if not isinstance(args, dict):
-                    return False, f"参数必须是字典类型，而不是 {type(args)}"
-
-                return True, None
-
-        self.register(WrappedTool(func, config))
-        self.logger.info(f"跨端工具已注册: {name}")
+        """跨端功能已由 Open-ClaudeCode 提供"""
+        pass
 
     def _load_message_tools(self):
         """加载消息工具"""

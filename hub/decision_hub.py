@@ -427,20 +427,10 @@ class DecisionHub:
         """
         初始化终端工具（保留用于 ! 前缀命令）
 
-        注意：AI 调用终端命令通过 ToolNet 实现（terminal_command 工具）
-        此处保留的 TerminalTool 仅用于处理带 ! 前缀的直接命令
+        终端功能已由 Open-ClaudeCode 提供，此处保留空实现以兼容旧代码
         """
-        try:
-            from webnet.ToolNet.tools.terminal import get_terminal_ultra
-
-            # 终端工具初始化（配置从 system_constants.json 加载）
-            self.terminal_tool = get_terminal_ultra()
-            logger.info("[决策层] 终端工具初始化成功（已集成人格和记忆系统）")
-            logger.info("[决策层] AI 调用终端命令通过 ToolNet 的终端工具实现")
-
-        except Exception as e:
-            logger.warning(f"[决策层] 终端工具初始化失败: {e}")
-            self.terminal_tool = None
+        self.terminal_tool = None
+        logger.info("[决策层] 终端功能由 Open-ClaudeCode 提供")
 
     def _init_auth_subnet(self) -> None:
         """
@@ -943,10 +933,6 @@ class DecisionHub:
 
                     # 延迟导入避免启动时问题
                     from core.miya_agent_v3 import create_agent_v3
-                    from core.terminal_ultra import get_terminal_ultra
-
-                    # 确保 TerminalUltra 已初始化
-                    terminal = get_terminal_ultra()
 
                     # 创建 V3 代理实例（限制步数防止长时间运行）
                     agent_v3 = create_agent_v3(max_steps=2)

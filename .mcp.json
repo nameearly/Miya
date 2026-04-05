@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "miya-soul": {
+      "command": "python",
+      "args": ["mcpserver/miya/server.py"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

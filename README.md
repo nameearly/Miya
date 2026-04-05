@@ -248,7 +248,7 @@ async def example():
 | **QQ** | OneBot WebSocket | 活跃 |
 | **Web** | FastAPI + WebSocket | 活跃 |
 | **Desktop** | Tauri (React + Rust) | 活跃 |
-| **Terminal** | CLI | 活跃 |
+| **Terminal** | Open-ClaudeCode + Model Bridge | 活跃 (v4.3.2+) |
 
 ### 🤖 AI 模型支持
 
@@ -260,29 +260,31 @@ async def example():
 
 ### 🛠 工具生态
 
-- **TerminalNet** - 终端命令执行
-- **TerminalUltra** - 超级终端控制系统（完全终端掌控）
+- **Open-ClaudeCode** - 完整的终端能力（文件操作、代码执行、Git、子代理等）(v4.3.2+)
+- **Model Bridge** - Anthropic ↔ OpenAI 协议转换，接入弥娅模型池 (v4.3.2+)
+- **Miya MCP Server** - 人格/记忆/情感 MCP 服务 (v4.3.2+)
 - **WebSearchNet** - 网络搜索集成
 - **ToolNet** - 通用工具执行框架
 - **CognitiveNet** - 认知处理子网
 - **EntertainmentNet** - TRPG、Tavern AI 娱乐功能
 
-### 💻 超级终端 (Terminal Ultra)
+### 💻 超级终端 (Terminal Ultra) → Open-ClaudeCode (v4.3.2+)
 
-弥娅终端模式全新升级，拥有完全终端掌控能力：
+> **注意**：自 v4.3.2 起，弥娅终端模式已从原生 Python 终端模块迁移至 Open-ClaudeCode。原有的 `terminal_ultra.py`、`TerminalNet` 等模块已删除，终端功能由 Open-ClaudeCode 提供。
+
+弥娅终端模式现在使用 Open-ClaudeCode（Claude Code CLI），拥有完整的终端能力：
 
 | 功能 | 说明 |
 |------|------|
-| **terminal_exec** | 执行任意终端命令 |
-| **file_read** | 读取文件内容 |
-| **file_write** | 创建/写入文件 |
-| **file_edit** | 编辑/修改文件 |
-| **file_delete** | 删除文件 |
-| **directory_tree** | 查看目录树结构 |
-| **code_execute** | 直接运行 Python/JS 代码 |
-| **project_analyze** | 分析项目结构和语言分布 |
+| **文件操作** | 读取、写入、编辑、删除文件 |
+| **代码执行** | 运行 Python/JS/Bash/PowerShell 代码 |
+| **Git 操作** | 查看状态、提交、推送、分支管理 |
+| **搜索** | 全文搜索、文件查找、内容搜索 |
+| **子代理** | 启动子代理处理复杂任务 |
+| **MCP 工具** | 弥娅人格/记忆/情感 MCP 服务 |
+| **模型池** | 通过 Model Bridge 使用弥娅模型池 |
 
-参考 opencode/Claude Code 设计理念，让弥娅具备真正的编程和系统操作能力。
+模型桥接服务器将 ClaudeCode 的 Anthropic API 请求转换为 OpenAI 格式，路由到弥娅模型池中的 DeepSeek、Qwen、GLM 等模型。
 
 ### 🔧 自我改进
 
@@ -1443,6 +1445,8 @@ if __name__ == "__main__":
 .\install.bat
 ```
 
+> **说明**：`install.bat` 会安装轻量级依赖（核心框架 + MCP + QQ 基础支持），不会安装 paddleocr、opencv 等重型包。
+
 #### 方式二：Linux/Mac 安装
 
 ```bash
@@ -1462,12 +1466,18 @@ python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # venv\Scripts\activate   # Windows
 
-# 安装依赖
-pip install -r requirements.txt
+# 安装轻量级依赖
+pip install -r setup/requirements/lightweight.txt
+
+# 安装 MCP 和模型桥接依赖
+pip install mcp fastapi uvicorn httpx
+
+# 安装 QQ 端依赖
+pip install websockets pillow
 
 # 配置环境变量
-cp config/.env.example config/.env
-# 编辑 config/.env 填入你的 API Key
+copy config\.env.example config\.env
+# 编辑 config\.env 填入你的 API Key
 ```
 
 ### 启动系统
@@ -1488,14 +1498,16 @@ start.bat
 
 | 选项 | 功能 |
 |------|------|
-| 1 | QQ 客户端 |
-| 2 | Web 客户端 |
-| 3 | 桌面客户端 |
-| 4 | 终端客户端 |
-| 5 | 全部客户端 |
-| 6 | Web + 桌面 |
-| 7 | 自定义启动 |
-| Q | 快速启动（终端 + API） |
+| 1 | MIYA 终端 (ClaudeCode + 弥娅灵魂 + 模型桥接) |
+| 2 | QQ 客户端 |
+| 3 | Web 客户端 |
+| 4 | 全系统 (QQ + Web + 终端) |
+| 5 | 自定义启动 |
+| 6 | 模型桥接 (单独启动) |
+| 7 | MCP 依赖安装 |
+| 8 | 系统诊断 |
+| 9 | 测试套件 |
+| Q | 快速启动（终端） |
 
 ---
 
@@ -1510,12 +1522,17 @@ Miya/
 │   ├── arbitrator.py       # 仲裁器
 │   ├── entropy.py         # 熵监测
 │   ├── ai_client.py        # AI 客户端工厂
-│   ├── terminal_manager.py # 终端管理
-│   ├── terminal_ultra.py  # 超级终端控制系统 (完全终端掌控)
+│   ├── model_pool.py       # 统一模型池管理器
 │   ├── skills_hot_reload.py # Skills 热重载
 │   ├── mcp_client.py       # MCP 协议支持
 │   ├── security_service.py # 安全防护模块
 │   └── web_api/            # Web API 端点
+│
+├── mcpserver/               # MCP 服务器 (v4.3.2+ 新增)
+│   ├── miya/
+│   │   └── server.py       # 弥娅 MCP Server (人格/记忆/情感)
+│   └── model-bridge/
+│       └── server.py       # Anthropic ↔ OpenAI 协议桥接
 │
 ├── hub/                    # 决策中心 (Cognitive Core)
 │   ├── decision_hub.py     # 主协调器
@@ -1548,9 +1565,12 @@ Miya/
 │   ├── WebSearchNet/      # 网页搜索
 │   └── ToolNet/           # 工具执行
 │       └── tools/
-│           └── terminal/
-│               ├── terminal_tool.py  # 基础终端工具
-│               └── ultra_terminal_tools.py  # 超级终端工具
+│           ├── core/      # 核心工具
+│           ├── network/   # 网络工具
+│           ├── office/    # 办公工具
+│           ├── visualization/  # 可视化工具
+│           ├── social/    # 社交工具
+│           └── ...        # 其他工具 (终端工具已移除)
 │
 ├── memory/                 # 记忆系统
 │   ├── unified_memory.py  # 统一内存接口
@@ -1604,16 +1624,30 @@ Miya/
 │       └── live2d/      # Live2D 虚拟形象
 │
 ├── run/                   # 入口脚本
-│   ├── main.py           # 终端模式主入口
+│   ├── main.py           # 终端模式主入口 (已适配 Open-ClaudeCode)
 │   ├── qq_main.py        # QQ 模式
 │   ├── web_main.py       # Web API 模式
-│   ├── runtime_api_start.py  # 运行时 API
-│   └── multi_terminal_main_v2.py  # 多终端模式
+│   └── runtime_api_start.py  # 运行时 API
+│
+├── Open-ClaudeCode/       # Open-ClaudeCode (终端引擎)
+│   ├── package/
+│   │   └── cli.js        # 预编译 ClaudeCode CLI
+│   └── src/              # 源码 (研究用)
+│       └── components/
+│           └── LogoV2/
+│               └── WelcomeV2.tsx  # 弥娅欢迎界面 (已定制)
 │
 ├── config/               # 配置文件（核心配置）
 │   ├── personalities/    # YAML 人格/形态配置
 │   ├── text_config.json  # 文本、规则、提示词
-│   └── multi_model_config.json # AI 模型池配置
+│   ├── multi_model_config.json # AI 模型池配置
+│   └── permissions.json  # 权限配置
+│
+├── .claude/              # ClaudeCode 配置 (v4.3.2+ 新增)
+│   └── settings.json     # ClaudeCode 设置（模型、权限、语言）
+│
+├── .mcp.json             # MCP 服务器配置 (v4.3.2+ 新增)
+├── CLAUDE.md             # 弥娅人设提示词 (v4.3.2+ 新增)
 │
 ├── setup/                # 安装脚本
 │   ├── requirements/     # 预置依赖集
@@ -12132,6 +12166,290 @@ QQClient._init_message_batcher() → qq_config.yaml
 1. 配置文件（`text_config.json`、`multi_model_config.json` 等）
 2. 代码中的默认值（作为配置缺失时的回退）
 3. 环境变量（仅用于 API Key 等敏感信息）
+
+---
+
+## 🆕 v4.3.2 重大更新：Open-ClaudeCode 终端集成
+
+> **版本**: v4.3.2 Dynamic Edition
+> **发布日期**: 2026-04-05
+> **类型**: 架构级重大更新
+
+### 更新概述
+
+弥娅终端模式已从原生 Python 终端模块全面迁移至 **Open-ClaudeCode**，通过模型桥接服务器（Model Bridge）接入弥娅模型池，同时通过 MCP Server 注入弥娅的人格、记忆和情感系统。
+
+### 架构变更
+
+#### 变更前后对比
+
+| 组件 | 变更前 (v4.3.1) | 变更后 (v4.3.2) |
+|------|-----------------|-----------------|
+| 终端引擎 | 原生 Python `terminal_ultra.py` | Open-ClaudeCode `cli.js` |
+| 终端工具 | `webnet/ToolNet/tools/terminal/` | ClaudeCode 内置工具系统 |
+| 模型调用 | 弥娅 Python AI 客户端 | 模型桥接 → OpenAI API |
+| 协议 | 原生 Python 调用 | Anthropic ↔ OpenAI 协议转换 |
+| 人格注入 | Python `personality.py` | `CLAUDE.md` + MCP Server |
+
+#### 新架构图
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    弥娅 v4.3.2 终端架构                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    用户交互层                                     │   │
+│  │              Open-ClaudeCode CLI (cli.js)                        │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │   │
+│  │  │  文件操作     │  │  代码执行     │  │  Git 操作    │          │   │
+│  │  │  搜索/替换   │  │  Bash/PS     │  │  子代理系统  │          │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘          │   │
+│  └────────────────────────────────┬────────────────────────────────┘   │
+│                                   │                                    │
+│  ┌────────────────────────────────┴────────────────────────────────┐   │
+│  │                    协议转换层                                     │   │
+│  │              Model Bridge (mcpserver/model-bridge/)              │   │
+│  │  ┌──────────────────────────────────────────────────────────┐  │   │
+│  │  │  Anthropic 格式 → OpenAI 格式  → 弥娅模型池 → 响应转换    │  │   │
+│  │  └──────────────────────────────────────────────────────────┘  │   │
+│  └────────────────────────────────┬────────────────────────────────┘   │
+│                                   │                                    │
+│  ┌────────────────────────────────┴────────────────────────────────┐   │
+│  │                    弥娅灵魂层                                     │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │   │
+│  │  │  人格系统     │  │  记忆系统     │  │  情感系统    │          │   │
+│  │  │  MCP Server  │  │  MCP Server  │  │  MCP Server │          │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘          │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    模型池层                                       │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │   │
+│  │  │ DeepSeek │ │  Qwen    │ │   GLM    │ │  Llama   │          │   │
+│  │  │   V3     │ │  72B     │ │  4.6V    │ │  3.1 8B  │          │   │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘          │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 删除的文件
+
+以下文件已从弥娅系统中移除（终端功能已由 Open-ClaudeCode 提供）：
+
+#### 核心终端模块
+| 文件/目录 | 说明 |
+|-----------|------|
+| `core/terminal_ultra.py` | 超级终端控制核心 (1584行) |
+| `core/terminal_manager.py` | 终端管理器 |
+| `core/terminal_orchestrator.py` | 终端编排器 |
+| `core/terminal_types.py` | 终端类型枚举 |
+| `core/terminal_agent.py` | 终端代理 |
+| `core/local_terminal_manager.py` | 本地终端管理 |
+| `core/master_terminal_controller.py` | 主终端控制器 |
+| `core/child_terminal.py` | 子终端 |
+| `core/conpty_terminal_manager.py` | ConPTY 终端 |
+| `core/linux_pty_terminal_manager.py` | Linux PTY 终端 |
+| `core/ssh_terminal_manager.py` | SSH 终端管理 |
+| `core/miya_takeover_mode.py` | 弥娅接管模式 |
+| `core/terminal/` | 终端分层架构目录 (10+ 文件) |
+
+#### 终端子网
+| 文件/目录 | 说明 |
+|-----------|------|
+| `webnet/TerminalNet/` | 终端子网 |
+| `webnet/CrossTerminalNet/` | 跨端子网 |
+| `webnet/ToolNet/tools/terminal/` | 终端工具 |
+| `webnet/ToolNet/tools/cross_terminal/` | 跨端工具 |
+| `cross_terminal/` | 跨端工具目录 |
+
+#### Web API 和启动脚本
+| 文件 | 说明 |
+|------|------|
+| `core/web_api/terminal.py` | 终端 Web API |
+| `core/web_api/cross_terminal.py` | 跨端 Web API |
+| `run/multi_terminal_main_v2.py` | 多终端主入口 |
+| `run/multi_terminal_start.sh` | 多终端启动脚本 |
+
+### 新增的文件
+
+| 文件 | 说明 |
+|------|------|
+| `mcpserver/miya/server.py` | 弥娅 MCP Server（人格/记忆/情感） |
+| `mcpserver/model-bridge/server.py` | Anthropic ↔ OpenAI 协议转换桥接 |
+| `.mcp.json` | MCP 配置文件 |
+| `.claude/settings.json` | ClaudeCode 配置（模型、权限、语言） |
+| `CLAUDE.md` | 弥娅人设提示词（注入 ClaudeCode） |
+
+### 修改的文件
+
+| 文件 | 修改内容 |
+|------|----------|
+| `hub/decision_hub.py` | 终端工具初始化改为空实现 |
+| `webnet/ToolNet/registry.py` | 终端工具加载改为提示 |
+| `webnet/ToolNet/tools/__init__.py` | 移除 terminal 和 terminal_net 导入 |
+| `core/web_api/__init__.py` | 注释掉 TerminalRoutes 和 CrossTerminalRoutes |
+| `run/main.py` | 移除终端模块引用和接管模式 |
+| `run/qq_main.py` | 移除跨端注册，添加 None 检查 |
+| `start.bat` | 重写为 ClaudeCode + Model Bridge 启动 |
+| `install.bat` | 改为轻量级依赖安装 |
+| `Open-ClaudeCode/src/components/LogoV2/WelcomeV2.tsx` | 弥娅欢迎界面 |
+| `Open-ClaudeCode/src/constants/figures.ts` | 弥娅UI符号 |
+
+### 模型桥接服务器 (Model Bridge)
+
+#### 工作原理
+
+弥娅模型桥接服务器是一个 **FastAPI 应用**，运行在 `localhost:8888`，负责将 ClaudeCode 的 Anthropic API 请求转换为 OpenAI-compatible 格式，并路由到弥娅模型池中的实际模型。
+
+```
+ClaudeCode (Anthropic 格式)
+         ↓
+   POST /v1/messages
+   x-api-key: miya-qwen_72b
+         ↓
+   Model Bridge (端口 8888)
+         ↓
+   1. 解析 API key → 确定使用哪个弥娅模型
+   2. 转换消息格式: Anthropic → OpenAI
+   3. 转换工具格式: Anthropic → OpenAI
+   4. 调用弥娅模型池中的模型 API
+   5. 转换响应格式: OpenAI → Anthropic
+   6. 返回给 ClaudeCode
+```
+
+#### 可用模型
+
+通过模型桥接，以下弥娅模型池中的模型可在 ClaudeCode 中使用：
+
+| 模型 ID | 模型名称 | 提供商 | 用途 |
+|---------|---------|--------|------|
+| `miya-deepseek_v3_official` | deepseek-chat | DeepSeek官方 | 日常对话、中文理解 |
+| `miya-deepseek_r1_official` | deepseek-reasoner | DeepSeek官方 | 复杂推理 |
+| `miya-qwen_7b` | Qwen/Qwen2.5-7B-Instruct | 硅基流动 | 轻量对话、分类 |
+| `miya-qwen_72b` | Qwen/Qwen2.5-72B-Instruct | 硅基流动 | 复杂推理、工具调用 |
+| `miya-zhipu_glm_46v_flash` | zai-org/GLM-4.6V | 硅基流动 | 视觉分析 |
+| `miya-siliconflow_qwen_vl` | glm-4.5v | 智谱AI | 视觉理解 |
+| `miya-internlm_7b` | internlm2_5-7b-chat | 硅基流动 | 轻量对话 |
+| `miya-deepseek_r1_distill_7b` | DeepSeek-R1-Distill-Qwen-7B | 硅基流动 | 推理 |
+| `miya-llama_3_1_8b` | Llama-3.1-8B-Instruct | 硅基流动 | 轻量对话 |
+| `miya-gemma_2_9b` | gemma-2-9b-it | 硅基流动 | 轻量对话 |
+
+#### 切换模型
+
+通过修改 `.claude/settings.json` 中的 `ANTHROPIC_AUTH_TOKEN` 和 `ANTHROPIC_MODEL` 环境变量来切换模型：
+
+```json
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "miya-qwen_72b",
+    "ANTHROPIC_MODEL": "miya-qwen_72b"
+  }
+}
+```
+
+### 弥娅 MCP Server
+
+#### 可用工具
+
+弥娅 MCP Server 提供 8 个工具，让 ClaudeCode 能够访问弥娅的人格、记忆和情感系统：
+
+| 工具名 | 功能 | 参数 |
+|--------|------|------|
+| `miya_get_personality` | 获取当前人格状态 | 无 |
+| `miya_switch_personality` | 切换人格 | `name`: 人格名称 |
+| `miya_get_memory` | 获取近期记忆 | `limit`: 条数 (默认5) |
+| `miya_save_memory` | 保存记忆 | `key`, `value` |
+| `miya_recall` | 回忆相关内容 | `query`: 关键词 |
+| `miya_get_emotion` | 获取情感状态 | 无 |
+| `miya_set_emotion` | 设置情感 | `emotion`, `intensity` |
+| `miya_get_status` | 获取完整状态 | 无 |
+
+#### 使用示例
+
+在 ClaudeCode 对话中，AI 可以调用这些工具：
+
+```
+用户: 你现在的状态怎么样？
+AI: [调用 miya_get_status]
+    当前人格: default (弥娅默认人格)
+    情感: neutral (◕‿◕)
+    记忆: 5 条近期记忆
+```
+
+### 启动方式
+
+#### Windows 一键启动
+
+```bash
+start.bat
+```
+
+选择 `[1] MIYA Terminal` 即可启动 ClaudeCode + 弥娅MCP + 模型桥接。
+
+#### 启动流程
+
+```
+start.bat [1]
+    ↓
+1. 清理残留的 Model Bridge 进程
+2. 启动 Model Bridge (后台，端口 8888)
+3. 等待 3 秒确保 Bridge 就绪
+4. 启动 ClaudeCode (node cli.js)
+   - ANTHROPIC_BASE_URL=http://localhost:8888
+   - ANTHROPIC_AUTH_TOKEN=miya-qwen_72b
+   - CLAUDE_CODE_SKIP_AUTH=1
+5. ClaudeCode 加载 CLAUDE.md (弥娅人设)
+6. ClaudeCode 加载 .mcp.json (弥娅MCP)
+```
+
+### 安装依赖
+
+```bash
+install.bat
+```
+
+安装内容包括：
+- Python 核心依赖（轻量级）
+- MCP SDK (`pip install mcp`)
+- FastAPI + Uvicorn（模型桥接）
+- websockets + pillow（QQ 端支持）
+
+### 分发说明
+
+#### 别人如何使用弥娅系统
+
+1. **克隆仓库**：
+```bash
+git clone https://github.com/Jia-520-only/Miya.git
+cd Miya
+```
+
+2. **安装依赖**：
+```bash
+install.bat  # Windows
+# 或
+pip install -r setup/requirements/lightweight.txt
+pip install mcp fastapi uvicorn websockets pillow
+```
+
+3. **配置 API 密钥**：
+```bash
+copy config\.env.example config\.env
+# 编辑 config\.env 填入 API 密钥
+```
+
+4. **启动**：
+```bash
+start.bat
+```
+
+#### 注意事项
+
+- **不会强制安装官方 ClaudeCode**：启动脚本使用 `node Open-ClaudeCode\package\cli.js` 直接运行本地预编译文件，不会通过 `npx` 拉取官方包
+- **API 密钥安全**：`config/.env` 和 `config/multi_model_config.json` 包含 API 密钥，不应提交到 Git
+- **模型池配置**：`config/multi_model_config.json` 中的 `api_key` 字段需要用户自行填入
 
 ---
 

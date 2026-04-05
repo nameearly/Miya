@@ -94,25 +94,25 @@ class WebAPI:
             from .auth import AuthRoutes
             from .blogs import BlogRoutes
             from .chat import ChatRoutes
-            from .terminal import TerminalRoutes
+
+            # 终端路由已迁移至 Open-ClaudeCode
             from .system import SystemRoutes
             from .desktop import DesktopRoutes
             from .tools import ToolRoutes
             from .security import SecurityRoutes
-            from .cross_terminal import CrossTerminalRoutes
+            # 跨终端路由已迁移至 Open-ClaudeCode
 
             # 初始化路由模块
             self.auth_routes = AuthRoutes(self.web_net, self.decision_hub)
             self.blogs_routes = BlogRoutes(self.web_net, self.decision_hub)
             self.chat_routes = ChatRoutes(self.web_net, self.decision_hub)
-            self.terminal_routes = TerminalRoutes(self.web_net, self.decision_hub)
+            # 终端/跨终端路由已迁移至 Open-ClaudeCode
+            self.terminal_routes = None
+            self.cross_terminal_routes = None
             self.system_routes = SystemRoutes(self.web_net, self.decision_hub)
             self.desktop_routes = DesktopRoutes(self.web_net, self.decision_hub)
             self.tools_routes = ToolRoutes(self.web_net, self.decision_hub)
             self.security_routes = SecurityRoutes(self.web_net)
-            self.cross_terminal_routes = CrossTerminalRoutes(
-                self.web_net, self.decision_hub
-            )
 
             logger.info("[WebAPI] 所有子路由初始化成功")
 

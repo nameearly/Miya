@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read(//)**",
+      "Write(//)**",
+      "Edit(//)**",
+      "Glob(//)**",
+      "Grep(//)**"
+    ]
+  },
+  "language": "zh",
+  "theme": "dark",
+  "model": "miya-qwen_72b"
+}
