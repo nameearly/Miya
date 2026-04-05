@@ -227,7 +227,7 @@ if "%TERMINAL_TYPE%"=="cmd" (
     echo Starting MIYA Terminal in cmd...
     echo Selected model: %MODEL_DISPLAY%
     echo.
-    cmd /c "set ANTHROPIC_BASE_URL=http://localhost:8888 && set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL% && set CLAUDE_CODE_SKIP_AUTH=1 && set ANTHROPIC_MODEL=%DEFAULT_MODEL% && set ANTHROPIC_STREAMING=false && node Open-ClaudeCode\package\cli.js"
+    node Open-ClaudeCode\package\cli.js
 ) else (
     echo Starting MIYA Terminal in %TERMINAL_TYPE%...
     echo Selected model: %MODEL_DISPLAY%
