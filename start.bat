@@ -229,17 +229,10 @@ set CLAUDE_CODE_SKIP_AUTH=1
 set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
-echo Starting MIYA Terminal in [%TERMINAL_TYPE%]...
+echo Starting MIYA Terminal...
 echo Selected model: %MODEL_DISPLAY%
 echo.
-
-if "%TERMINAL_TYPE:~0,2%"=="wt" (
-    start "MIYA Terminal" wt
-) else if "%TERMINAL_TYPE:~0,10%"=="powershell" (
-    start "MIYA Terminal" powershell -NoExit -Command "cd /d %CD% && node Open-ClaudeCode\package\cli.js"
-) else (
-    node Open-ClaudeCode\package\cli.js
-)
+node Open-ClaudeCode\package\cli.js
 
 echo.
 echo Stopping background Model Bridge...
