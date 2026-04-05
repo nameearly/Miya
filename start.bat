@@ -223,10 +223,12 @@ set CLAUDE_CODE_SKIP_AUTH=1
 set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
-echo Starting MIYA Terminal...
+echo Starting MIYA Terminal in Windows Terminal...
 echo Selected model: %MODEL_DISPLAY%
 echo.
-node Open-ClaudeCode\package\cli.js
+echo IMPORTANT: Close the MIYA Terminal window when done to continue...
+start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
+timeout /t 2 >nul
 
 echo.
 echo Stopping background Model Bridge...
@@ -327,15 +329,10 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
-echo Starting MIYA Terminal in [%TERMINAL_TYPE%]...
-
-if /i "%TERMINAL_TYPE%"=="wt" (
-    start "MIYA Terminal" cmd /c "wt new-tab --title MIYA -d . node Open-ClaudeCode\package\cli.js"
-) else if /i "%TERMINAL_TYPE%"=="powershell" (
-    start "MIYA Terminal" powershell -NoExit -Command "node Open-ClaudeCode\package\cli.js"
-) else (
-    node Open-ClaudeCode\package\cli.js
-)
+echo Starting MIYA Terminal in Windows Terminal...
+echo IMPORTANT: Close the MIYA Terminal window when done to continue...
+start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
+timeout /t 2 >nul
 
 echo.
 echo Stopping background services...
@@ -521,15 +518,10 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
-echo Starting MIYA Terminal in [%TERMINAL_TYPE%]...
-
-if /i "%TERMINAL_TYPE%"=="wt" (
-    start "MIYA Terminal" cmd /c "wt new-tab --title MIYA -d . node Open-ClaudeCode\package\cli.js"
-) else if /i "%TERMINAL_TYPE%"=="powershell" (
-    start "MIYA Terminal" powershell -NoExit -Command "node Open-ClaudeCode\package\cli.js"
-) else (
-    node Open-ClaudeCode\package\cli.js
-)
+echo Starting MIYA Terminal in Windows Terminal...
+echo IMPORTANT: Close the MIYA Terminal window when done to continue...
+start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+timeout /t 2 >nul
 
 echo.
 echo Stopping background Model Bridge...
