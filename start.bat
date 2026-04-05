@@ -230,7 +230,7 @@ set CLAUDE_CODE_SKIP_AUTH=1
 set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
-echo Starting MIYA Terminal in %TERMINAL_TYPE%...
+echo Starting MIYA Terminal in [%TERMINAL_TYPE%]...
 echo Selected model: %MODEL_DISPLAY%
 echo.
 
