@@ -196,15 +196,17 @@ set CLAUDE_CODE_SKIP_AUTH=1
 set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
-title MIYA - %MODEL_DISPLAY%
-echo Starting Claude Code with Miya Model Bridge (%MODEL_DISPLAY%)...
+echo Starting MIYA Terminal in Windows Terminal...
+echo Selected model: %MODEL_DISPLAY%
 echo.
-node Open-ClaudeCode\package\cli.js
+echo Press any key to exit after closing the terminal...
+start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
 
 echo.
 echo Stopping background Model Bridge...
 taskkill /F /FI "WINDOWTITLE eq MIYA Model Bridge" >nul 2>nul
 echo [OK] Cleanup completed.
+pause
 goto :restart_prompt
 
 :web_client
@@ -299,9 +301,10 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
-title MIYA - %MODEL_DISPLAY%
-
-node Open-ClaudeCode\package\cli.js
+echo Starting MIYA Terminal in Windows Terminal...
+echo Selected model: %MODEL_DISPLAY%
+echo.
+start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
 
 echo.
 echo Stopping background services...
@@ -487,9 +490,10 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
-title MIYA - %MODEL_DISPLAY%
+echo Starting MIYA Terminal in Windows Terminal...
+echo.
 
-node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
 
 echo.
 echo Stopping background Model Bridge...
