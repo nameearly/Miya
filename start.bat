@@ -4,6 +4,7 @@ title MIYA AI Virtual Avatar System - Powered by Claude Code
 color 0B
 
 set DEFAULT_MODEL=miya-deepseek_v3_official
+if not defined TERMINAL_TYPE set TERMINAL_TYPE=wt
 
 :main_menu
 cls
@@ -33,12 +34,13 @@ echo.
 echo   === Quick Start ===
 echo   [Q] Quick Start       - Fast launch MIYA Terminal
 echo   [M] Select Model      - Choose AI model
+echo   [T] Select Terminal    - Choose terminal type (cmd/powershell/wt)
 echo.
 echo   [0] Exit              - Close launcher
 echo.
-echo Current model: %DEFAULT_MODEL%
+echo Current model: %DEFAULT_MODEL%  -  Terminal: %TERMINAL_TYPE%
 echo ================================================================================
-set /p choice=Enter your choice [0-9, M, Q]:
+set /p choice=Enter your choice [0-9, M, T, Q]:
 
 if "%choice%"=="0" goto :exit
 if "%choice%"=="1" goto :miya_terminal
@@ -52,6 +54,7 @@ if "%choice%"=="8" goto :diagnostics
 if "%choice%"=="9" goto :testing
 if /i "%choice%"=="Q" goto :quick_start
 if /i "%choice%"=="M" goto :model_select
+if /i "%choice%"=="T" goto :terminal_select
 
 echo.
 echo [ERROR] Invalid choice! Please enter a valid option.
@@ -93,6 +96,30 @@ if "%model_choice%"=="4" set DEFAULT_MODEL=miya-qwen_7b && goto :main_menu
 if "%model_choice%"=="5" goto :claude_api_mode
 if /i "%model_choice%"=="R" goto :main_menu
 goto :model_select
+
+:terminal_select
+cls
+echo ================================================================================
+echo                        SELECT TERMINAL TYPE
+echo ================================================================================
+echo.
+echo Available terminal types:
+echo.
+echo   [1] Windows Terminal (wt)  - Recommended, better rendering
+echo   [2] PowerShell             - Native Windows shell
+echo   [3] cmd                    - Classic Windows command prompt
+echo.
+echo   [R] Return to main menu
+echo.
+echo Current: %TERMINAL_TYPE%
+echo ================================================================================
+set /p term_choice=Select terminal [1-3, R]:
+
+if "%term_choice%"=="1" set TERMINAL_TYPE=wt && goto :main_menu
+if "%term_choice%"=="2" set TERMINAL_TYPE=powershell && goto :main_menu
+if "%term_choice%"=="3" set TERMINAL_TYPE=cmd && goto :main_menu
+if /i "%term_choice%"=="R" goto :main_menu
+goto :terminal_select
 
 :model_bridge
 cls
@@ -196,11 +223,11 @@ set CLAUDE_CODE_SKIP_AUTH=1
 set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
-echo Starting MIYA Terminal in Windows Terminal...
+echo Starting MIYA Terminal in %TERMINAL_TYPE%...
 echo Selected model: %MODEL_DISPLAY%
 echo.
 echo Press any key to exit after closing the terminal...
-start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
+start "MIYA - %MODEL_DISPLAY%" %TERMINAL_TYPE% node Open-ClaudeCode\package\cli.js
 
 echo.
 echo Stopping background Model Bridge...
@@ -301,10 +328,10 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
-echo Starting MIYA Terminal in Windows Terminal...
+echo Starting MIYA Terminal in %TERMINAL_TYPE%...
 echo Selected model: %MODEL_DISPLAY%
 echo.
-start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js
+start "MIYA - %MODEL_DISPLAY%" %TERMINAL_TYPE% node Open-ClaudeCode\package\cli.js
 
 echo.
 echo Stopping background services...
@@ -490,10 +517,10 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 set ANTHROPIC_STREAMING=false
 
 set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
-echo Starting MIYA Terminal in Windows Terminal...
+echo Starting MIYA Terminal in %TERMINAL_TYPE%...
 echo.
 
-start "MIYA - %MODEL_DISPLAY%" wt node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
+start "MIYA - %MODEL_DISPLAY%" %TERMINAL_TYPE% node Open-ClaudeCode\package\cli.js --settings .claude\settings.json
 
 echo.
 echo Stopping background Model Bridge...
