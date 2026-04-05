@@ -4,13 +4,7 @@ title MIYA AI Virtual Avatar System - Powered by Claude Code
 color 0B
 
 set DEFAULT_MODEL=miya-deepseek_v3_official
-if not defined TERMINAL_TYPE (
-    if exist .miya_terminal_type (
-        for /f "usebackq tokens=* delims=" %%a in (.miya_terminal_type) do set TERMINAL_TYPE=%%a
-    ) else (
-        set TERMINAL_TYPE=cmd
-    )
-)
+set TERMINAL_TYPE=wt
 
 :main_menu
 cls
