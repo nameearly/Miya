@@ -1,5 +1,44 @@
 {
   "models": {
+    "claude_sonnet": {
+      "name": "claude-sonnet-4-20250514",
+      "provider": "anthropic",
+      "base_url": "https://api.anthropic.com/v1",
+      "api_key": "",
+      "description": "Claude Sonnet 4 - 官方 Claude 模型",
+      "capabilities": [
+        "complex_reasoning",
+        "code_analysis",
+        "tool_calling",
+        "agent_mode",
+        "computer_use"
+      ],
+      "type": "anthropic",
+      "cost_per_1k_tokens": {
+        "input": 0.015,
+        "output": 0.075
+      },
+      "latency": "fast",
+      "quality": "excellent"
+    },
+    "claude_haiku": {
+      "name": "claude-haiku-3-20240307",
+      "provider": "anthropic",
+      "base_url": "https://api.anthropic.com/v1",
+      "api_key": "",
+      "description": "Claude Haiku 3 - 快速轻量",
+      "capabilities": [
+        "simple_chat",
+        "fast_response"
+      ],
+      "type": "anthropic",
+      "cost_per_1k_tokens": {
+        "input": 0.0008,
+        "output": 0.0024
+      },
+      "latency": "fast",
+      "quality": "good"
+    },
     "deepseek_v3_official": {
       "name": "deepseek-chat",
       "provider": "openai",
@@ -267,18 +306,18 @@
       "fallback": "qwen_72b"
     },
     "code_analysis": {
-      "primary": "qwen_72b",
-      "secondary": "deepseek_v3_official",
+      "primary": "deepseek_v3_official",
+      "secondary": "qwen_72b",
       "fallback": "deepseek_r1_distill_7b"
     },
     "code_generation": {
-      "primary": "qwen_72b",
-      "secondary": "deepseek_v3_official",
+      "primary": "deepseek_v3_official",
+      "secondary": "qwen_72b",
       "fallback": "gemma_2_9b"
     },
     "tool_calling": {
-      "primary": "qwen_72b",
-      "secondary": "deepseek_v3_official",
+      "primary": "deepseek_v3_official",
+      "secondary": "qwen_72b",
       "fallback": "deepseek_v3_official"
     },
     "creative_writing": {
@@ -300,6 +339,16 @@
       "primary": "siliconflow_qwen_vl",
       "secondary": "zhipu_glm_46v_flash",
       "fallback": "simple_analysis"
+    },
+    "agent_mode": {
+      "primary": "claude_sonnet",
+      "secondary": "claude_haiku",
+      "fallback": "qwen_72b"
+    },
+    "computer_use": {
+      "primary": "claude_sonnet",
+      "secondary": "claude_haiku",
+      "fallback": "deepseek_v3_official"
     }
   },
   "budget_control": {
