@@ -541,58 +541,56 @@ class OpenAIClient(BaseAIClient):
 
                 async def execute_single_tool(tool_call):
                     """执行单个工具调用的异步函数"""
-                    from .tool_adapter import get_tool_adapter
-
-                    adapter = get_tool_adapter()
-
-                    # 解析工具参数，增加错误处理和自动修复
                     try:
-                        tool_args = (
-                            json.loads(tool_call.function.arguments)
-                            if tool_call.function.arguments
-                            else {}
-                        )
-                    except json.JSONDecodeError as e:
-                        # 尝试自动修复常见的JSON格式问题
-                        arguments_str = tool_call.function.arguments
-                        if arguments_str:
-                            # 修复未加引号的值 (如 user_id: 佳 -> user_id: "佳")
-                            # 匹配 key: value 其中 value 不是字符串也不是数字
-                            fixed = re.sub(
-                                r'(\w+):\s*([^\s,"\[\]{}\d][^\s,"\[\]{}]*)',
-                                r'\1: "\2"',
-                                arguments_str,
+                        from .tool_adapter import get_tool_adapter
+
+                        adapter = get_tool_adapter()
+
+                        # 解析工具参数，增加错误处理和自动修复
+                        try:
+                            tool_args = (
+                                json.loads(tool_call.function.arguments)
+                                if tool_call.function.arguments
+                                else {}
                             )
-                            try:
-                                tool_args = json.loads(fixed)
-                                logger.info(
-                                    f"[AIClient] 自动修复JSON成功: {arguments_str[:50]}..."
+                        except json.JSONDecodeError as e:
+                            arguments_str = tool_call.function.arguments
+                            if arguments_str:
+                                fixed = re.sub(
+                                    r'(\w+):\s*([^\s,"\[\]{}\d][^\s,"\[\]{}]*)',
+                                    r'\1: "\2"',
+                                    arguments_str,
                                 )
-                            except:
-                                logger.warning(
-                                    f"[AIClient] 工具参数解析失败: {e}, 参数: {arguments_str}"
-                                )
+                                try:
+                                    tool_args = json.loads(fixed)
+                                    logger.info(
+                                        f"[AIClient] 自动修复JSON成功: {arguments_str[:50]}..."
+                                    )
+                                except:
+                                    logger.warning(
+                                        f"[AIClient] 工具参数解析失败: {e}, 参数: {arguments_str}"
+                                    )
+                                    tool_args = {}
+                            else:
                                 tool_args = {}
-                        else:
-                            tool_args = {}
 
-                    import sys
+                        logger.info(
+                            f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
+                        )
 
-                    logger.info(
-                        f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
-                    )
-                    print(
-                        f"[AICLIENT] >>> EXECUTING TOOL: {tool_call.function.name}",
-                        file=sys.stderr,
-                    )
+                        adapter = get_tool_adapter()
 
-                    result = await adapter.execute_tool(
-                        tool_call.function.name, tool_args, self.tool_context or {}
-                    )
+                        result = await adapter.execute_tool(
+                            tool_call.function.name, tool_args, self.tool_context or {}
+                        )
 
-                    return tool_call, result
+                        return tool_call, result
+                    except Exception as e:
+                        logger.error(
+                            f"[AIClient] execute_single_tool异常: {e}", exc_info=True
+                        )
+                        return tool_call, f"工具执行异常: {str(e)}"
 
-                # 判断是否可以并发执行
                 # 只有当多个工具之间没有依赖关系时才并发执行
                 concurrent_tool_names = [
                     "get_recent_messages",
@@ -910,9 +908,15 @@ class DeepSeekClient(BaseAIClient):
                             )
                             tool_args = json.loads(fixed_str2)
 
-                    logger.info(
-                        f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
-                    )
+                        logger.info(
+                            f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
+                        )
+                        import sys
+
+                        print(
+                            f"[AICLIENT] >>> EXECUTING TOOL: {tool_call.function.name}",
+                            file=sys.stderr,
+                        )
 
                     result = await adapter.execute_tool(
                         tool_call.function.name, tool_args, self.tool_context or {}

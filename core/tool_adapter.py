@@ -278,7 +278,7 @@ class ToolAdapter:
                     else:
                         # 旧版或其他签名: execute(self, context, **kwargs) 或类似
                         result = await tool.execute(tool_context, **args)
-                except Exception:
+                except Exception as e:
                     # 如果检测失败，尝试两种常见签名
                     try:
                         result = await tool.execute(args, tool_context)

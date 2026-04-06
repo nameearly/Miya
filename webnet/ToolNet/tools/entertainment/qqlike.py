@@ -5,7 +5,6 @@ QQ点赞工具
 from typing import Dict, Any
 import logging
 from webnet.ToolNet.base import BaseTool, ToolContext
-from webnet.qq.utils import LikeFallback
 
 
 logger = logging.getLogger(__name__)
@@ -45,10 +44,20 @@ class QQLike(BaseTool):
             target_user_id = context.at_list[0]
             logger.info(f"[qq_like] 检测到@提及，使用at_list中的用户: {target_user_id}")
         else:
-            # 否则使用当前用户ID，忽略AI传递的参数
-            # 这样可以避免AI传递错误QQ号的问题
-            target_user_id = context.user_id
-            logger.info(f"[qq_like] 使用当前用户ID: {target_user_id}")
+            # 否则使用AI传递的参数或当前用户ID
+            target_user_id_from_args = args.get("target_user_id")
+            if target_user_id_from_args is not None:
+                try:
+                    target_user_id = int(target_user_id_from_args)
+                    logger.info(f"[qq_like] 使用AI传递的QQ号: {target_user_id}")
+                except (ValueError, TypeError):
+                    logger.warning(
+                        f"[qq_like] AI传递的QQ号无效: {target_user_id_from_args}，使用当前用户ID"
+                    )
+                    target_user_id = context.user_id
+            else:
+                target_user_id = context.user_id
+                logger.info(f"[qq_like] 使用当前用户ID: {target_user_id}")
 
         times = args.get("times", 1)
 
@@ -76,48 +85,18 @@ class QQLike(BaseTool):
         if times > 10:
             return "单次点赞次数不能超过10次"
 
-        send_like_callback = context.send_like_callback
-        if not send_like_callback:
-            return "点赞功能不可用（回调函数未设置）"
+        # 尝试直接调用点赞回调
+        send_like_callback = getattr(context, "send_like_callback", None)
+        if send_like_callback:
+            try:
+                await send_like_callback(target_user_id, times)
 
-        try:
-            # 尝试直接调用点赞回调
-            await send_like_callback(target_user_id, times)
+                if times == 1:
+                    return f"✅ 已给 QQ{target_user_id} 点赞。"
+                else:
+                    return f"✅ 已给 QQ{target_user_id} 点赞 {times} 次。"
+            except Exception as callback_error:
+                logger.error(f"点赞回调执行失败: {callback_error}", exc_info=True)
 
-            if times == 1:
-                return f"✅ 已给 QQ{target_user_id} 点赞。"
-            else:
-                return f"✅ 已给 QQ{target_user_id} 点赞 {times} 次。"
-
-        except Exception as e:
-            logger.error(f"点赞失败: {e}", exc_info=True)
-            error_msg = str(e)
-
-            # 如果是网络连接异常，尝试备选方案
-            if "网络连接异常" in error_msg or "retcode=1200" in error_msg:
-                logger.info(f"尝试点赞备选方案: {error_msg}")
-
-                # 备选方案：发送表情代替点赞
-                try:
-                    # 获取client实例（从context中）
-                    client = getattr(context, "onebot_client", None)
-                    if client:
-                        emoji_message = "👍" * min(times, 10)
-                        await client.send_private_msg(
-                            user_id=target_user_id,
-                            message=f"（点赞备选）{emoji_message}",
-                        )
-                        return f"✅ 已发送表情代替点赞: {emoji_message}"
-                    else:
-                        return f"❌ 点赞失败：OneBot服务网络连接异常\n💡 建议：检查OneBot服务是否支持点赞API"
-                except Exception as fallback_error:
-                    logger.error(f"点赞备选方案也失败: {fallback_error}")
-                    return f"❌ 点赞失败：OneBot服务网络连接异常\n💡 建议：检查OneBot服务是否正常运行"
-
-            # 根据其他错误消息提供更友好的提示
-            elif "SVIP 上限" in error_msg:
-                return "点赞失败：今日给同一好友的点赞数已达SVIP上限"
-            elif "点赞失败" in error_msg:
-                return f"点赞失败：{error_msg}"
-            else:
-                return f"点赞失败：{error_msg}"
+        # 如果没有点赞回调或回调执行失败，返回提示
+        return f"⚠️ 点赞功能暂时不可用，但我已记录您的点赞意图"

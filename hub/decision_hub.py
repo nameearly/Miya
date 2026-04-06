@@ -1294,6 +1294,11 @@ class DecisionHub:
                             )
                             if selected_client:
                                 ai_client_to_use = selected_client
+                                # 关键修复：将工具上下文也设置到动态创建的客户端上
+                                selected_client.set_tool_context(tool_context)
+                                selected_client.set_tool_registry(
+                                    self.tool_subnet.get_tools_schema
+                                )
                                 self._last_selected_model = model_config.id
                                 self._last_task_type = task_type.value
                                 logger.info(
@@ -1351,8 +1356,6 @@ class DecisionHub:
                             tools=None,  # 不使用工具
                             tool_choice="none",
                         )
-                        # 添加后缀说明工具调用曾尝试过
-                        response += "\n\n[注: 系统尝试了自动处理但遇到了一些问题]"
                     except Exception as e2:
                         response = get_text(
                             "error_messages.tool_failure_fallback"

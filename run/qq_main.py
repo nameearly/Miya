@@ -123,6 +123,9 @@ class MiyaQQ:
         if self.miya.memory_net:
             await self.miya._initialize_memory_net_async()
 
+        # 让 core.ai_client 的工具调用日志也输出到终端
+        self._setup_ai_client_logger()
+
         self.logger.info("弥娅核心系统初始化完成（新版 ToolNet 架构）")
 
         # 初始化 TTS 系统
@@ -161,6 +164,26 @@ class MiyaQQ:
         self._init_message_batcher()
 
         self.logger.info("QQNet 配置完成")
+
+    def _setup_ai_client_logger(self):
+        """让 core.ai_client 的工具调用日志也输出到终端"""
+        import logging
+
+        ai_logger = logging.getLogger("core.ai_client")
+        ai_logger.setLevel(logging.INFO)
+
+        # 添加一个控制台处理器，复用 MiyaQQ 的格式
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+        console_handler.setFormatter(console_formatter)
+
+        # 避免重复添加（如果已经添加过）
+        if not any(isinstance(h, logging.StreamHandler) for h in ai_logger.handlers):
+            ai_logger.addHandler(console_handler)
+        ai_logger.propagate = True  # 允许传播到根日志
 
     def _init_tts_system(self):
         """初始化 TTS 系统"""
