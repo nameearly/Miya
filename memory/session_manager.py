@@ -1,53 +1,136 @@
 """
-Legacy session_manager - 已迁移到新版记忆系统
+会话管理器 (SessionManager)
+
+职责：
+- 管理会话生命周期
+- 提供对话历史查询
+- 与统一记忆系统集成
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict
+from datetime import datetime
 from enum import Enum
+
+from memory import get_dialogue_history, store_dialogue, MemoryLevel
 
 
 class SessionCategory(Enum):
-    """会话类别 - 兼容旧接口"""
+    """会话类别"""
 
     DIALOGUE = "dialogue"
     TASK = "task"
     SYSTEM = "system"
     CREATIVE = "creative"
+    QQ = "qq"
+    TERMINAL = "terminal"
+    WEB = "web"
 
 
 class SessionManager:
-    """会话管理器 - 兼容旧接口"""
+    """会话管理器"""
 
     def __init__(self):
-        pass
+        self._active_sessions: Dict[str, Dict] = {}
 
-    async def create_session(self, session_id: str, user_id: str) -> str:
-        return session_id
+    async def create_session(
+        self,
+        session_id: str,
+        user_id: str,
+        platform: str = "unknown",
+        category: SessionCategory = SessionCategory.DIALOGUE,
+    ) -> str:
+        """创建新会话"""
+        session_key = f"{platform}_{session_id}"
+        self._active_sessions[session_key] = {
+            "session_id": session_id,
+            "user_id": user_id,
+            "platform": platform,
+            "category": category.value
+            if isinstance(category, SessionCategory)
+            else category,
+            "created_at": datetime.now().isoformat(),
+            "message_count": 0,
+        }
+        return session_key
 
-    async def get_session(self, session_id: str) -> Optional[dict]:
-        return None
+    async def get_session(
+        self, session_id: str, platform: str = "unknown"
+    ) -> Optional[Dict]:
+        """获取会话信息"""
+        session_key = f"{platform}_{session_id}"
+        return self._active_sessions.get(session_key)
 
     async def get_conversation_messages(
-        self, session_id: str, limit: int = 50
-    ) -> List[dict]:
-        from memory import get_dialogue_history
+        self, session_id: str, platform: str = "unknown", limit: int = 50
+    ) -> List[Dict]:
+        """获取会话消息"""
+        try:
+            mems = await get_dialogue_history(
+                session_id, platform=platform, limit=limit
+            )
+            return [{"role": m.role, "content": m.content} for m in mems]
+        except Exception:
+            return []
 
-        mems = await get_dialogue_history(session_id, limit=limit)
-        return [{"role": m.role, "content": m.content} for m in mems]
+    async def save_session(
+        self,
+        session_id: str,
+        platform: str,
+        messages: List[Dict],
+        category: SessionCategory = SessionCategory.DIALOGUE,
+    ) -> Dict:
+        """保存会话到记忆系统"""
+        stored = 0
+        for msg in messages:
+            try:
+                await store_dialogue(
+                    content=msg.get("content", ""),
+                    role=msg.get("role", "user"),
+                    user_id=msg.get("user_id", "unknown"),
+                    session_id=session_id,
+                    platform=platform,
+                    metadata=msg.get("metadata", {}),
+                )
+                stored += 1
+            except Exception:
+                continue
+
+        # 更新活跃会话
+        session_key = f"{platform}_{session_id}"
+        if session_key in self._active_sessions:
+            self._active_sessions[session_key]["message_count"] = stored
+
+        return {
+            "success": True,
+            "message": f"已保存 {stored}/{len(messages)} 条消息",
+            "session_id": session_id,
+            "platform": platform,
+        }
+
+    async def close_session(self, session_id: str, platform: str = "unknown") -> bool:
+        """关闭会话"""
+        session_key = f"{platform}_{session_id}"
+        if session_key in self._active_sessions:
+            del self._active_sessions[session_key]
+            return True
+        return False
+
+    def get_active_sessions(self) -> List[Dict]:
+        """获取所有活跃会话"""
+        return list(self._active_sessions.values())
 
 
-def get_session_manager():
+def get_session_manager() -> SessionManager:
     return SessionManager()
 
 
-def init_session_manager():
-    """初始化会话管理器 - 兼容旧接口"""
+def init_session_manager() -> SessionManager:
     return SessionManager()
 
 
 __all__ = [
     "SessionManager",
+    "SessionCategory",
     "get_session_manager",
     "init_session_manager",
-    "SessionCategory",
 ]

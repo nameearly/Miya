@@ -791,5 +791,57 @@
       "user_id": 2911746585,
       "sender_name": "弥娅"
     }
+  },
+  {
+    "role": "assistant",
+    "content": "嗯。",
+    "timestamp": "2026-04-06T11:28:34.111789",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "我看到了。",
+    "timestamp": "2026-04-06T15:57:03.744585",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "我看到了。",
+    "timestamp": "2026-04-06T15:57:07.726696",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "我在这里。",
+    "timestamp": "2026-04-06T15:59:11.928634",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": 2911746585,
+      "sender_name": "弥娅"
+    }
   }
 ]

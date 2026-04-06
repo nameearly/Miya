@@ -7,12 +7,13 @@ JSON 保持可视化，SQLite 用于快速检索
 
 import json
 import logging
+import math
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .core import MemoryBackend, MemoryItem, MemoryLevel, MemoryQuery
+from .core import MemoryBackend, MemoryItem, MemoryLevel, MemoryQuery, MemorySource
 
 logger = logging.getLogger(__name__)
 
@@ -322,7 +323,9 @@ class SQLiteBackend(MemoryBackend):
             logger.error(f"[SQLiteBackend] 查询失败: {e}")
             return []
 
-    async def count(self, user_id: str = None, level: str = None) -> int:
+    async def count(
+        self, user_id: Optional[str] = None, level: Optional[str] = None
+    ) -> int:
         if not self.enabled:
             return 0
         try:
@@ -385,6 +388,65 @@ class SQLiteBackend(MemoryBackend):
         if self._conn:
             self._conn.close()
             self._conn = None
+
+    async def vector_search(
+        self,
+        query_vector: List[float],
+        user_id: Optional[str] = None,
+        limit: int = 10,
+        threshold: float = 0.7,
+    ) -> List[MemoryItem]:
+        """向量相似度搜索 - Python 计算余弦相似度"""
+        if not self.enabled:
+            return []
+        try:
+            conn = self._get_conn()
+            conditions = ["vector IS NOT NULL AND vector != ''"]
+            params = []
+
+            if user_id:
+                conditions.append("user_id = ?")
+                params.append(user_id)
+
+            where_clause = " AND ".join(conditions)
+            sql = f"SELECT * FROM {self._table_name} WHERE {where_clause} ORDER BY priority DESC LIMIT {limit * 3}"
+            rows = conn.execute(sql, params).fetchall()
+
+            if not rows:
+                return []
+
+            import math
+            import json as _json
+
+            scored = []
+            for row in rows:
+                try:
+                    stored_vector = _json.loads(row["vector"])
+                    if len(stored_vector) != len(query_vector):
+                        continue
+                    similarity = self._cosine_similarity(query_vector, stored_vector)
+                    if similarity >= threshold:
+                        item = self._row_to_memory(row)
+                        scored.append((item, similarity))
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    continue
+
+            scored.sort(key=lambda x: x[1], reverse=True)
+            results = [item for item, _ in scored[:limit]]
+            return results
+        except Exception as e:
+            logger.error(f"[SQLiteBackend] 向量搜索失败: {e}")
+            return []
+
+    @staticmethod
+    def _cosine_similarity(a: List[float], b: List[float]) -> float:
+        """计算余弦相似度"""
+        dot = sum(x * y for x, y in zip(a, b))
+        norm_a = math.sqrt(sum(x * x for x in a))
+        norm_b = math.sqrt(sum(x * x for x in b))
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return dot / (norm_a * norm_b)
 
     def _row_to_memory(self, row) -> Optional[MemoryItem]:
         """将 SQLite 行转换为 MemoryItem"""

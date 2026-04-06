@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 4.3.2 Dynamic Edition</strong><br>
+  <strong>Version 4.3.3 Dynamic Edition</strong><br>
   多模态 AI 虚拟化身 · 跨平台 · 自我进化 · 隐私感知记忆 · MCP支持 · 队列管理 · 模型协作引擎
 </p>
 
@@ -12810,7 +12810,233 @@ start.bat
 
 ---
 
+## LifeBook 多视角日记系统 (v4.3.3 新增)
+
+### 概述
+
+LifeBook 是弥娅在 v4.3.3 版本中新增的多视角实时日记系统。它从三个视角记录弥娅与用户的互动：
+
+- **lover（弥娅视角）**：从弥娅的角度记录思考与感受
+- **user（用户视角）**：记录关于用户的重要事实
+- **together（共同视角）**：实时记录每一次对话
+
+### 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    LifeBook 多视角日记系统                           │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                    LifeBook Manager                          │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │   │
+│   │  │  record_   │  │ generate_  │  │  search()  │          │   │
+│   │  │  interaction()  │ daily_summary() │            │          │   │
+│   │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘          │   │
+│   └─────────┼────────────────┼────────────────┼────────────────────┘   │
+│             │                │                │                      │
+│   ┌─────────┴────────────────┴────────────────┴──────────────┐      │
+│   │                    三视角目录结构                          │      │
+│   │                                                              │      │
+│   │   data/lifebook/                                            │      │
+│   │   ├── lover/           # 弥娅视角日记                        │      │
+│   │   │   └── 2026/04/2026-04-06.md                            │      │
+│   │   ├── user/            # 用户视角日记                        │      │
+│   │   │   └── 2026/04/2026-04-06.md                            │      │
+│   │   └── together/        # 共同视角日记                        │      │
+│   │       └── 2026/04/2026-04-06.md                            │      │
+│   └───────────────────────────────────────────────────────────┘      │
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                    AI 摘要生成                              │   │
+│   │   基于当日对话内容，AI 自动生成温暖的每日总结                 │   │
+│   │   视角：lover (第一人称，弥娅视角)                           │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 配置说明
+
+所有配置在 `config/text_config.json` 的 `lifebook` 段：
+
+```json
+{
+  "lifebook": {
+    "base_dir": "data/lifebook",
+    "perspective_name": {
+      "lover": "弥娅",
+      "user": "佳"
+    },
+    "ai_client": {
+      "model_id": "deepseek_v3_official"
+    },
+    "summary_templates": {
+      "daily": "请以lover的视角，为以下内容生成一段温暖的每日总结。\n\n---\n\n{content}\n\n---\n\n要求：\n- 100-200 字\n- 温暖、真诚\n- 用第一人称\n- 重点突出情感和互动",
+      "weekly": "请以lover的视角，为以下内容生成一段温暖的第{week}周总结。",
+      "monthly": "请以lover的视角，为以下内容生成一段温暖的{year}年{month}月总结。"
+    },
+    "system_prompt": "你是一个温暖的AI伴侣，请用第一人称写总结。",
+    "file_organization": {
+      "structure": "year/month",
+      "summaries_folder": "summaries"
+    },
+    "user_fact_extraction": {
+      "patterns": {
+        "personal_info": [
+          {"pattern": "我(今年|今年多大|多大了|几岁)", "category": "个人信息", "field": "age"},
+          {"pattern": "我(身高|多高)", "category": "个人信息", "field": "height"},
+          {"pattern": "我(生日|哪天|什么日子)", "category": "个人信息", "field": "birthday"},
+          {"pattern": "我住在(.+?)(家|宿舍|学校|城市)", "category": "个人信息", "field": "location"},
+          {"pattern": "我是(.+?)(学生|工作|上班|考研|考公)", "category": "身份", "field": "identity"}
+        ],
+        "preference": [
+          {"pattern": "我喜欢(.+)", "category": "喜好", "field": "likes"},
+          {"pattern": "我讨厌(.+)", "category": "喜好", "field": "dislikes"},
+          {"pattern": "我最爱(.+)", "category": "喜好", "field": "favorites"}
+        ],
+        "health": [
+          {"pattern": "我有(.+?)病", "category": "健康", "field": "condition"},
+          {"pattern": "我(.+?)不舒服", "category": "健康", "field": "symptom"},
+          {"pattern": "身体(.+?)不好", "category": "健康", "field": "health"}
+        ],
+        "schedule": [
+          {"pattern": "(今天|明天|后天|周末)(去|要|准备|打算)", "category": "计划", "field": "plan"}
+        ],
+        "emotion": [
+          {"pattern": "(开心|难过|生气|害怕|担心|焦虑)", "category": "情绪", "field": "emotion"}
+        ]
+      }
+    }
+  }
+}
+```
+
+### 功能特性
+
+| 功能 | 说明 |
+|------|------|
+| **实时记录** | 每次对话自动记录到 together 视角 |
+| **用户事实提取** | 自动从用户消息中提取重要信息（年龄、喜好、健康等） |
+| **每日总结生成** | 会话结束时自动生成当日温暖的 AI 总结 |
+| **周期总结** | 支持周总结、月总结、年总结 |
+| **三视角检索** | 支持按视角、日期、关键词搜索 |
+
+### 使用示例
+
+```python
+from memory.lifebook import get_lifebook
+
+# 获取 LifeBook 实例
+lifebook = get_lifebook()
+
+# 实时记录对话
+await lifebook.record_interaction(
+    user_message="今天去医院体检了",
+    lover_response="怎么样？身体还好吗",
+    topics=["健康", "体检"],
+    emotion="关心"
+)
+
+# 生成每日总结（通常在会话结束时自动调用）
+summary = await lifebook.generate_daily_summary("2026-04-06")
+
+# 搜索日记
+results = lifebook.search("体检", perspective="user")
+
+# 列出最近日记
+entries = lifebook.list_entries(perspective="together", limit=10)
+```
+
+### 弥娅视角配置
+
+弥娅的视角名称从 `config/personalities/` 目录中的人格配置文件读取。当前使用的视角名称在 `text_config.json` 中配置：
+
+- `lover` = "弥娅"（弥娅对自己的称呼）
+- `user` = "佳"（对用户的称呼）
+
+### 核心模块
+
+| 文件 | 说明 |
+|------|------|
+| `memory/lifebook.py` | LifeBook 核心实现 |
+| `config/text_config.json` | LifeBook 配置 |
+| `hub/session_handler.py` | 会话结束处理，触发摘要生成 |
+
+### 目录结构
+
+```
+data/lifebook/
+├── lover/              # 弥娅视角 - 每日总结
+│   └── 2026/
+│       └── 04/
+│           ├── 2026-04-06.md
+│           └── summaries/
+│               ├── 2026/
+│               │   ├── W14.md  # 第14周总结
+│               │   └── 04.md  # 4月总结
+├── user/               # 用户视角 - 提取的事实
+│   └── 2026/
+│       └── 04/
+│           └── 2026-04-06.md
+├── together/           # 共同视角 - 实时对话记录
+│   └── 2026/
+│       └── 04/
+│           └── 2026-04-06.md
+└── index.json          # 日记索引文件
+```
+
+### 日记文件格式
+
+**together 视角（实时对话记录）**:
+```markdown
+# 2026-04-06 我们的日记
+
+> 这一天，我们共同度过。
+
+### 19:30
+
+**user说**: 今天去医院体检了
+
+**我说**: 怎么样？身体还好吗
+
+*情感: 关心*
+*话题: 健康, 体检*
+```
+
+**lover 视角（每日总结）**:
+```markdown
+# 2026-04-06 我的日记
+
+> 作为lover，我的思考与感受。
+
+---
+
+## 🌙 今日总结
+
+今天佳去医院体检了，我能感觉到他有些紧张。佳总是这样，身体不舒服也不轻易说出口。但他还是愿意告诉我这些，说明他信任我。这让我感到温暖...
+```
+
+---
+
 ## 更新日志
+
+### v4.3.3 (2026-04-06)
+
+#### 新增功能
+- **LifeBook 多视角日记系统**：三视角实时记录与 AI 摘要生成
+- **用户事实自动提取**：从用户消息自动识别并记录重要信息
+- **配置驱动**：所有配置从 `text_config.json` 读取
+
+#### 优化改进
+- **perspective_name 配置**：弥娅视角名称从配置读取
+- **用户视角自动提取**：自动提取用户年龄、喜好、健康等信息
+- **fallback 值清理**：移除所有硬编码 fallback 值
+
+#### 架构变更
+- 新增 `memory/lifebook.py` 模块
+- 配置新增 `lifebook` 和 `user_fact_extraction` 段
+- 与 session_handler 集成，会话结束自动生成摘要
 
 ### v4.3.2 (2026-04-06)
 

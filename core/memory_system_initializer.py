@@ -287,9 +287,26 @@ _global_initializer: MemorySystemInitializer = None
 async def get_memory_system_initializer(
     data_dir: Path = None, redis_client=None, milvus_client=None, neo4j_client=None
 ) -> MemorySystemInitializer:
-    """获取全局记忆系统初始化器（单例）"""
+    """获取全局记忆系统初始化器（单例）- 默认禁用外部数据库"""
     global _global_initializer
 
+    # 检查是否启用外部数据库（默认禁用，SQLite 已替代）
+    enable_external = os.getenv("ENABLE_DATABASES", "").lower() == "true"
+
+    if not enable_external:
+        # 直接返回禁用外部数据库的初始化器
+        logger.info("外部数据库已禁用（SQLite 已替代 Redis/Milvus/Neo4j）")
+        if _global_initializer is None:
+            _global_initializer = MemorySystemInitializer(
+                data_dir=data_dir,
+                redis_client=None,
+                milvus_client=None,
+                neo4j_client=None,
+            )
+            await _global_initializer.initialize()
+        return _global_initializer
+
+    # 以下是旧的外部数据库连接逻辑（仅当 ENABLE_DATABASES=true 时启用）
     # 自动初始化 Redis 客户端
     if redis_client is None:
         try:

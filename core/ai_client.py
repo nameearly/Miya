@@ -232,6 +232,46 @@ class BaseAIClient:
             return system_prompt[start:end]
         return ""
 
+    def _filter_thinking_content(self, content: str, reasoning: str) -> str:
+        """
+        从内容中过滤掉思考过程
+
+        Args:
+            content: 原始内容
+            reasoning: 思考过程内容
+
+        Returns:
+            过滤后的内容
+        """
+        if not reasoning or not content:
+            return content
+
+        # 如果内容中包含思考过程，尝试提取纯回复部分
+        # DeepSeek R1 的思考过程通常在内容开头，用换行与正文分隔
+        if reasoning and len(reasoning) > 10:
+            # 尝试找到思考过程结束的位置
+            # 常见的分隔模式
+            import re
+
+            # 尝试匹配思考结束标记
+            patterns = [
+                r"\n\n(?!.*thought)",  # 第二个空行后（假设没有 thought 关键词）
+                r"\n(?:答|回复|回答|那么|好了|综上)",  # 以回答类词语开头的新段落
+            ]
+
+            for pattern in patterns:
+                match = re.search(pattern, content)
+                if match and match.start() > len(reasoning) * 0.5:
+                    # 思考过程应该比匹配位置短，否则可能不是思考结束
+                    return content[match.start() :].strip()
+
+            # 如果没找到合适的分隔，但内容明显包含思考部分
+            # 尝试直接去除 reasoning 部分
+            if reasoning in content:
+                return content.replace(reasoning, "", 1).strip()
+
+        return content
+
     def _check_needs_tool_action(self, user_message: str) -> bool:
         """
         检测用户消息是否需要执行操作（需要调用工具）
@@ -466,6 +506,15 @@ class OpenAIClient(BaseAIClient):
                     f"[AIClient] OpenAI响应 - 返回类型: {type(message).__name__}, 有工具调用: {bool(message.tool_calls)}, content长度: {len(message.content) if message.content else 0}, tool_choice={tool_choice}"
                 )
 
+                # 提取思考过程（DeepSeek R1等模型特有）
+                reasoning_content = getattr(
+                    message, "reasoning_content", None
+                ) or getattr(message, "reasoning", None)
+                if reasoning_content:
+                    logger.info(
+                        f"[AIClient] 检测到思考过程，长度: {len(reasoning_content)}"
+                    )
+
                 # 如果没有工具调用，检查是否需要强制调用工具
                 if not message.tool_calls:
                     logger.debug(
@@ -509,7 +558,13 @@ class OpenAIClient(BaseAIClient):
                         logger.error(
                             f"[AIClient] tool_choice='required'但模型未调用工具，可能是工具描述或系统提示词问题"
                         )
-                    return message.content
+                    # 过滤思考过程（如 DeepSeek R1 的 reasoning_content）
+                    final_content = message.content or ""
+                    if reasoning_content:
+                        final_content = self._filter_thinking_content(
+                            final_content, reasoning_content
+                        )
+                    return final_content
 
                 # 有工具调用，执行工具
                 tool_calls = message.tool_calls

@@ -717,6 +717,50 @@ class MiyaQQ:
                         self.logger.info(f"弥娅回复 -> {response_preview}...")
                         await self._send_qq_response(qq_message, response_text)
                         self.logger.info(f"消息处理 -> 完成")
+
+                        # 实时记录到 LifeBook 日记
+                        if (
+                            hasattr(self.miya, "decision_hub")
+                            and self.miya.decision_hub
+                        ):
+                            try:
+                                from memory.lifebook import get_lifebook
+
+                                lifebook = get_lifebook()
+                                user_msg = perception.get("content", "")
+                                topics = []
+                                emotion = "平静"
+                                await lifebook.record_interaction(
+                                    user_message=user_msg,
+                                    lover_response=response_text,
+                                    topics=topics,
+                                    emotion=emotion,
+                                )
+                                self.logger.debug("LifeBook 实时记录完成")
+                            except Exception as e:
+                                self.logger.warning(f"LifeBook 实时记录失败: {e}")
+
+                        # 检测离别语，触发会话结束处理
+                        if (
+                            hasattr(self.miya, "decision_hub")
+                            and self.miya.decision_hub
+                        ):
+                            from core.qq_command_config import is_farewell_keyword
+
+                            if is_farewell_keyword(perception.get("content", "")):
+                                self.logger.info("检测到离别语，触发会话结束处理...")
+                                try:
+                                    user_id = (
+                                        str(qq_message.user_id)
+                                        if qq_message.user_id
+                                        else "qq"
+                                    )
+                                    await self.miya.decision_hub.handle_session_end(
+                                        session_id=user_id, platform="qq"
+                                    )
+                                    self.logger.info("会话结束处理完成")
+                                except Exception as e:
+                                    self.logger.error(f"会话结束处理失败: {e}")
                     else:
                         self.logger.warning("弥娅无回复内容")
                 else:

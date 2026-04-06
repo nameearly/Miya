@@ -101,6 +101,8 @@ data/memory/
 data/user_personas/
 data/.emoji_backups/
 data/emoji/*.json
+data/lifebook/
+data/emoji/user_uploaded/
 
 # Runtime working memory
 data/memory/short_term/

@@ -192,42 +192,13 @@ class Miya:
         self._init_databases()
 
     def _init_databases(self):
-        """初始化可选数据库"""
-        # 自动检测：检查环境变量或 Neo4j 密码是否配置
-        enable_db = os.getenv("ENABLE_DATABASES", "").lower() == "true"
-
-        # 如果没有显式设置，检查配置是否可用
-        if not enable_db:
-            from dotenv import load_dotenv
-
-            load_dotenv(Path(__file__).parent.parent / "config" / ".env")
-            # 如果配置了 Neo4j 密码，启用数据库
-            if os.getenv("NEO4J_PASSWORD"):
-                enable_db = True
-
-        if enable_db:
-            self.logger.info(f"  [数据库] Redis 初始化中...")
-            self.redis = RedisAsyncClient()
-            redis_status = "已连接" if not self.redis.is_mock else "模拟模式"
-            self.logger.info(f"  [数据库] Redis {redis_status}")
-
-            self.logger.info(f"  [数据库] Milvus 初始化中...")
-            self.milvus = MilvusClient()
-            milvus_status = (
-                f"Milvus Lite (本地)" if self.milvus._is_lite else "远程Milvus"
-            )
-            if self.milvus.is_mock_mode():
-                milvus_status = "模拟模式"
-            self.logger.info(f"  [数据库] Milvus {milvus_status}")
-
-            self.neo4j = self._init_neo4j()
-        else:
-            self.logger.info(
-                f"  [数据库] 数据库已禁用（设置 ENABLE_DATABASES=true 启用）"
-            )
-            self.redis = None
-            self.milvus = None
-            self.neo4j = None
+        """初始化可选数据库 - 默认禁用（SQLite 已替代）"""
+        self.logger.info(
+            f"  [数据库] 外部数据库已禁用（SQLite 已替代 Redis/Milvus/Neo4j）"
+        )
+        self.redis = None
+        self.milvus = None
+        self.neo4j = None
 
         # 初始化全局记忆系统 (M-Link + MemoryNet)
         self._init_memory_system()
@@ -258,19 +229,16 @@ class Miya:
             emotion=self.emotion,
             personality=self.personality,
             prompt_manager=self.prompt_manager,
-            memory_net=self.memory_net,  # 传入MemoryNet，实现统一记忆
+            memory_net=self.memory_net,
             decision_engine=self.decision,
-            tool_subnet=self.tool_subnet,  # 传入 ToolNet 子网（符合 MIYA 框架）
+            tool_subnet=self.tool_subnet,
             memory_engine=self.memory_engine,
             scheduler=self.scheduler,
             onebot_client=None,
             game_mode_adapter=None,
             identity=self.identity,
-            model_pool=getattr(self, "model_pool", None),  # 传递模型池
-            miya_instance=self,  # 传递miya实例，用于获取系统状态
-            unified_memory=getattr(
-                self, "unified_memory", None
-            ),  # 传递统一记忆系统用于JSON持久化
+            model_pool=getattr(self, "model_pool", None),
+            miya_instance=self,
         )
 
         # 初始化平台适配器
@@ -417,10 +385,8 @@ class Miya:
             self.memory_net = MemoryNet(self.mlink)
             self.logger.info("MemoryNet 全局记忆子网初始化成功")
 
-            # 清除对话历史移到异步初始化之后，此处不再处理
-
-            # 初始化Neo4j知识图谱（使用已连接的neo4j客户端）
-            self._init_neo4j_system()
+            # 知识图谱功能已整合到统一记忆系统（SQLite）
+            # Neo4j 不再需要
 
         except Exception as e:
             self.logger.error(f"全局记忆系统初始化失败: {e}")
@@ -749,6 +715,20 @@ class Miya:
 
         # 使用DecisionHub处理（跨平台统一流程）
         response = await self.decision_hub.process_perception_cross_platform(message)
+
+        # 实时记录到 LifeBook 日记
+        try:
+            from memory.lifebook import get_lifebook
+
+            lifebook = get_lifebook()
+            await lifebook.record_interaction(
+                user_message=user_input,
+                lover_response=response or "",
+                topics=[],
+                emotion="平静",
+            )
+        except Exception as e:
+            self.logger.debug(f"LifeBook 实时记录失败: {e}")
 
         # DecisionHub 已经将响应设置到 message.content 中
         # 直接返回响应，如果是 None 则返回空字符串

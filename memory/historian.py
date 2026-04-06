@@ -8,11 +8,12 @@
 - 与 CognitiveEngine 配合实现智能记忆
 """
 
+import json
 import logging
 import re
 import asyncio
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple, Set
-from datetime import datetime
 
 from memory import get_memory_core, MemoryItem, MemorySource
 from memory.cognitive_engine import (
@@ -24,64 +25,103 @@ from memory.cognitive_engine import (
 logger = logging.getLogger(__name__)
 
 
-# 需要忽略的内容模式
-IGNORE_PATTERNS = [
-    r"^[嗯哦啊哈嘿诶]{1,3}[。\.!?]*$",
-    r"^[好是知道行可以]{1,2}[。\.!?]*$",
-    r"^[干嘛怎么了啥事?]*$",
-    r"^[哈哈哈?]+[。!]*$",
-    r"^\[表情\]$",
-    r"^[\(]?图片[照片]?[\)]?$",
-    r"^[/@].*",  # 命令
-    r"^!{3,}$",  # 纯感叹号
-    r"^[~～]{3,}$",  # 纯波浪号
-]
+def _load_historian_config() -> Dict[str, Any]:
+    """从 text_config.json 加载 Historian 配置"""
+    try:
+        config_path = Path(__file__).parent.parent / "config" / "text_config.json"
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            return config.get("historian", {})
+    except Exception as e:
+        logger.debug(f"[Historian] 加载配置失败: {e}")
+    return {}
 
-# 重要信息模式
-IMPORTANT_PATTERNS = {
-    "personal_info": [
-        (r"我(今年|今年多大|多大了|几岁)", "个人年龄"),
-        (r"我(身高|多高)", "个人身高"),
-        (r"我(生日|哪天|什么日子)", "个人生日"),
-        (r"我是(.+?)(学生|工作|上班)", "身份"),
-        (r"我住在(.+?)(家|宿舍|学校)", "住址"),
-    ],
-    "preference": [
-        (r"我喜欢(.+)", "喜欢"),
-        (r"我讨厌(.+)", "讨厌"),
-        (r"我最爱(.+)", "最爱"),
-        (r"我不喜欢(.+)", "不喜欢"),
-    ],
-    "health": [
-        (r"我有(.+?)病", "健康"),
-        (r"我(.+?)不舒服", "健康"),
-        (r"(.+?)先天性", "健康"),
-        (r"身体(.+?)不好", "健康"),
-    ],
-    "commitment": [
-        (r"答应你(.+)", "承诺"),
-        (r"会记住(.+)", "承诺"),
-        (r"下次(.+)", "承诺"),
-    ],
-}
 
-# 群聊有价值讨论模式
-GROUP_DISCUSSION_PATTERNS = {
-    "knowledge": [
-        (r"(三体|阶梯计划|云天明|二向箔|曲率|黑洞|光速飞船)", "科幻讨论"),
-        (r"(群星|战锤|蜂巢|超级个体|进化方向)", "科幻哲学"),
-        (r"(饕餮|深水王子|针眼画师|童话)", "三体童话"),
-        (r"(计划的一部分|面壁者|执剑人)", "三体概念"),
+def _parse_patterns(raw: List) -> List[Tuple[str, str]]:
+    """将配置中的 [[pattern, label], ...] 转为 [(pattern, label), ...]"""
+    return [(p[0], p[1]) for p in raw if isinstance(p, list) and len(p) >= 2]
+
+
+def _parse_group_patterns(raw: Dict) -> Dict[str, List[Tuple[str, str]]]:
+    """解析群聊讨论模式"""
+    result = {}
+    for category, patterns in raw.items():
+        result[category] = _parse_patterns(patterns)
+    return result
+
+
+# 从配置加载（回退到内置默认值）
+_config = _load_historian_config()
+
+IGNORE_PATTERNS = _config.get(
+    "ignore_patterns",
+    [
+        r"^[嗯哦啊哈嘿诶]{1,3}[。\.!?]*$",
+        r"^[好是知道行可以]{1,2}[。\.!?]*$",
+        r"^[干嘛怎么了啥事?]*$",
+        r"^[哈哈哈?]+[。!]*$",
+        r"^\[表情\]$",
+        r"^[\(]?图片[照片]?[\)]?$",
+        r"^[/@].*",
+        r"^!{3,}$",
+        r"^[~～]{3,}$",
     ],
-    "opinion": [
-        (r"(我认为|我觉得|我的看法|我的看法是)", "观点表达"),
-        (r"(你怎么看|你怎么想|你的看法)", "征求意见"),
-    ],
-    "event": [
-        (r"(今天|明天|昨天|下周|下周)(去|要|准备|打算)", "计划安排"),
-        (r"(终于|总算|结束了|完成了)", "事件完成"),
-    ],
-}
+)
+
+IMPORTANT_PATTERNS = _parse_group_patterns(
+    _config.get(
+        "important_patterns",
+        {
+            "personal_info": [
+                [r"我(今年|今年多大|多大了|几岁)", "个人年龄"],
+                [r"我(身高|多高)", "个人身高"],
+                [r"我(生日|哪天|什么日子)", "个人生日"],
+                [r"我是(.+?)(学生|工作|上班)", "身份"],
+                [r"我住在(.+?)(家|宿舍|学校)", "住址"],
+            ],
+            "preference": [
+                [r"我喜欢(.+)", "喜欢"],
+                [r"我讨厌(.+)", "讨厌"],
+                [r"我最爱(.+)", "最爱"],
+                [r"我不喜欢(.+)", "不喜欢"],
+            ],
+            "health": [
+                [r"我有(.+?)病", "健康"],
+                [r"我(.+?)不舒服", "健康"],
+                [r"(.+?)先天性", "健康"],
+                [r"身体(.+?)不好", "健康"],
+            ],
+            "commitment": [
+                [r"答应你(.+)", "承诺"],
+                [r"会记住(.+)", "承诺"],
+                [r"下次(.+)", "承诺"],
+            ],
+        },
+    )
+)
+
+GROUP_DISCUSSION_PATTERNS = _parse_group_patterns(
+    _config.get(
+        "group_discussion_patterns",
+        {
+            "knowledge": [
+                [r"(三体|阶梯计划|云天明|二向箔|曲率|黑洞|光速飞船)", "科幻讨论"],
+                [r"(群星|战锤|蜂巢|超级个体|进化方向)", "科幻哲学"],
+                [r"(饕餮|深水王子|针眼画师|童话)", "三体童话"],
+                [r"(计划的一部分|面壁者|执剑人)", "三体概念"],
+            ],
+            "opinion": [
+                [r"(我认为|我觉得|我的看法|我的看法是)", "观点表达"],
+                [r"(你怎么看|你怎么想|你的看法)", "征求意见"],
+            ],
+            "event": [
+                [r"(今天|明天|昨天|下周|下周)(去|要|准备|打算)", "计划安排"],
+                [r"(终于|总算|结束了|完成了)", "事件完成"],
+            ],
+        },
+    )
+)
 
 
 class Historian:

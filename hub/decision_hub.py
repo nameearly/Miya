@@ -164,11 +164,9 @@ class DecisionHub:
         self.emotion_controller = EmotionController(emotion_instance=self.emotion)
 
         # 3. 记忆管理器
-        self.unified_memory = unified_memory  # 存储引用供后续使用
         self.memory_manager = MemoryManager(
             memory_net=self.memory_net,
             memory_engine=self.memory_engine,
-            unified_memory=unified_memory,  # 传递统一记忆系统用于持久化
         )
 
         # 4. 响应生成器
@@ -194,7 +192,7 @@ class DecisionHub:
         self.platform_tools_manager = PlatformToolsManager(tool_subnet=self.tool_subnet)
 
         # 7. 会话处理器
-        self.session_handler = SessionHandler(session_manager=self.session_manager)
+        self.session_handler = SessionHandler()
 
         # 8. 知识图谱管理器（新增）
         self.knowledge_graph = None

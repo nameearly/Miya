@@ -764,17 +764,15 @@ class MiyaMemoryCore:
     def __init__(
         self,
         data_dir: Union[str, Path] = "data/memory",
-        redis_client=None,
-        milvus_client=None,
-        neo4j_client=None,
         short_term_ttl: int = 3600,
         enable_backup: bool = True,
         embedding_client=None,
+        # 以下参数保留但已废弃，仅用于向后兼容
+        redis_client=None,
+        milvus_client=None,
+        neo4j_client=None,
     ):
         self.data_dir = Path(data_dir)
-        self.redis_client = redis_client
-        self.milvus_client = milvus_client
-        self.neo4j_client = neo4j_client
         self.short_term_ttl = short_term_ttl
         self.enable_backup = enable_backup
         self.embedding_client = embedding_client
@@ -883,10 +881,22 @@ class MiyaMemoryCore:
 
         logger.info("[MiyaMemoryCore] 初始化索引...")
 
-        # 初始化 SQLite 后端（如果启用）
+        # 始终初始化 SQLite 后端（嵌入式，零配置）
         try:
-            from pathlib import Path
+            from memory.sqlite_backend import SQLiteBackend
 
+            self.sqlite_backend = SQLiteBackend(str(self.data_dir / "miya_memory.db"))
+            if self.sqlite_backend.enabled:
+                logger.info("[MiyaMemoryCore] SQLite 后端已启用")
+            else:
+                logger.warning(
+                    "[MiyaMemoryCore] SQLite 后端未启用，检查 text_config.json"
+                )
+        except Exception as e:
+            logger.debug(f"[MiyaMemoryCore] SQLite 后端初始化失败（不影响运行）: {e}")
+
+        # 初始化真实 Embedding 客户端（绕过配置，直接使用模型池）
+        try:
             model_config_path = (
                 Path(__file__).parent.parent / "config" / "multi_model_config.json"
             )
@@ -896,15 +906,59 @@ class MiyaMemoryCore:
                 with open(model_config_path, "r", encoding="utf-8") as f:
                     model_config = json.load(f)
                 emb_config = model_config.get("embedding_config", {})
-                if emb_config.get("enabled"):
-                    from memory.sqlite_backend import SQLiteBackend
+                models = model_config.get("models", {})
 
-                    self.sqlite_backend = SQLiteBackend(
-                        str(self.data_dir / "miya_memory.db")
+                primary_name = emb_config.get("primary", "siliconflow_bge_large")
+                fallback_name = emb_config.get("fallback", "")
+
+                if primary_name in models:
+                    model_info = models[primary_name]
+                    from core.embedding_client import EmbeddingClient, EmbeddingProvider
+
+                    provider_map = {
+                        "openai": EmbeddingProvider.OPENAI,
+                        "siliconflow": EmbeddingProvider.SILICONFLOW,
+                        "deepseek": EmbeddingProvider.DEEPSEEK,
+                    }
+                    provider = provider_map.get(
+                        model_info.get("provider", "openai"), EmbeddingProvider.OPENAI
                     )
-                    logger.info("[MiyaMemoryCore] SQLite 后端已启用")
+                    self.embedding_client = EmbeddingClient(
+                        provider=provider,
+                        model=model_info["name"],
+                        api_key=model_info.get("api_key", ""),
+                        base_url=model_info.get("base_url", ""),
+                    )
+                    await self.embedding_client.initialize()
+                    logger.info(
+                        f"[MiyaMemoryCore] 真实 Embedding 客户端已启用: {primary_name}"
+                    )
+                elif fallback_name and fallback_name in models:
+                    model_info = models[fallback_name]
+                    from core.embedding_client import EmbeddingClient, EmbeddingProvider
+
+                    provider_map = {
+                        "openai": EmbeddingProvider.OPENAI,
+                        "siliconflow": EmbeddingProvider.SILICONFLOW,
+                        "deepseek": EmbeddingProvider.DEEPSEEK,
+                    }
+                    provider = provider_map.get(
+                        model_info.get("provider", "openai"), EmbeddingProvider.OPENAI
+                    )
+                    self.embedding_client = EmbeddingClient(
+                        provider=provider,
+                        model=model_info["name"],
+                        api_key=model_info.get("api_key", ""),
+                        base_url=model_info.get("base_url", ""),
+                    )
+                    await self.embedding_client.initialize()
+                    logger.info(
+                        f"[MiyaMemoryCore] Embedding 使用 fallback: {fallback_name}"
+                    )
         except Exception as e:
-            logger.debug(f"[MiyaMemoryCore] SQLite 后端初始化失败（不影响运行）: {e}")
+            logger.warning(
+                f"[MiyaMemoryCore] Embedding 客户端初始化失败，使用伪向量回退: {e}"
+            )
 
         if lazy_load:
             self._loaded = True
@@ -1119,21 +1173,13 @@ class MiyaMemoryCore:
         for tag in memory.tags:
             self._tag_index[tag].add(memory.id)
 
-        # 同步到Redis
-        if self.redis_client and level == MemoryLevel.SHORT_TERM:
-            await self._sync_to_redis(memory)
-
-        # 生成向量并同步到向量库（优先使用真实 embedding API）
+        # 生成向量并同步到 SQLite（优先使用真实 embedding API）
         if level in [
             MemoryLevel.SEMANTIC,
             MemoryLevel.LONG_TERM,
             MemoryLevel.KNOWLEDGE,
         ]:
             await self._generate_and_sync_vector(memory)
-
-        # 同步到图谱
-        if self.neo4j_client and (level == MemoryLevel.KNOWLEDGE or subject):
-            await self._sync_to_neo4j(memory)
 
         # 备份
         if self.enable_backup:
@@ -1567,10 +1613,10 @@ class MiyaMemoryCore:
 
         await self.backend.delete(memory_id)
 
-        if self.redis_client:
+        if self.sqlite_backend:
             try:
-                self.redis_client.delete(f"memory:{memory_id}")
-            except:
+                await self.sqlite_backend.delete(memory_id)
+            except Exception:
                 pass
 
         self._stats["total_deleted"] += 1
@@ -1851,78 +1897,23 @@ class MiyaMemoryCore:
 
     # ==================== 同步方法 ====================
 
-    async def _sync_to_redis(self, memory: MemoryItem):
-        """同步到Redis"""
-        if not self.redis_client:
-            return
-
-        try:
-            ttl = self.short_term_ttl
-            if memory.expires_at:
-                exp = datetime.fromisoformat(memory.expires_at)
-                ttl = max(1, int((exp - datetime.now()).total_seconds()))
-
-            key = f"memory:{memory.id}"
-            self.redis_client.setex(
-                key, ttl, json.dumps(memory.to_dict(), ensure_ascii=False)
-            )
-        except Exception as e:
-            logger.warning(f"[MiyaMemoryCore] Redis同步失败: {e}")
-
     async def _generate_and_sync_vector(self, memory: MemoryItem):
-        """生成向量并同步到所有向量存储"""
+        """生成向量并同步到 SQLite"""
         try:
             vector = await self.get_embedding(memory.content)
             if vector:
                 memory.vector = vector
-                # 更新JSON文件中的向量
                 await self.backend.save(memory)
 
-                # 同步到Milvus（如果有）
-                if self.milvus_client:
-                    await self._sync_to_milvus(memory)
+                if self.sqlite_backend:
+                    try:
+                        await self.sqlite_backend.save(memory)
+                    except Exception as e:
+                        logger.debug(f"[MiyaMemoryCore] SQLite 向量同步失败: {e}")
 
                 logger.debug(f"[MiyaMemoryCore] 向量生成并同步成功: {memory.id}")
         except Exception as e:
             logger.warning(f"[MiyaMemoryCore] 向量生成失败: {e}")
-
-    async def _sync_to_milvus(self, memory: MemoryItem):
-        """同步到Milvus"""
-        if not self.milvus_client:
-            return
-
-        try:
-            # 生成向量
-            vector = memory.vector or self._simple_embed(memory.content)
-
-            # 插入数据
-            data = [
-                [memory.id],  # memory_id
-                [vector],  # vector
-                [memory.content[:4000]],  # content
-                [memory.user_id],  # user_id
-            ]
-
-            self.milvus_client.insert(data)
-            self.milvus_client.flush()
-
-        except Exception as e:
-            logger.warning(f"[MiyaMemoryCore] Milvus同步失败: {e}")
-
-    async def _sync_to_neo4j(self, memory: MemoryItem):
-        """同步到Neo4j"""
-        if not self.neo4j_client:
-            return
-
-        try:
-            if memory.subject and memory.predicate:
-                self.neo4j_client.create_memory_quintuple(
-                    memory.subject,
-                    memory.predicate,
-                    memory.obj or memory.content[:100],
-                    context=memory.content[:200],
-                    emotion=memory.metadata.get("emotion", "neutral"),
-                )
         except Exception as e:
             logger.warning(f"[MiyaMemoryCore] Neo4j同步失败: {e}")
 
@@ -2064,43 +2055,29 @@ class MiyaMemoryCore:
         limit: int = 10,
         threshold: float = 0.7,
     ) -> List[MemoryItem]:
-        """语义搜索 - 基于向量相似度"""
-        if not self.milvus_client:
-            logger.warning("Milvus未初始化，使用关键词搜索")
-            return await self.retrieve(
-                query=query,
-                user_id=user_id,
-                limit=limit,
-            )
+        """语义搜索 - 基于 SQLite 向量相似度"""
+        if self.sqlite_backend:
+            try:
+                query_vector = await self.get_embedding(query)
+                if query_vector:
+                    results = await self.sqlite_backend.vector_search(
+                        query_vector=query_vector,
+                        user_id=user_id,
+                        limit=limit,
+                        threshold=threshold,
+                    )
+                    if results:
+                        return results
+            except Exception as e:
+                logger.debug(
+                    f"[MiyaMemoryCore] SQLite 向量搜索失败，回退关键词搜索: {e}"
+                )
 
-        try:
-            query_vector = await self.get_embedding(query)
-
-            results = self.milvus_client.search(
-                query_vector=query_vector,
-                top_k=limit * 2,
-            )
-
-            memory_ids = [
-                r["id"] for r in results if r.get("distance", 0) >= (1 - threshold)
-            ]
-
-            memories = []
-            for mid in memory_ids:
-                memory = await self.get_by_id(mid)
-                if memory and (not user_id or memory.user_id == user_id):
-                    memories.append(memory)
-                    if len(memories) >= limit:
-                        break
-
-            return memories
-        except Exception as e:
-            logger.warning(f"语义搜索失败: {e}")
-            return await self.retrieve(
-                query=query,
-                user_id=user_id,
-                limit=limit,
-            )
+        return await self.retrieve(
+            query=query,
+            user_id=user_id,
+            limit=limit,
+        )
 
 
 # ==================== 全局单例 ====================
@@ -2110,10 +2087,11 @@ _global_core: Optional[MiyaMemoryCore] = None
 
 async def get_memory_core(
     data_dir: Union[str, Path] = "data/memory",
+    embedding_client=None,
+    # 以下参数已废弃，仅用于向后兼容
     redis_client=None,
     milvus_client=None,
     neo4j_client=None,
-    embedding_client=None,
 ) -> MiyaMemoryCore:
     """获取全局核心实例 - 从 multi_model_config.json 自动加载 embedding 配置"""
     global _global_core
@@ -2184,9 +2162,6 @@ async def get_memory_core(
 
         _global_core = MiyaMemoryCore(
             data_dir=data_dir,
-            redis_client=redis_client,
-            milvus_client=milvus_client,
-            neo4j_client=neo4j_client,
             embedding_client=embedding_client,
         )
         await _global_core.initialize()
