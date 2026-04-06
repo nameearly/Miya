@@ -133,6 +133,9 @@ class ToolAdapter:
 
         # 检查是否需要降级
         if enable_fallback and not self._is_success_result(result):
+            # 如果结果包含 [FINAL] 标记，不尝试降级
+            if result.startswith("[FINAL]"):
+                return result
             fallback_tools = TOOL_FALLBACK_MAP.get(tool_name, [])
             for fallback_tool in fallback_tools:
                 logger.info(

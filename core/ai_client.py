@@ -584,6 +584,10 @@ class OpenAIClient(BaseAIClient):
                             tool_call.function.name, tool_args, self.tool_context or {}
                         )
 
+                        from core.terminal_formatter import TerminalFormatter
+
+                        print(TerminalFormatter.tool_result(tool_call.function.name))
+
                         return tool_call, result
                     except Exception as e:
                         logger.error(
@@ -618,18 +622,54 @@ class OpenAIClient(BaseAIClient):
                     )
 
                     # 处理结果
+                    final_detected = False
                     for tool_result in tool_results:
                         if isinstance(tool_result, Exception):
                             logger.error(f"[AIClient] 并发工具执行异常: {tool_result}")
                             continue
 
                         tool_call, result = tool_result
+
+                        # 检查工具结果是否包含 FINAL 标记
+                        if result and result.startswith("[FINAL]"):
+                            logger.info(f"[AIClient] 检测到 FINAL 标记: {result[:80]}")
+                            final_detected = True
+
+                        current_messages.append(
+                            AIMessage(
+                                role="tool", content=result, tool_call_id=tool_call.id
+                            )
+                        )
+
+                    if final_detected:
+                        # FINAL 标记检测到，让 AI 生成最终文本回复（不再调用工具）
+                        logger.info("[AIClient] FINAL 标记触发，生成最终文本回复")
+                        try:
+                            final_resp = await self.client.chat.completions.create(
+                                model=self.model,
+                                messages=[
+                                    {"role": m.role, "content": m.content}
+                                    for m in current_messages
+                                ],
+                                tool_choice="none",
+                            )
+                            if final_resp.choices and final_resp.choices[0].message:
+                                return final_resp.choices[0].message.content or ""
+                        except Exception as e:
+                            logger.warning(f"[AIClient] 最终回复生成失败: {e}")
+                        return ""
                 else:
                     # 串行执行（保持兼容性）
+                    final_detected = False
                     for tool_call in tool_calls:
                         _, result = await execute_single_tool(tool_call)
 
-                    # 检查是否是直接返回工具（如运势、抽签、游戏存档等）
+                        # 检查工具结果是否包含 FINAL 标记
+                        if result and result.startswith("[FINAL]"):
+                            logger.info(f"[AIClient] 检测到 FINAL 标记: {result[:80]}")
+                            final_detected = True
+
+                        # 检查是否是直接返回工具（如运势、抽签、游戏存档等）
                     # 这些工具返回的结果已经是格式化的，直接返回给用户
                     direct_return_tools = [
                         "horoscope",
@@ -911,12 +951,9 @@ class DeepSeekClient(BaseAIClient):
                         logger.info(
                             f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
                         )
-                        import sys
+                        from core.terminal_formatter import TerminalFormatter
 
-                        print(
-                            f"[AICLIENT] >>> EXECUTING TOOL: {tool_call.function.name}",
-                            file=sys.stderr,
-                        )
+                        TerminalFormatter.tool_call(tool_call.function.name, tool_args)
 
                     result = await adapter.execute_tool(
                         tool_call.function.name, tool_args, self.tool_context or {}
@@ -957,6 +994,13 @@ class DeepSeekClient(BaseAIClient):
                             continue
 
                         tool_call, result = tool_result
+
+                        # 检查工具结果是否包含 FINAL 标记
+                        if result and result.startswith("[FINAL]"):
+                            logger.info(
+                                f"[AIClient] 检测到 FINAL 标记，停止工具调用: {result[:80]}"
+                            )
+                            return None  # 返回 None 表示直接退出
 
                         # 检查是否是直接返回工具
                         direct_return_tools = [
@@ -1058,6 +1102,13 @@ class DeepSeekClient(BaseAIClient):
                         result = await adapter.execute_tool(
                             tool_call.function.name, tool_args, self.tool_context or {}
                         )
+
+                        # 检查工具结果是否包含 FINAL 标记
+                        if result and result.startswith("[FINAL]"):
+                            logger.info(
+                                f"[AIClient] 检测到 FINAL 标记，停止工具调用: {result[:80]}"
+                            )
+                            return None  # 返回 None 表示直接退出
 
                         logger.info(
                             f"[AIClient] 工具执行结果: {result[:200] if result else '(无结果)'}"

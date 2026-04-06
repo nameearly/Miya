@@ -207,6 +207,9 @@ class DecisionHub:
         # 9. 安全服务（防注入）
         self._init_security()
 
+        # 11. 模型协作引擎（复用 ModelPool，添加智能协作能力）
+        self._init_collaboration_engine()
+
     def _init_security(self):
         """初始化安全服务"""
         try:
@@ -452,6 +455,44 @@ class DecisionHub:
         except Exception as e:
             logger.warning(f"[决策层] 鉴权子网初始化失败: {e}")
             self.auth_subnet = None
+
+    def _init_collaboration_engine(self) -> None:
+        """
+        初始化模型协作引擎
+        """
+        logger.info(
+            f"[决策层] 协作引擎初始化检查: model_pool={self.model_pool is not None}"
+        )
+        try:
+            if self.model_pool:
+                from core.model_collaboration_engine import ModelCollaborationEngine
+
+                config = getattr(self.model_pool, "_config", {})
+                logger.info(
+                    f"[决策层] 协作引擎配置: keys={list(config.keys())[:10]}, "
+                    f"has_collaboration={'collaboration' in config}"
+                )
+                self.collaboration_engine = ModelCollaborationEngine(
+                    model_pool=self.model_pool,
+                    config=config,
+                )
+                logger.info(
+                    f"[决策层] 模型协作引擎初始化成功 | "
+                    f"enabled={self.collaboration_engine.enabled} | "
+                    f"thresholds: single<={self.collaboration_engine.threshold_single}, "
+                    f"chain<={self.collaboration_engine.threshold_chain}"
+                )
+            else:
+                self.collaboration_engine = None
+                logger.warning("[决策层] ModelPool 不可用，协作引擎未初始化")
+
+        except Exception as e:
+            import traceback
+
+            logger.warning(
+                f"[决策层] 模型协作引擎初始化失败: {e}\n{traceback.format_exc()}"
+            )
+            self.collaboration_engine = None
 
     def _get_advanced_orchestrator(self) -> Optional[Any]:
         """
@@ -1269,6 +1310,26 @@ class DecisionHub:
                 }
                 self.ai_client.set_tool_context(tool_context)
 
+                # 调用 AI（带工具）
+                # 【修改】使用 auto 让 AI 自行决定是否调用工具
+                # 注意：不使用 required，因为很多 API 不支持此参数
+                tool_choice = "auto"
+
+                # 只获取当前平台相关的核心工具，减少 API 负担
+                # 避免 101 个工具导致 500 错误
+                platform_tools = (
+                    self.platform_tools_manager.get_platform_specific_tools(platform)
+                )
+                tools_schema = (
+                    platform_tools
+                    if platform_tools
+                    else self.tool_subnet.get_tools_schema()
+                )
+
+                logger.info(
+                    f"[决策层-跨平台] 使用平台工具: {platform}, 工具数量: {len(tools_schema)}"
+                )
+
                 # 使用模型池动态选择模型
                 ai_client_to_use = self.ai_client  # 默认使用传入的AI客户端
 
@@ -1277,9 +1338,46 @@ class DecisionHub:
 
                     task_type = await self.model_pool.classify_task(content, context)
 
-                    # 根据任务类型选择最优模型配置
+                    # 尝试使用协作引擎处理
+                    if self.collaboration_engine and self.collaboration_engine.enabled:
+                        try:
+                            from core.ai_client import AIClientFactory
+
+                            collab_result = await self.collaboration_engine.process(
+                                message=content,
+                                task_type=task_type.value,
+                                platform=platform,
+                                context=context,
+                                system_prompt=prompt_info["system"],
+                                user_prompt=prompt_info["user"],
+                                tools=tools_schema,
+                                ai_client_factory=AIClientFactory,
+                            )
+
+                            # 记录协作结果
+                            self._last_selected_model = ",".join(
+                                collab_result.models_used
+                            )
+                            self._last_task_type = task_type.value
+                            logger.info(
+                                f"[决策层-协作引擎] 模式={collab_result.mode.value} | "
+                                f"模型={collab_result.models_used} | "
+                                f"Token≈{collab_result.token_estimate} | "
+                                f"原因={collab_result.reasoning}"
+                            )
+
+                            # 协作引擎已直接返回最终响应
+                            return collab_result.response
+
+                        except Exception as e:
+                            logger.warning(
+                                f"[决策层-协作引擎] 协作失败，降级为单模型: {e}"
+                            )
+                            # 继续走原有单模型路径
+
+                    # 原有单模型选择逻辑（作为协作引擎的降级路径）
                     model_config = self.model_pool.select_model_for_task(
-                        task_type.value, "qq"
+                        task_type.value, platform
                     )
 
                     if model_config and model_config.api_key and model_config.base_url:
@@ -1306,26 +1404,6 @@ class DecisionHub:
                                 )
                         except Exception as e:
                             logger.warning(f"[决策层] 创建模型客户端失败: {e}")
-
-                # 调用 AI（带工具）
-                # 【修改】使用 auto 让 AI 自行决定是否调用工具
-                # 注意：不使用 required，因为很多 API 不支持此参数
-                tool_choice = "auto"
-
-                # 只获取当前平台相关的核心工具，减少 API 负担
-                # 避免 101 个工具导致 500 错误
-                platform_tools = (
-                    self.platform_tools_manager.get_platform_specific_tools(platform)
-                )
-                tools_schema = (
-                    platform_tools
-                    if platform_tools
-                    else self.tool_subnet.get_tools_schema()
-                )
-
-                logger.info(
-                    f"[决策层-跨平台] 使用平台工具: {platform}, 工具数量: {len(tools_schema)}"
-                )
 
                 # 记录模型信息
                 model_name = getattr(ai_client_to_use, "model", "unknown")
@@ -1361,7 +1439,7 @@ class DecisionHub:
                             "error_messages.tool_failure_fallback"
                         ).format(error=str(e2)[:100])
             else:
-                # 使用模型池动态选择模型
+                # 不带工具的 AI 调用路径
                 ai_client_to_use = self.ai_client  # 默认使用传入的AI客户端
 
                 if self.model_pool:
@@ -1369,9 +1447,42 @@ class DecisionHub:
 
                     task_type = await self.model_pool.classify_task(content, context)
 
-                    # 根据任务类型选择最优模型配置
+                    # 尝试使用协作引擎处理（不带工具版本）
+                    if self.collaboration_engine and self.collaboration_engine.enabled:
+                        try:
+                            from core.ai_client import AIClientFactory
+
+                            collab_result = await self.collaboration_engine.process(
+                                message=content,
+                                task_type=task_type.value,
+                                platform=platform,
+                                context=context,
+                                system_prompt=prompt_info["system"],
+                                user_prompt=prompt_info["user"],
+                                tools=None,
+                                ai_client_factory=AIClientFactory,
+                            )
+
+                            self._last_selected_model = ",".join(
+                                collab_result.models_used
+                            )
+                            self._last_task_type = task_type.value
+                            logger.info(
+                                f"[决策层-协作引擎] 模式={collab_result.mode.value} | "
+                                f"模型={collab_result.models_used} | "
+                                f"Token≈{collab_result.token_estimate}"
+                            )
+
+                            return collab_result.response
+
+                        except Exception as e:
+                            logger.warning(
+                                f"[决策层-协作引擎] 协作失败，降级为单模型: {e}"
+                            )
+
+                    # 原有单模型选择逻辑（降级路径）
                     model_config = self.model_pool.select_model_for_task(
-                        task_type.value, "qq"
+                        task_type.value, platform
                     )
 
                     if model_config and model_config.api_key and model_config.base_url:

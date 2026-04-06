@@ -346,6 +346,20 @@ memory = MiyaMemory()
 emotion = MiyaEmotion()
 model_selector = MiyaModelSelector()
 
+# 初始化协作引擎
+collaboration_engine = None
+try:
+    from core.model_pool import get_model_pool
+    from core.model_collaboration_engine import ModelCollaborationEngine
+
+    _mp = get_model_pool()
+    if _mp:
+        config = getattr(_mp, "_config", {})
+        collaboration_engine = ModelCollaborationEngine(model_pool=_mp, config=config)
+        logger.info("[MCP] 协作引擎初始化成功")
+except Exception as e:
+    logger.warning(f"[MCP] 协作引擎初始化失败: {e}")
+
 # 创建 MCP Server
 server = Server("miya-soul")
 
@@ -483,6 +497,25 @@ async def list_tools():
             description="获取所有可用的任务类型",
             inputSchema={"type": "object", "properties": {}, "required": []},
         ),
+        Tool(
+            name="miya_collaborate",
+            description="使用弥娅协作引擎处理消息（自动选择单模型/链式/并行/角色分工模式）",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "用户消息内容",
+                    },
+                    "task_type": {
+                        "type": "string",
+                        "description": "任务类型（可选，不提供则自动分类）",
+                        "default": "",
+                    },
+                },
+                "required": ["message"],
+            },
+        ),
     ]
 
 
@@ -596,6 +629,27 @@ async def call_tool(name: str, arguments: dict):
 
         elif name == "miya_get_task_types":
             result = model_selector.get_task_types()
+            return [
+                TextContent(
+                    type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
+                )
+            ]
+
+        elif name == "miya_collaborate":
+            if not collaboration_engine:
+                result = {"error": "协作引擎不可用"}
+            else:
+                message = arguments.get("message", "")
+                task_type = arguments.get("task_type", "")
+                if not task_type:
+                    classification = await model_selector.classify_task(message)
+                    task_type = classification.get("task_type", "simple_chat")
+                result = await collaboration_engine.process(
+                    message=message,
+                    task_type=task_type,
+                    platform="terminal",
+                )
+                result = result.to_dict()
             return [
                 TextContent(
                     type="text", text=json.dumps(result, ensure_ascii=False, indent=2)

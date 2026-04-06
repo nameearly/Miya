@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>Version 4.3.1 Dynamic Edition</strong><br>
-  多模态 AI 虚拟化身 · 跨平台 · 自我进化 · 隐私感知记忆 · MCP支持 · 队列管理
+  <strong>Version 4.3.2 Dynamic Edition</strong><br>
+  多模态 AI 虚拟化身 · 跨平台 · 自我进化 · 隐私感知记忆 · MCP支持 · 队列管理 · 模型协作引擎
 </p>
 
 <p align="center">
@@ -96,6 +96,14 @@
      - [使用示例](#8-使用示例)
      - [工具接口](#9-工具接口)
    - [更新日志重要更新](#更新日志-重要更新)
+   - [模型协作引擎 (v4.3.2+ 新增)](#模型协作引擎-v432-新增)
+      - [系统架构](#1-系统架构-18)
+      - [协作模式](#2-协作模式)
+      - [复杂度评估](#3-复杂度评估)
+      - [配置指南](#4-配置指南-1)
+      - [终端格式化输出](#5-终端格式化输出)
+      - [工作原理](#6-工作原理)
+      - [使用示例](#8-使用示例-2)
 
 ---
 
@@ -12589,6 +12597,238 @@ start.bat
 - **不会强制安装官方 ClaudeCode**：启动脚本使用 `node Open-ClaudeCode\package\cli.js` 直接运行本地预编译文件，不会通过 `npx` 拉取官方包
 - **API 密钥安全**：`config/.env` 和 `config/multi_model_config.json` 包含 API 密钥，不应提交到 Git
 - **模型池配置**：`config/multi_model_config.json` 中的 `api_key` 字段需要用户自行填入
+
+---
+
+## 模型协作引擎 (v4.3.2+ 新增)
+
+### 概述
+
+模型协作引擎 (`ModelCollaborationEngine`) 是 v4.3.2 版本新增的核心功能，它在原有 ModelPool 的基础上添加了智能协作能力，实现了多模型联动、自适应任务分配和终端可视化输出。
+
+### 1. 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    模型协作引擎架构                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   DecisionHub (决策层)                                               │
+│        │                                                             │
+│        ├── 原有路径: ModelPool.classify_task() + select_model()     │
+│        │                                                             │
+│        └── 协作路径: ModelCollaborationEngine.process()             │
+│                │                                                     │
+│                ├── ComplexityAssessor (复杂度评估 1-5)               │
+│                ├── StrategySelector (策略选择)                       │
+│                │   ├── SINGLE (单模型)                               │
+│                │   ├── CHAIN (链式协作)                              │
+│                │   ├── PARALLEL (并行投票)                           │
+│                │   └── ROLE (角色分工)                               │
+│                │                                                     │
+│                └── 复用 ModelPool 获取模型配置和创建客户端            │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 2. 协作模式
+
+| 模式 | 触发条件 | 说明 | Token 消耗 |
+|------|---------|------|-----------|
+| **SINGLE** | 复杂度 1-2 | 单模型处理，最低 token | ★☆☆☆☆ |
+| **CHAIN** | 复杂度 3 | 2 个模型串联：理解 → 深度处理 | ★★★☆☆ |
+| **PARALLEL** | 复杂度 4 | 2-3 模型并行 + 共识决策 | ★★★★☆ |
+| **ROLE** | 复杂度 5 | 分析师 → 创作者 → 审核员 | ★★★★★ |
+
+### 3. 复杂度评估
+
+复杂度评估器根据以下维度打分（1-5 分）：
+
+- **消息长度**：>200 字 +1 分，>500 字 +1 分
+- **任务类型权重**：simple_chat=0, complex_reasoning=2, task_planning=3
+- **关键词检测**：包含"为什么"、"如何"、"分析"等关键词 +1 分
+- **多意图检测**：多个问号或连接词 +1 分
+- **平台特定关键词**：终端模式下的"运行"、"部署"等 +1 分
+
+### 4. 配置指南
+
+所有配置在 `config/multi_model_config.json` 的 `collaboration` 段：
+
+```json
+{
+  "collaboration": {
+    "enabled": true,
+    "complexity_thresholds": {
+      "single_max": 2,
+      "chain_max": 3,
+      "parallel_max": 4
+    },
+    "token_budget": {
+      "single": 2000,
+      "chain": 6000,
+      "parallel": 10000,
+      "role": 15000
+    },
+    "complexity_assessment": {
+      "length_thresholds": { "level_1": 200, "level_2": 500 },
+      "task_weights": {
+        "simple_chat": 0, "chinese_understanding": 0,
+        "complex_reasoning": 2, "code_analysis": 2,
+        "task_planning": 3
+      },
+      "complex_keywords": ["为什么", "如何", "分析", "设计", "架构"],
+      "multi_intent": {
+        "question_threshold": 3,
+        "connectors": ["和", "以及", "还有"]
+      }
+    },
+    "chain_collaboration": {
+      "understanding_system_prompt": "你是一个分析助手...",
+      "understanding_prompt_template": "请简洁分析以下问题...",
+      "injection_template": "{user_prompt}\n\n--- 分析参考 ---\n{understanding}",
+      "max_understanding_words": 200
+    },
+    "parallel_voting": {
+      "similarity_threshold": 0.7,
+      "arbiter_task": "summarization",
+      "arbiter_system_prompt": "你是一个仲裁者..."
+    },
+    "role_collaboration": {
+      "role_mapping": {
+        "code_analysis": {
+          "analyst": "deepseek_r1_official",
+          "creator": "deepseek_v3_official",
+          "reviewer": "qwen_72b"
+        }
+      },
+      "default_role_assignment": {
+        "analyst": "deepseek_v3_official",
+        "creator": "qwen_72b",
+        "reviewer": "deepseek_v3_official"
+      },
+      "role_prompts": {
+        "analyst": "你是一个专业分析师...",
+        "creator": "你是一个专业创作者...",
+        "reviewer": "你是一个专业审核员..."
+      }
+    },
+    "platform_overrides": {
+      "terminal": {
+        "mode_overrides": {
+          "code_analysis": "chain",
+          "code_generation": "chain"
+        },
+        "complex_keywords": ["运行", "执行", "部署", "构建"]
+      },
+      "qq": {
+        "mode_overrides": {
+          "simple_chat": "single",
+          "chinese_understanding": "single"
+        }
+      }
+    }
+  }
+}
+```
+
+### 5. 终端格式化输出
+
+终端格式化工具 (`TerminalFormatter`) 提供简约美观的终端输出：
+
+```
+─────────────── 协作引擎 ───────────────
+[◈ COLLAB] 单模型 | 复杂度 ★☆☆☆☆
+  任务: chinese_understanding | 平台: qq
+[⚡ TOOL] memory_add | content=xxx, priority=0.6
+  → ✓ memory_add
+[✓ DONE] 单模型 | deepseek_v3_official | ~50tok | 单模型处理: deepseek_v3_official
+──────────────────────────────────────────
+```
+
+链式协作示例：
+```
+─────────────── 协作引擎 ───────────────
+[◈ COLLAB] 链式协作 | 复杂度 ★★★☆☆
+  任务: code_analysis | 平台: qq
+  ⟶ 步骤1: qwen_7b → 语义理解
+  ⟶ 步骤2: deepseek_v3_official → 深度处理
+[✓ DONE] 链式 | qwen_7b, deepseek_v3_official | ~200tok
+──────────────────────────────────────────
+```
+
+颜色方案：
+- **品红色**：协作引擎标识
+- **青色**：模型名称、模式标签
+- **绿色**：完成标识
+- **淡黄色**：辅助信息、分隔线
+
+### 6. 工作原理
+
+1. **消息到达** → DecisionHub 调用 `collaboration_engine.process()`
+2. **复杂度评估** → 根据消息长度、任务类型、关键词等打分
+3. **策略选择** → 根据复杂度选择 SINGLE/CHAIN/PARALLEL/ROLE
+4. **执行协作** → 调用对应策略，复用 ModelPool 获取模型配置
+5. **终端输出** → 格式化输出协作过程和结果
+6. **返回响应** → 将最终响应返回给 DecisionHub
+
+### 7. 相关文件
+
+| 文件 | 说明 |
+|------|------|
+| `core/model_collaboration_engine.py` | 协作引擎核心实现 |
+| `core/terminal_formatter.py` | 终端格式化工具 |
+| `config/multi_model_config.json` | 协作引擎配置 |
+| `hub/decision_hub.py` | 接入协作引擎 |
+| `mcpserver/miya/server.py` | MCP 终端协作工具 |
+
+### 8. 使用示例
+
+协作引擎自动工作，无需手动调用。配置修改示例：
+
+```json
+// 禁用协作引擎，回退到原有单模型模式
+"collaboration": {
+  "enabled": false
+}
+
+// 调整复杂度阈值
+"complexity_thresholds": {
+  "single_max": 3,  // 提高到 3，更多消息走单模型
+  "chain_max": 4,
+  "parallel_max": 5
+}
+
+// 自定义角色映射
+"role_mapping": {
+  "creative_writing": {
+    "analyst": "qwen_72b",
+    "creator": "deepseek_r1_official",
+    "reviewer": "deepseek_v3_official"
+  }
+}
+```
+
+---
+
+## 更新日志
+
+### v4.3.2 (2026-04-06)
+
+#### 新增功能
+- **模型协作引擎**：自适应多模型协作，支持单模型/链式/并行/角色分工四种模式
+- **终端格式化输出**：简约美观的终端可视化，支持工具调用和协作过程展示
+- **MCP 协作工具**：终端模式新增 `miya_collaborate` 工具
+
+#### 优化改进
+- **配置驱动**：所有硬编码值移至 `multi_model_config.json`，零硬编码
+- **死代码清理**：删除 4 个未使用的实验性文件
+- **工具循环修复**：修复 `send_message` 和 `send_poke` 工具的无限循环问题
+- **感知模式**：戳一戳工具改为感知模式，弥娅感受互动而非执行操作
+
+#### 架构变更
+- 协作引擎复用原有 ModelPool，不破坏现有架构
+- 终端模式和 QQ 模式共享同一协作引擎
+- 所有协作策略可通过配置文件调整，无需修改代码
 
 ---
 
