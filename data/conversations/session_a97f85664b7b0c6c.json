@@ -1,21 +1,6 @@
 [
   {
     "role": "user",
-    "content": "么事",
-    "timestamp": "2026-04-03T19:50:34.448645",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
     "content": "你怎又不说话了",
     "timestamp": "2026-04-03T19:50:56.183649",
     "session_id": "group_1092980378",
@@ -2996,6 +2981,21 @@
       "msg_type": "group",
       "sender_id": 3933327707,
       "sender_name": "洛雅",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "",
+    "timestamp": "2026-04-07T11:22:16.970793",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
       "group_name": "索多玛"
     }
   }

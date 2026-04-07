@@ -1,11 +1,12 @@
 """
-弥娅历史记录员 (Historian) v2.0
+弥娅历史记录员 (Historian) v3.0 - 星璇记忆系统
 
 自动分析对话并提取需要记忆的内容：
-- 只记忆重要事实，不记忆客套话
-- 自动提取用户信息、习惯、承诺等
+- 用户信息、习惯、承诺等
+- 弥娅自记忆：承诺、观点、建议、情感表达、自我认知
 - 群聊中有价值的讨论主题提取
 - 与 CognitiveEngine 配合实现智能记忆
+- 支持记忆自动升级机制
 """
 
 import json
@@ -15,7 +16,7 @@ import asyncio
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple, Set
 
-from memory import get_memory_core, MemoryItem, MemorySource
+from memory import get_memory_core, MemoryItem, MemorySource, MemoryLevel
 from memory.cognitive_engine import (
     get_cognitive_engine,
     TOPIC_KEYWORDS,
@@ -53,6 +54,17 @@ def _parse_group_patterns(raw: Dict) -> Dict[str, List[Tuple[str, str]]]:
 
 # 从配置加载（回退到内置默认值）
 _config = _load_historian_config()
+
+# 加载弥娅自记忆配置
+_assistant_self_config = {}
+try:
+    _config_path = Path(__file__).parent.parent / "config" / "text_config.json"
+    if _config_path.exists():
+        with open(_config_path, "r", encoding="utf-8") as _f:
+            _full_config = json.load(_f)
+            _assistant_self_config = _full_config.get("assistant_self", {})
+except Exception:
+    pass
 
 IGNORE_PATTERNS = _config.get(
     "ignore_patterns",
@@ -124,13 +136,44 @@ GROUP_DISCUSSION_PATTERNS = _parse_group_patterns(
 )
 
 
+def _load_assistant_self_patterns() -> Dict[str, Any]:
+    """从 text_config.json 加载弥娅自记忆模式"""
+    patterns = {}
+    base_importance = {}
+
+    cfg_patterns = _assistant_self_config.get("patterns", {})
+    cfg_importance = _assistant_self_config.get("base_importance", {})
+
+    type_label_map = {
+        "commitment": "弥娅承诺",
+        "opinion": "弥娅观点",
+        "emotion": "弥娅情感",
+        "knowledge": "弥娅知识",
+        "self_awareness": "弥娅自我认知",
+    }
+
+    for category, pattern_list in cfg_patterns.items():
+        patterns[category] = []
+        for item in pattern_list:
+            if isinstance(item, list) and len(item) >= 2:
+                patterns[category].append((item[0], item[1]))
+        base_importance[category] = cfg_importance.get(category, 0.5)
+
+    return {"patterns": patterns, "base_importance": base_importance}
+
+
+_ASSISTANT_SELF_CONFIG = _load_assistant_self_patterns()
+
+
 class Historian:
-    """历史记录员
+    """历史记录员 v3.0 - 星璇记忆系统
 
     职责：
     - 分析对话内容
-    - 提取需要记忆的重要信息
+    - 提取用户重要信息
+    - 提取弥娅自记忆（承诺、观点、建议、情感、自我认知）
     - 群聊中有价值讨论的提取
+    - 记忆自动升级机制
     - 自动保存到记忆存储
     """
 
@@ -139,7 +182,6 @@ class Historian:
         self.memory_core = None
         self._memory_core_initialized = False
         self.cognitive_engine = get_cognitive_engine()
-        # 近期已记忆的内容哈希，避免重复记忆
         self._recent_memory_hashes: Set[str] = set()
         self._max_recent_hashes = 100
 
@@ -155,7 +197,6 @@ class Historian:
         """生成内容哈希用于去重"""
         import hashlib
 
-        # 只取前50个字符做哈希，忽略标点差异
         normalized = re.sub(r"[^\w\u4e00-\u9fff]", "", text[:50])
         return hashlib.md5(normalized.encode("utf-8")).hexdigest()[:12]
 
@@ -165,9 +206,7 @@ class Historian:
         if h in self._recent_memory_hashes:
             return True
         self._recent_memory_hashes.add(h)
-        # 限制哈希表大小
         if len(self._recent_memory_hashes) > self._max_recent_hashes:
-            # 移除一半最旧的
             to_remove = list(self._recent_memory_hashes)[: self._max_recent_hashes // 2]
             for item in to_remove:
                 self._recent_memory_hashes.discard(item)
@@ -185,7 +224,7 @@ class Historian:
         return True
 
     def _extract_important_info(self, text: str) -> List[Tuple[str, str, List[str]]]:
-        """提取重要信息
+        """提取用户重要信息
 
         Returns:
             [(内容, 类型, 标签), ...]
@@ -198,14 +237,45 @@ class Historian:
                 if match:
                     content = match.group(0)
                     if len(content) > 3:
-                        # 确定标签
                         tags = [category]
-                        # 添加相关话题标签
                         for topic, keywords in TOPIC_KEYWORDS.items():
                             if any(kw in text for kw in keywords):
                                 tags.append(topic)
 
                         results.append((content, info_type, tags))
+
+        return results
+
+    def _extract_assistant_self_memory(
+        self, ai_response: str
+    ) -> List[Tuple[str, str, float, List[str]]]:
+        """从弥娅的回复中提取自记忆
+
+        模式从 text_config.json 的 assistant_self.patterns 加载
+
+        Returns:
+            [(内容, 类型, 重要性, 标签), ...]
+        """
+        results = []
+        patterns = _ASSISTANT_SELF_CONFIG["patterns"]
+        base_importance = _ASSISTANT_SELF_CONFIG["base_importance"]
+
+        for category, category_patterns in patterns.items():
+            for pattern, info_type in category_patterns:
+                match = re.search(pattern, ai_response)
+                if match:
+                    content = match.group(0).strip()
+                    if len(content) < 5:
+                        continue
+
+                    importance = base_importance.get(category, 0.5)
+
+                    tags = ["弥娅自记忆", category]
+                    for topic, keywords in TOPIC_KEYWORDS.items():
+                        if any(kw in ai_response for kw in keywords):
+                            tags.append(topic)
+
+                    results.append((content, info_type, importance, tags))
 
         return results
 
@@ -220,10 +290,8 @@ class Historian:
         for category, patterns in GROUP_DISCUSSION_PATTERNS.items():
             for pattern, info_type in patterns:
                 if re.search(pattern, text):
-                    # 群聊讨论默认较高重要性
                     importance = 0.7
                     tags = [category, info_type]
-                    # 添加话题标签
                     for topic, keywords in TOPIC_KEYWORDS.items():
                         if any(kw in text for kw in keywords):
                             tags.append(topic)
@@ -240,7 +308,7 @@ class Historian:
         """
         combined = user_input + " " + ai_response
 
-        # 1. 提取重要信息
+        # 1. 提取用户重要信息
         important_infos = self._extract_important_info(user_input)
         if important_infos:
             content, info_type, tags = important_infos[0]
@@ -269,16 +337,70 @@ class Historian:
                         importance = 0.6
                     break
 
-        # 添加话题标签
         for topic, keywords in TOPIC_KEYWORDS.items():
             if any(kw in user_input for kw in keywords):
                 tags.append(topic)
 
-        # 如果有关键词但没有提取到内容，使用用户输入
         if importance > 0.3 and len(user_input) > 5:
             return user_input[:100], importance, tags
 
         return None
+
+    async def _store_assistant_self_memory(
+        self,
+        content: str,
+        info_type: str,
+        importance: float,
+        tags: List[str],
+        user_id: str,
+        group_id: str,
+        message_type: str,
+    ) -> bool:
+        """【新增】存储弥娅自记忆到 LONG_TERM 层级
+
+        弥娅的承诺、观点、建议等重要话语会自动升级为长期记忆
+        """
+        try:
+            await self._ensure_memory_core_initialized()
+
+            # 自记忆默认存储为 LONG_TERM
+            level = MemoryLevel.LONG_TERM
+
+            # 承诺类记忆额外提升重要性
+            if "commitment" in tags:
+                importance = min(1.0, importance + 0.1)
+                level = MemoryLevel.LONG_TERM
+
+            # 情感类记忆也提升重要性
+            if "emotion" in tags:
+                importance = min(1.0, importance + 0.05)
+
+            # 构建记忆内容（带上上下文）
+            memory_content = f"[弥娅说] {content}"
+
+            memory_uuid = await self.memory_core.store(
+                content=memory_content,
+                level=level,
+                priority=importance,
+                tags=tags,
+                source=MemorySource.ASSISTANT_SELF,
+                role="assistant",
+                user_id=user_id,
+                group_id=group_id,
+                emotional_tone="弥娅自记忆",
+                significance=importance,
+            )
+
+            if memory_uuid:
+                logger.info(
+                    f"[星璇·自记忆] {info_type}: {content[:30]}... "
+                    f"(importance={importance}, level={level.value})"
+                )
+                return True
+        except Exception as e:
+            logger.error(f"[星璇·自记忆] 保存失败: {e}")
+
+        return False
 
     async def process_conversation(
         self,
@@ -300,15 +422,12 @@ class Historian:
         Returns:
             是否成功记忆
         """
-        # 1. 检查是否有意义
         if not self._is_meaningful(user_input):
             return False
 
-        # 2. 检查是否重复
         if self._is_duplicate(user_input):
             return False
 
-        # 3. 提取需要记忆的内容
         memory_data = self._extract_fact_from_conversation(user_input, ai_response)
 
         if not memory_data:
@@ -317,13 +436,10 @@ class Historian:
 
         content, importance, tags = memory_data
 
-        # 群聊讨论提高重要性
         if message_type == "group" and len(user_input) > 20:
             importance = min(1.0, importance + 0.1)
 
-        # 4. 保存到记忆存储
         try:
-            # 确保内存核心已初始化
             await self._ensure_memory_core_initialized()
 
             memory_uuid = await self.memory_core.store(
@@ -355,14 +471,11 @@ class Historian:
     ) -> None:
         """在生成回复后调用，自动处理记忆
 
-        Args:
-            user_input: 用户输入
-            ai_response: AI回复
-            user_id: 用户ID
-            group_id: 群组ID
-            message_type: 消息类型 (group/private)
+        包含：
+        1. 用户重要信息提取（原有逻辑）
+        2. 【新增】弥娅自记忆提取（承诺、观点、建议、情感、自我认知）
         """
-        # 使用认知引擎判断是否需要记忆
+        # === 原有逻辑：用户信息提取 ===
         (
             should_remember,
             content,
@@ -370,14 +483,11 @@ class Historian:
         ) = await self.cognitive_engine.should_remember(user_input, ai_response)
 
         if should_remember and content:
-            # 检查重复
             if self._is_duplicate(content):
                 return
 
-            # 提取话题标签
             topics = self.cognitive_engine._extract_topics(user_input)
 
-            # 群聊讨论添加额外标签
             if message_type == "group":
                 group_discussion = self._extract_group_discussion(user_input)
                 if group_discussion:
@@ -386,7 +496,6 @@ class Historian:
                     importance = min(1.0, importance + 0.1)
 
             try:
-                # 确保内存核心已初始化
                 await self._ensure_memory_core_initialized()
 
                 await self.memory_core.store(
@@ -400,6 +509,30 @@ class Historian:
                 logger.info(f"[Historian] 自动记住: {content[:30]}...")
             except Exception as e:
                 logger.error(f"[Historian] 自动记忆失败: {e}")
+
+        # === 【新增】弥娅自记忆提取 ===
+        if not ai_response or len(ai_response.strip()) < 5:
+            return
+
+        assistant_memories = self._extract_assistant_self_memory(ai_response)
+
+        for content, info_type, importance, tags in assistant_memories:
+            if self._is_duplicate(content):
+                continue
+
+            # 群聊中弥娅的发言降低重要性（避免刷屏记忆）
+            if message_type == "group":
+                importance = max(0.3, importance - 0.1)
+
+            await self._store_assistant_self_memory(
+                content=content,
+                info_type=info_type,
+                importance=importance,
+                tags=tags,
+                user_id=user_id,
+                group_id=group_id,
+                message_type=message_type,
+            )
 
 
 # 单例实例

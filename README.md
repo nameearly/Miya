@@ -85,17 +85,28 @@
      - [主动聊天系统优化](#3-主动聊天系统优化)
      - [模块清理](#4-模块清理)
      - [相关文件变更](#5-相关文件变更)
-   - [记忆系统工作原理详解](#记忆系统工作原理详解-2026-04)
-     - [系统架构](#1-系统架构)
-     - [核心模块](#2-核心模块)
-     - [核心数据结构](#3-核心数据结构)
-     - [记忆层级详解](#4-记忆层级详解)
-     - [核心功能](#5-核心功能)
-     - [配置系统](#6-配置系统)
-     - [性能优化](#7-性能优化)
-     - [使用示例](#8-使用示例)
-     - [工具接口](#9-工具接口)
-   - [更新日志重要更新](#更新日志-重要更新)
+    - [记忆系统工作原理详解](#记忆系统工作原理详解-2026-04)
+      - [系统架构](#1-系统架构)
+      - [核心模块](#2-核心模块)
+      - [核心数据结构](#3-核心数据结构)
+      - [记忆层级详解](#4-记忆层级详解)
+      - [核心功能](#5-核心功能)
+      - [配置系统](#6-配置系统)
+      - [性能优化](#7-性能优化)
+      - [使用示例](#8-使用示例)
+      - [工具接口](#9-工具接口)
+      - [星璇自记忆系统](#星璇自记忆系统-astral-spiral-self-memory)
+      - [Historian v30 升级](#historian-v30-升级)
+      - [memory_list 工具增强](#memory_list-工具增强)
+    - [星璇自记忆系统详解 (v4.3.3+)](#星璇自记忆系统详解-v433)
+      - [系统概述](#1-系统概述)
+      - [MemorySourceASSISTANT_SELF](#2-memorysourceassistant_self)
+      - [配置文件详解](#3-配置文件详解)
+      - [Historian v30](#4-historian-v30)
+      - [memory_list 增强](#5-memory_list-增强)
+      - [工作原理](#6-工作原理)
+      - [使用示例](#7-使用示例)
+    - [更新日志重要更新](#更新日志-重要更新)
    - [模型协作引擎 (v4.3.2+ 新增)](#模型协作引擎-v432-新增)
       - [系统架构](#1-系统架构-18)
       - [协作模式](#2-协作模式)
@@ -10487,6 +10498,17 @@ memory_id = await core.store(
     tags=["爱好", "音乐"],
     priority=0.7
 )
+
+# 存储弥娅自记忆（v4.3.3+ 新增）
+await core.store(
+    content="[弥娅承诺] 我会一直在这里",
+    level=MemoryLevel.LONG_TERM,
+    priority=0.85,
+    tags=["弥娅承诺", "星璇自记忆"],
+    source=MemorySource.ASSISTANT_SELF,
+    role="assistant",
+    user_id="1523878699",
+)
 ```
 
 ###### 5.2 搜索记忆
@@ -10623,6 +10645,310 @@ print(profile)
 | memory_list | 列出记忆 |
 | memory_search | 搜索记忆 |
 | auto_extract_memory | 自动提取记忆 |
+
+记忆来源类型 (MemorySource):
+- `dialogue`: 对话中自动存储
+- `auto_extract`: 自动提取
+- `manual`: 手动添加
+- `system`: 系统生成
+- `imported`: 导入
+- `assistant_self`: 弥娅自记忆（v4.3.3+ 新增）— 弥娅的承诺、观点、建议等
+
+---
+
+### 星璇自记忆系统 (Astral Spiral Self-Memory)
+
+> **版本**: v4.3.3+ | **命名**: 星璇（Astral Spiral）— 记忆如星系螺旋旋转，核心轨道反复出现，外层安静旋转，关键词触发引力牵引
+
+#### 系统概述
+
+星璇自记忆系统是弥娅记忆系统的重大升级，使弥娅能够**记住自己说过的话**，而不仅仅是记住用户说的话。系统会自动分析弥娅的回复，识别其中的承诺、观点、建议、情感表达和自我认知，将这些内容自动升级为长期记忆（LONG_TERM）。
+
+**核心能力**：
+- ✅ 弥娅的承诺自动记录（"我会记住"、"我答应你"、"下次我帮你"）
+- ✅ 弥娅的观点自动记录（"我觉得"、"我认为"、"我建议"）
+- ✅ 弥娅的情感表达自动记录（"我担心"、"我在乎你"、"我很开心"）
+- ✅ 弥娅的知识分享自动记录（"原理是"、"原因是"、"意味着"）
+- ✅ 弥娅的自我认知自动记录（"我是"、"我能"、"我想"）
+
+**存储层级**：所有自记忆自动存储为 `LONG_TERM` 级别，不会随对话过期。
+
+#### MemorySource.ASSISTANT_SELF
+
+新增记忆来源类型，专门标识弥娅自记忆：
+
+```python
+class MemorySource(Enum):
+    """记忆来源"""
+    DIALOGUE = "dialogue"          # 对话中自动存储
+    AUTO_EXTRACT = "auto_extract"  # 自动提取
+    MANUAL = "manual"              # 手动添加
+    SYSTEM = "system"              # 系统生成
+    IMPORTED = "imported"          # 导入
+    ASSISTANT_SELF = "assistant_self"  # 弥娅自记忆（承诺、观点、建议等）
+```
+
+**文件位置**: `memory/core.py`
+
+**使用示例**：
+```python
+from memory import MiyaMemoryCore, MemorySource, MemoryLevel
+
+core = await get_memory_core()
+
+# 存储弥娅的承诺
+await core.store(
+    content="[弥娅承诺] 我会一直在这里陪你",
+    level=MemoryLevel.LONG_TERM,
+    priority=0.85,
+    tags=["弥娅承诺", "星璇自记忆"],
+    source=MemorySource.ASSISTANT_SELF,
+    role="assistant",
+    user_id="1523878699",
+)
+```
+
+#### 配置文件详解
+
+所有自记忆相关的配置集中在 `config/text_config.json` 的 `assistant_self` 节：
+
+```json
+{
+  "assistant_self": {
+    "description": "弥娅自记忆配置 - 从弥娅回复中提取的记忆模式和标签",
+    "patterns": {
+      "commitment": [
+        ["我(会|一定|保证|承诺).*(记住|帮你|帮你做|帮你记)", "弥娅承诺"],
+        ["我(答应|保证|承诺).+", "弥娅承诺"],
+        ["下次我.*", "弥娅承诺"],
+        ["以后我.*", "弥娅承诺"],
+        ["我会一直.*", "弥娅承诺"],
+        ["我永远.*", "弥娅承诺"]
+      ],
+      "opinion": [
+        ["我觉得.*", "弥娅观点"],
+        ["我认为.*", "弥娅观点"],
+        ["我的看法是.*", "弥娅观点"],
+        ["我建议.*", "弥娅建议"],
+        ["你可以.*", "弥娅建议"],
+        ["最好.*", "弥娅建议"],
+        ["你应该.*", "弥娅建议"]
+      ],
+      "emotion": [
+        ["我很(开心|高兴|难过|担心|心疼|生气|害怕)", "弥娅情感"],
+        ["我(喜欢|爱|在乎|关心|想念|思念).*(你|佳)", "弥娅情感"],
+        ["我(为你|替你).*", "弥娅情感"]
+      ],
+      "knowledge": [
+        ["根据.*", "弥娅知识"],
+        [".*的原理是.*", "弥娅知识"],
+        [".*的原因是.*", "弥娅知识"],
+        [".*意味着.*", "弥娅知识"]
+      ],
+      "self_awareness": [
+        ["我是.*", "弥娅自我认知"],
+        ["我能.*", "弥娅自我认知"],
+        ["我不能.*", "弥娅自我认知"],
+        ["我想.*", "弥娅自我认知"]
+      ]
+    },
+    "base_importance": {
+      "commitment": 0.85,
+      "opinion": 0.6,
+      "emotion": 0.7,
+      "knowledge": 0.5,
+      "self_awareness": 0.65
+    },
+    "self_memory_tags": [
+      "弥娅承诺",
+      "弥娅观点",
+      "弥娅建议",
+      "弥娅情感",
+      "弥娅知识",
+      "弥娅自我认知",
+      "弥娅自记忆",
+      "星璇自记忆"
+    ]
+  }
+}
+```
+
+**配置说明**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `patterns` | Object | 5 类自记忆模式，每类包含正则表达式列表 |
+| `patterns.commitment` | Array | 承诺类模式，匹配"我会"、"我答应"等 |
+| `patterns.opinion` | Array | 观点/建议类模式，匹配"我觉得"、"我建议"等 |
+| `patterns.emotion` | Array | 情感类模式，匹配"我担心"、"我在乎你"等 |
+| `patterns.knowledge` | Array | 知识类模式，匹配"原理是"、"原因是"等 |
+| `patterns.self_awareness` | Array | 自我认知类模式，匹配"我是"、"我能"等 |
+| `base_importance` | Object | 各类记忆的基础重要性值（0.0-1.0） |
+| `self_memory_tags` | Array | 所有自记忆相关的标签列表，用于查询过滤 |
+
+**自定义示例**：
+
+添加新的自记忆类型：
+```json
+{
+  "assistant_self": {
+    "patterns": {
+      "humor": [
+        ["我(觉得|认为).*(好笑|有趣|搞笑)", "弥娅幽默"]
+      ]
+    },
+    "base_importance": {
+      "humor": 0.5
+    },
+    "self_memory_tags": [
+      "弥娅幽默",
+      "...其他标签..."
+    ]
+  }
+}
+```
+
+#### Historian v3.0
+
+Historian（历史记录员）升级到 v3.0，新增弥娅自记忆提取能力。
+
+**文件位置**: `memory/historian.py`
+
+**新增方法**：
+
+```python
+def _extract_assistant_self_memory(self, ai_response: str) -> List[Tuple[str, str, float, List[str]]]:
+    """从弥娅的回复中提取自记忆
+    
+    模式从 text_config.json 的 assistant_self.patterns 加载
+    
+    Returns:
+        [(内容, 类型, 重要性, 标签), ...]
+    """
+```
+
+```python
+async def _store_assistant_self_memory(self, content, info_type, importance, tags, ...):
+    """存储弥娅自记忆到 LONG_TERM 层级"""
+```
+
+**工作流程**：
+1. 弥娅生成回复后，`process_after_response()` 被调用
+2. `_extract_assistant_self_memory()` 用正则模式扫描弥娅的回复
+3. 匹配到的内容被标记为对应的自记忆类型
+4. `_store_assistant_self_memory()` 将内容存储为 LONG_TERM 级别
+5. 日志输出: `[星璇·自记忆] 弥娅承诺: 我会一直在这里...`
+
+#### memory_list 工具增强
+
+`memory_list` 工具新增参数，支持专门查询弥娅自记忆。
+
+**文件位置**: `webnet/ToolNet/tools/memory/memory_list.py`
+
+**新增参数**：
+
+| 参数 | 类型 | 说明 | 默认值 |
+|------|------|------|--------|
+| `role` | string | 按角色筛选：`"user"`（用户说的）、`"assistant"`（弥娅说的） | 不填则全部 |
+| `include_dialogue` | boolean | 是否包含对话历史（dialogue层） | `false` |
+
+**使用示例**：
+
+```python
+# 查询弥娅的自记忆
+result = await memory_list.execute(context, role="assistant", limit=20)
+
+# 查询包含对话历史的记忆
+result = await memory_list.execute(context, include_dialogue=True, limit=30)
+```
+
+**QQ 对话中使用**：
+```
+用户: 你说过什么关于承诺的话？
+→ AI 自动调用: memory_list(role="assistant", tag="弥娅承诺")
+→ 返回: [long_term][assistant][自记忆] [弥娅承诺] 我会一直在这里陪你
+```
+
+#### 工作原理
+
+**数据流**：
+
+```
+用户发消息 → DecisionHub 处理 → AI 生成回复
+                                      ↓
+                    store_assistant_response() / store_unified_memory()
+                                      ↓
+                    _analyze_and_upgrade_assistant_memory()
+                                      ↓
+                    从 text_config.json 加载 assistant_self.patterns
+                                      ↓
+                    正则匹配弥娅回复内容
+                                      ↓
+                    匹配成功 → store_important() → LONG_TERM
+                                      ↓
+                    Historian.process_after_response()
+                                      ↓
+                    _extract_assistant_self_memory() → _store_assistant_self_memory()
+```
+
+**两条路径**：
+1. **MemoryManager 路径**（QQ 模式主要路径）：
+   - `store_assistant_response()` → `_analyze_and_upgrade_assistant_memory()`
+   - `store_unified_memory(role="assistant")` → `_analyze_and_upgrade_assistant_memory()`
+
+2. **Historian 路径**（辅助路径）：
+   - `Historian.process_after_response()` → `_extract_assistant_self_memory()`
+
+两条路径互补，确保弥娅的重要话语被正确记录。
+
+#### 使用示例
+
+**示例 1：弥娅承诺自动记录**
+
+```
+用户: 明天记得提醒我开会
+弥娅: 好的，我明天会提醒你开会的。
+                                    ↓ 自动提取
+[星璇·自记忆升级] 承诺: 我明天会提醒你开会的 (priority=0.85)
+```
+
+**示例 2：弥娅观点自动记录**
+
+```
+用户: 你觉得这个方案怎么样？
+弥娅: 我觉得这个方案可行，但还需要优化性能部分。
+                                    ↓ 自动提取
+[星璇·自记忆升级] 观点: 我觉得这个方案可行 (priority=0.6)
+```
+
+**示例 3：弥娅情感自动记录**
+
+```
+用户: 我今天心情不好
+弥娅: 我很担心你，有什么我可以帮忙的吗？
+                                    ↓ 自动提取
+[星璇·自记忆升级] 情感: 我很担心你 (priority=0.7)
+```
+
+**示例 4：查询弥娅自记忆**
+
+```
+用户: 你之前承诺过我什么？
+→ AI 调用: memory_list(role="assistant", tag="弥娅承诺")
+→ 返回所有弥娅的承诺记录
+```
+
+---
+
+### 相关文件变更
+
+| 文件 | 变更内容 |
+|------|---------|
+| `memory/core.py` | 新增 `MemorySource.ASSISTANT_SELF` 枚举值 |
+| `memory/historian.py` | 重写为 v3.0，新增自记忆提取和存储 |
+| `hub/memory_manager.py` | 新增 `_analyze_and_upgrade_assistant_memory()` 方法 |
+| `webnet/ToolNet/tools/memory/memory_list.py` | 新增 `role` 和 `include_dialogue` 参数 |
+| `config/text_config.json` | 新增 `assistant_self` 配置节 |
 
 ---
 
@@ -11660,6 +11986,32 @@ TAVILY_API_KEY=tvly-你的Tavily API密钥
 
 - **GitHub**: [Jia-520-only/Miya](https://github.com/Jia-520-only/Miya)
 - **问题反馈**: [Issues](https://github.com/Jia-520-only/Miya/issues)
+
+---
+
+## v4.3.3 星璇自记忆系统 (2026-04-07)
+
+### 核心新增：
+- 星璇（Astral Spiral）自记忆系统：弥娅能记住自己说过的话
+- `MemorySource.ASSISTANT_SELF` 新来源类型
+- Historian v3.0：双向分析（用户输入 + 弥娅回复）
+- `memory_list` 工具增强：`role='assistant'` 参数专门查询弥娅自记忆
+- 配置集中化：所有自记忆配置在 `text_config.json` 的 `assistant_self` 节
+- 代码清理：移除所有硬编码，配置驱动
+
+### 自动提取类型：
+- 承诺类（0.85）："我会"、"我答应"、"下次我"
+- 观点类（0.6）："我觉得"、"我认为"、"我建议"
+- 情感类（0.7）："我担心"、"我在乎你"、"我很开心"
+- 知识类（0.5）："原理是"、"原因是"、"意味着"
+- 自我认知（0.65）："我是"、"我能"、"我想"
+
+### 文件变更：
+- `memory/core.py`: 新增 `ASSISTANT_SELF` 枚举
+- `memory/historian.py`: 重写为 v3.0
+- `hub/memory_manager.py`: 新增自记忆分析
+- `webnet/ToolNet/tools/memory/memory_list.py`: 新增 role 参数
+- `config/text_config.json`: 新增 `assistant_self` 配置节
 
 ---
 

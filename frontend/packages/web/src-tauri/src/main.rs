@@ -19,12 +19,12 @@ fn check_api_connection() -> Result<bool, String> {
 
 #[tauri::command]
 fn get_system_info() -> Result<serde_json::Value, String> {
-    use sysinfo::{System, SystemExt, CpuExt};
+    use sysinfo::System;
 
     let mut sys = System::new_all();
     sys.refresh_all();
 
-    let cpu_usage = sys.global_cpu_info().cpu_usage();
+    let cpu_usage = sys.global_cpu_usage();
     let total_memory = sys.total_memory();
     let available_memory = sys.available_memory();
     let used_memory = total_memory - available_memory;

@@ -20,10 +20,11 @@ echo   === Core Modes ===
 echo   [1] MIYA Terminal     - Claude Code with Miya Soul (Personality+Memory+Emotion)
 echo   [2] QQ Client         - QQ Bot Client
 echo   [3] Web Client        - Web Interface Client
+echo   [4] Desktop Client    - Tauri Desktop App (Recommended)
 echo.
 echo   === Combined Startup ===
-echo   [4] Full System       - QQ + Web + MIYA Terminal
-echo   [5] Custom Launch     - Select services to start
+echo   [5] Full System       - QQ + Web + MIYA Terminal
+echo   [6] Custom Launch     - Select services to start
 echo.
 echo   === System Tools ===
 echo   [6] Model Bridge      - Start Miya Model Bridge (Anthropic to OpenAI)
@@ -46,12 +47,12 @@ if "%choice%"=="0" goto :exit
 if "%choice%"=="1" goto :miya_terminal
 if "%choice%"=="2" goto :qq_client
 if "%choice%"=="3" goto :web_client
-if "%choice%"=="4" goto :full_system
-if "%choice%"=="5" goto :custom_launch
-if "%choice%"=="6" goto :model_bridge
-if "%choice%"=="7" goto :mcp_setup
-if "%choice%"=="8" goto :diagnostics
-if "%choice%"=="9" goto :testing
+if "%choice%"=="4" goto :desktop_client
+if "%choice%"=="5" goto :full_system
+if "%choice%"=="6" goto :custom_launch
+if "%choice%"=="7" goto :model_bridge
+if "%choice%"=="8" goto :mcp_setup
+if "%choice%"=="9" goto :diagnostics
 if /i "%choice%"=="Q" goto :quick_start
 if /i "%choice%"=="M" goto :model_select
 if /i "%choice%"=="T" goto :terminal_select
@@ -160,6 +161,72 @@ echo QQ Bot is now running. Close this window to stop the service.
 echo.
 pause
 goto :main_menu
+
+:desktop_client
+cls
+echo ================================================================================
+echo STARTING: MIYA DESKTOP CLIENT (Tauri)
+echo ================================================================================
+echo.
+echo This starts the MIYA Desktop Application using Tauri 2.
+echo Features:
+echo   - Native desktop experience
+echo   - Live2D avatar support
+echo   - Chat interface
+echo   - System monitoring
+echo.
+echo Requirements: Node.js, Rust, Tauri CLI
+echo.
+echo Press Ctrl+C to stop.
+echo ================================================================================
+echo.
+
+REM Check if Tauri project exists
+if exist "frontend\packages\web\src-tauri\Cargo.toml" (
+    echo [OK] Tauri project found
+) else (
+    echo [ERROR] Tauri project not found at frontend\packages\web\src-tauri\
+    echo Please ensure the desktop client is properly set up.
+    pause
+    goto :main_menu
+)
+
+REM Check Node.js
+node --version >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] Node.js not found!
+    pause
+    goto :main_menu
+)
+
+REM Check Rust
+rustc --version >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] Rust not found! Please install Rust from https://rustup.rs
+    pause
+    goto :main_menu
+)
+
+echo [OK] Node.js found
+echo [OK] Rust found
+
+REM Install frontend dependencies if needed
+if not exist "frontend\node_modules" (
+    echo Installing frontend dependencies...
+    cd frontend
+    call pnpm install
+    cd ..
+    echo [OK] Frontend dependencies installed
+)
+
+REM Start Tauri dev mode
+echo.
+echo Starting MIYA Desktop Application...
+echo ================================================================================
+cd frontend
+call pnpm --filter @miya/web tauri dev
+cd ..
+goto :restart_prompt
 
 :model_bridge
 cls
@@ -332,15 +399,15 @@ echo SYSTEM DIAGNOSTICS
 echo ================================================================================
 echo.
 
-echo [1/7] Python Environment:
+echo [1/8] Python Environment:
 python --version 2>nul && echo   [OK] Python found || echo   [ERROR] Python not found
 echo.
 
-echo [2/7] Node.js Environment:
+echo [2/8] Node.js Environment:
 node --version 2>nul && echo   [OK] Node.js found || echo   [WARNING] Node.js not found
 echo.
 
-echo [3/7] Claude Code:
+echo [3/8] Claude Code:
 if exist "Open-ClaudeCode\package\cli.js" (
     echo   [OK] Claude Code found
 ) else (
@@ -348,7 +415,7 @@ if exist "Open-ClaudeCode\package\cli.js" (
 )
 echo.
 
-echo [4/7] Miya MCP Server:
+echo [4/8] Miya MCP Server:
 if exist "mcpserver\miya\server.py" (
     echo   [OK] Miya MCP Server found
 ) else (
@@ -356,7 +423,7 @@ if exist "mcpserver\miya\server.py" (
 )
 echo.
 
-echo [5/7] Miya Model Bridge:
+echo [5/8] Miya Model Bridge:
 if exist "mcpserver\model-bridge\server.py" (
     echo   [OK] Miya Model Bridge found
 ) else (
@@ -364,7 +431,20 @@ if exist "mcpserver\model-bridge\server.py" (
 )
 echo.
 
-echo [6/7] MCP Config:
+echo [6/8] Rust Environment (for Desktop Client):
+rustc --version 2>nul && echo   [OK] Rust found || echo   [WARNING] Rust not found (required for Desktop Client)
+cargo --version 2>nul && echo   [OK] Cargo found || echo   [WARNING] Cargo not found
+echo.
+
+echo [7/8] Tauri Desktop Project:
+if exist "frontend\packages\web\src-tauri\Cargo.toml" (
+    echo   [OK] Tauri project found
+) else (
+    echo   [ERROR] Tauri project not found
+)
+echo.
+
+echo [8/8] MCP Config:
 if exist ".mcp.json" (
     echo   [OK] .mcp.json found
 ) else (
@@ -474,9 +554,10 @@ echo.
 echo   [1] MIYA Terminal     - Claude Code + Miya Soul
 echo   [2] Web Service       - Web Interface
 echo   [3] QQ Client         - QQ Bot
-echo   [4] Model Bridge      - Anthropic to OpenAI Bridge
+echo   [4] Desktop Client    - Tauri Desktop App
+echo   [5] Model Bridge      - Anthropic to OpenAI Bridge
 echo.
-echo Example: 1 4 (Start Terminal + Model Bridge)
+echo Example: 1 5 (Start Terminal + Model Bridge)
 echo.
 set /p service_choice=Enter service numbers (space-separated):
 
@@ -484,8 +565,8 @@ echo.
 echo You selected: %service_choice%
 echo.
 
-if "%service_choice:4=%" neq "%service_choice%" (
-    echo [1/4] Starting Model Bridge...
+if "%service_choice:5=%" neq "%service_choice%" (
+    echo [1/5] Starting Model Bridge...
     start "MIYA Model Bridge" /B python mcpserver\model-bridge\server.py
     timeout /t 3 >nul
     echo [OK] Model Bridge started
@@ -496,7 +577,7 @@ set ANTHROPIC_MODEL=%DEFAULT_MODEL%
 )
 
 if "%service_choice:1=%" neq "%service_choice%" (
-    echo [2/4] Starting MIYA Terminal...
+    echo [2/5] Starting MIYA Terminal...
     set MODEL_DISPLAY=%DEFAULT_MODEL:miya-%
     start "MIYA - %MODEL_DISPLAY%" /B cmd /c "set ANTHROPIC_BASE_URL=http://localhost:8888 && set ANTHROPIC_AUTH_TOKEN=%DEFAULT_MODEL% && set CLAUDE_CODE_SKIP_AUTH=1 && set ANTHROPIC_MODEL=%DEFAULT_MODEL% && title MIYA - %MODEL_DISPLAY% && node Open-ClaudeCode\package\cli.js"
     timeout /t 2 >nul
@@ -504,7 +585,7 @@ if "%service_choice:1=%" neq "%service_choice%" (
 )
 
 if "%service_choice:2=%" neq "%service_choice%" (
-    echo [3/4] Starting Web Service...
+    echo [3/5] Starting Web Service...
     call :check_file "webnet\web_main.py"
     if not errorlevel 1 (
         start "MIYA Web" /B python webnet\web_main.py
@@ -514,12 +595,23 @@ if "%service_choice:2=%" neq "%service_choice%" (
 )
 
 if "%service_choice:3=%" neq "%service_choice%" (
-    echo [4/4] Starting QQ Client...
+    echo [4/5] Starting QQ Client...
     call :check_file "run\qq_main.py"
     if not errorlevel 1 (
         start "MIYA QQ" /B python run\qq_main.py
         timeout /t 1 >nul
         echo [OK] QQ Client started
+    )
+)
+
+if "%service_choice:4=%" neq "%service_choice%" (
+    echo [5/5] Starting Desktop Client...
+    call :check_file "frontend\packages\web\src-tauri\Cargo.toml"
+    if not errorlevel 1 (
+        echo [INFO] Desktop Client requires pnpm and Rust
+        start "MIYA Desktop" /B cmd /c "cd frontend && pnpm --filter @miya/web tauri dev"
+        timeout /t 2 >nul
+        echo [OK] Desktop Client starting
     )
 )
 

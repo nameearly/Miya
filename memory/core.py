@@ -86,6 +86,7 @@ class MemorySource(Enum):
     MANUAL = "manual"  # 手动添加
     SYSTEM = "system"  # 系统生成
     IMPORTED = "imported"  # 导入
+    ASSISTANT_SELF = "assistant_self"  # 弥娅自记忆（承诺、观点、建议等）
 
 
 # ==================== 核心数据结构 ====================

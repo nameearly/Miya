@@ -151,6 +151,11 @@ class MemoryManager:
         """
         存储 AI 响应到记忆系统
 
+        【星璇增强】
+        - 弥娅的承诺、观点、建议等会自动升级为 LONG_TERM
+        - 使用 ASSISTANT_SELF 来源类型标识弥娅自记忆
+        - 通过 Historian 双向分析（用户 + 弥娅）
+
         Args:
             perception: 感知数据
             response: AI 响应内容
@@ -194,8 +199,20 @@ class MemoryManager:
                 },
             )
 
-            # 使用 Historian 自动提取重要记忆
+            # 【星璇增强】分析弥娅回复中的重要内容，自动升级存储
             user_content = perception.get("content", "")
+            try:
+                await self._analyze_and_upgrade_assistant_memory(
+                    user_input=user_content,
+                    ai_response=response,
+                    user_id=user_id,
+                    group_id=group_id,
+                    message_type=message_type,
+                )
+            except Exception as e:
+                logger.debug(f"[记忆管理器] 弥娅自记忆分析失败: {e}")
+
+            # 使用 Historian 自动提取重要记忆
             try:
                 await self.historian.process_conversation(
                     user_input=user_content,
@@ -225,9 +242,103 @@ class MemoryManager:
         except Exception as e:
             logger.error(f"[记忆管理器] 存储 AI 响应失败: {e}")
 
+    async def _analyze_and_upgrade_assistant_memory(
+        self,
+        user_input: str,
+        ai_response: str,
+        user_id: str,
+        group_id: str,
+        message_type: str,
+    ) -> None:
+        """
+        【星璇增强】分析弥娅回复，自动识别并升级重要自记忆
+
+        模式从 text_config.json 的 assistant_self.patterns 加载
+        """
+        import re
+        import json
+        from pathlib import Path
+
+        # 从配置文件加载模式
+        assistant_patterns = []
+        try:
+            config_path = Path(__file__).parent.parent / "config" / "text_config.json"
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    full_config = json.load(f)
+                self_config = full_config.get("assistant_self", {})
+                patterns = self_config.get("patterns", {})
+                base_importance = self_config.get("base_importance", {})
+
+                # 扁平化所有模式: (pattern, mem_type, importance, tags)
+                type_label_map = {
+                    "commitment": "承诺",
+                    "opinion": "观点",
+                    "emotion": "情感",
+                    "knowledge": "知识",
+                    "self_awareness": "自我认知",
+                }
+
+                for category, pattern_list in patterns.items():
+                    importance = base_importance.get(category, 0.5)
+                    mem_type = type_label_map.get(category, category)
+                    for item in pattern_list:
+                        if isinstance(item, list) and len(item) >= 2:
+                            pattern_regex = item[0]
+                            tag_name = item[1]
+                            assistant_patterns.append(
+                                (pattern_regex, mem_type, importance, [tag_name])
+                            )
+        except Exception as e:
+            logger.warning(f"[记忆管理器] 加载自记忆配置失败: {e}")
+            return
+
+        if not assistant_patterns:
+            logger.debug("[记忆管理器] 自记忆配置为空，跳过分析")
+            return
+
+        for pattern, mem_type, base_importance, tags in assistant_patterns:
+            match = re.search(pattern, ai_response)
+            if match:
+                content = match.group(0).strip()
+                if len(content) < 5:
+                    continue
+
+                # 构建记忆内容
+                memory_content = f"[弥娅{mem_type}] {content}"
+
+                # 存储为 LONG_TERM（自动升级）
+                try:
+                    await store_important(
+                        content=memory_content,
+                        user_id=user_id,
+                        tags=tags + ["星璇自记忆", f"类型_{mem_type}"],
+                        priority=min(1.0, base_importance),
+                        metadata={
+                            "source": "assistant_self",
+                            "memory_type": mem_type,
+                            "role": "assistant",
+                            "group_id": group_id,
+                            "message_type": message_type,
+                            "original_context": user_input[:100] if user_input else "",
+                        },
+                    )
+                    logger.info(
+                        f"[星璇·自记忆升级] {mem_type}: {content[:30]}... "
+                        f"(priority={base_importance})"
+                    )
+                except Exception as e:
+                    logger.debug(f"[星璇·自记忆升级] 存储失败: {e}")
+
+                # 每个回复只记录一条最重要的，避免刷屏
+                break
+
     async def store_unified_memory(self, perception: Dict, role: str = "user") -> None:
         """
         存储统一记忆（跨平台）
+
+        【星璇增强】当 role="assistant" 时，自动分析弥娅回复中的
+        承诺、观点、建议等重要内容，升级为 LONG_TERM 自记忆
 
         Args:
             perception: 感知数据
@@ -272,6 +383,24 @@ class MemoryManager:
                         "sender_name": sender_name,
                     },
                 )
+
+            # 【星璇增强】弥娅回复时，自动分析并升级重要自记忆
+            if role == "assistant" and content and len(content.strip()) >= 5:
+                user_input = perception.get("content", "") or perception.get(
+                    "input", ""
+                )
+                group_id = perception.get("group_id", "")
+                message_type = perception.get("message_type", "")
+                try:
+                    await self._analyze_and_upgrade_assistant_memory(
+                        user_input=user_input,
+                        ai_response=content,
+                        user_id=user_id,
+                        group_id=group_id,
+                        message_type=message_type,
+                    )
+                except Exception as e:
+                    logger.debug(f"[记忆管理器] 弥娅自记忆分析失败: {e}")
 
         except Exception as e:
             logger.error(f"[记忆管理器] 存储统一记忆失败: {e}")
