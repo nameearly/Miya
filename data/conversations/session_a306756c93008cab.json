@@ -249,5 +249,20 @@
       "sender": "",
       "chat_label": "群聊_1092980378"
     }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，她是谁",
+    "timestamp": "2026-04-06T20:38:42.474761",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": "0",
+      "group_id": "0",
+      "message_type": "private",
+      "sender": "",
+      "chat_label": "私聊"
+    }
   }
 ]

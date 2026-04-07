@@ -8276,5 +8276,687 @@
     "created_at": "2026-04-06T19:40:42.540793",
     "file_path": "data\\memory\\short_term\\1523878699\\a3540c0cb657be3c.json",
     "priority": 0.3
+  },
+  "ab08e35e46f4d4b2": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T19:42:18.255150",
+    "file_path": "data\\memory\\dialogue\\1523878699\\ab08e35e46f4d4b2.json",
+    "priority": 0.5
+  },
+  "6e0179a6ba492393": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T19:42:21.417001",
+    "file_path": "data\\memory\\dialogue\\1523878699\\6e0179a6ba492393.json",
+    "priority": 0.5
+  },
+  "c723646b65536c91": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T19:42:21.622332",
+    "file_path": "data\\memory\\short_term\\1523878699\\c723646b65536c91.json",
+    "priority": 0.7
+  },
+  "14fb5321c55c48ac": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T20:37:11.425030",
+    "file_path": "data\\memory\\dialogue\\1523878699\\14fb5321c55c48ac.json",
+    "priority": 0.5
+  },
+  "662105bb68c4603d": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T20:37:17.668064",
+    "file_path": "data\\memory\\dialogue\\1523878699\\662105bb68c4603d.json",
+    "priority": 0.5
+  },
+  "e93c72bec835c047": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T20:37:17.844584",
+    "file_path": "data\\memory\\short_term\\1523878699\\e93c72bec835c047.json",
+    "priority": 0.3
+  },
+  "1430e12db2d20cc4": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T20:38:18.898054",
+    "file_path": "data\\memory\\dialogue\\1523878699\\1430e12db2d20cc4.json",
+    "priority": 0.5
+  },
+  "f56ef3d1fc54835f": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T20:38:21.839206",
+    "file_path": "data\\memory\\dialogue\\1523878699\\f56ef3d1fc54835f.json",
+    "priority": 0.5
+  },
+  "65054b277a7f696b": {
+    "level": "dialogue",
+    "user_id": "0",
+    "session_id": "qq_0",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T20:38:42.476788",
+    "file_path": "data\\memory\\dialogue\\0\\65054b277a7f696b.json",
+    "priority": 0.5
+  },
+  "9cb2257e062fc5bf": {
+    "level": "long_term",
+    "user_id": "global",
+    "session_id": null,
+    "group_id": "",
+    "tags": [
+      "图片分享",
+      "角色询问",
+      "二次元"
+    ],
+    "created_at": "2026-04-06T20:38:52.567727",
+    "file_path": "data\\memory\\long_term\\9cb2257e062fc5bf.json",
+    "priority": 0.4
+  },
+  "357db537a80a93d9": {
+    "level": "dialogue",
+    "user_id": "0",
+    "session_id": "terminal_0",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T20:39:02.485109",
+    "file_path": "data\\memory\\dialogue\\0\\357db537a80a93d9.json",
+    "priority": 0.5
+  },
+  "48868ce876a9e721": {
+    "level": "short_term",
+    "user_id": "0",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T20:39:02.685526",
+    "file_path": "data\\memory\\short_term\\0\\48868ce876a9e721.json",
+    "priority": 0.3
+  },
+  "37c80570e2905387": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:06:57.122637",
+    "file_path": "data\\memory\\dialogue\\1523878699\\37c80570e2905387.json",
+    "priority": 0.5
+  },
+  "60de000f912973bb": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:07:31.256940",
+    "file_path": "data\\memory\\dialogue\\1523878699\\60de000f912973bb.json",
+    "priority": 0.5
+  },
+  "4fa57cc73ddf43b8": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:07:31.449177",
+    "file_path": "data\\memory\\short_term\\1523878699\\4fa57cc73ddf43b8.json",
+    "priority": 0.3
+  },
+  "a0f66ed96e7569ac": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:09:02.236227",
+    "file_path": "data\\memory\\dialogue\\1523878699\\a0f66ed96e7569ac.json",
+    "priority": 0.5
+  },
+  "2bd8013f28e85fe9": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:09:09.233380",
+    "file_path": "data\\memory\\dialogue\\1523878699\\2bd8013f28e85fe9.json",
+    "priority": 0.5
+  },
+  "8fd95923f684713e": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:09:09.444312",
+    "file_path": "data\\memory\\short_term\\1523878699\\8fd95923f684713e.json",
+    "priority": 0.7
+  },
+  "94d2aa1006aac3ac": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:15:05.092296",
+    "file_path": "data\\memory\\dialogue\\1523878699\\94d2aa1006aac3ac.json",
+    "priority": 0.5
+  },
+  "245ba23a7daa0a5d": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:15:16.433481",
+    "file_path": "data\\memory\\dialogue\\1523878699\\245ba23a7daa0a5d.json",
+    "priority": 0.5
+  },
+  "16faaca97f3e9e62": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:15:16.616751",
+    "file_path": "data\\memory\\short_term\\1523878699\\16faaca97f3e9e62.json",
+    "priority": 0.7
+  },
+  "0dbdf9b5f289c1fc": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:15:47.942477",
+    "file_path": "data\\memory\\dialogue\\1523878699\\0dbdf9b5f289c1fc.json",
+    "priority": 0.5
+  },
+  "b8912db755f98f7a": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:15:55.053587",
+    "file_path": "data\\memory\\dialogue\\1523878699\\b8912db755f98f7a.json",
+    "priority": 0.5
+  },
+  "158ee561b8b18fe8": {
+    "level": "dialogue",
+    "user_id": "2911746585",
+    "session_id": "qq_2911746585",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:18:35.968947",
+    "file_path": "data\\memory\\dialogue\\2911746585\\158ee561b8b18fe8.json",
+    "priority": 0.5
+  },
+  "63f21a614468c7a0": {
+    "level": "dialogue",
+    "user_id": "2911746585",
+    "session_id": "terminal_2911746585",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:18:39.527683",
+    "file_path": "data\\memory\\dialogue\\2911746585\\63f21a614468c7a0.json",
+    "priority": 0.5
+  },
+  "2d91cd84b514cce7": {
+    "level": "short_term",
+    "user_id": "2911746585",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:18:39.801255",
+    "file_path": "data\\memory\\short_term\\2911746585\\2d91cd84b514cce7.json",
+    "priority": 0.3
+  },
+  "cad1710d2d0d4dec": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:19:52.655385",
+    "file_path": "data\\memory\\dialogue\\1523878699\\cad1710d2d0d4dec.json",
+    "priority": 0.5
+  },
+  "b11fa3f4b8e862c8": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:19:56.988159",
+    "file_path": "data\\memory\\dialogue\\1523878699\\b11fa3f4b8e862c8.json",
+    "priority": 0.5
+  },
+  "3d840ace874810e4": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:19:57.167812",
+    "file_path": "data\\memory\\short_term\\1523878699\\3d840ace874810e4.json",
+    "priority": 0.7
+  },
+  "2ac3dd2b7cd9fbab": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:20:27.105593",
+    "file_path": "data\\memory\\dialogue\\1523878699\\2ac3dd2b7cd9fbab.json",
+    "priority": 0.5
+  },
+  "8a46fa6483c38311": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:20:33.257205",
+    "file_path": "data\\memory\\dialogue\\1523878699\\8a46fa6483c38311.json",
+    "priority": 0.5
+  },
+  "2e5f3ac9f691ae5f": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:20:33.437060",
+    "file_path": "data\\memory\\short_term\\1523878699\\2e5f3ac9f691ae5f.json",
+    "priority": 0.3
+  },
+  "b17aa91edf9a7c16": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:20:42.144318",
+    "file_path": "data\\memory\\dialogue\\1523878699\\b17aa91edf9a7c16.json",
+    "priority": 0.5
+  },
+  "cba40c6c15162ea5": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:20:46.329970",
+    "file_path": "data\\memory\\dialogue\\1523878699\\cba40c6c15162ea5.json",
+    "priority": 0.5
+  },
+  "3f1ed7011783a2bd": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:22:06.756048",
+    "file_path": "data\\memory\\dialogue\\1523878699\\3f1ed7011783a2bd.json",
+    "priority": 0.5
+  },
+  "10153f7f8fe0e20e": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:22:13.422325",
+    "file_path": "data\\memory\\dialogue\\1523878699\\10153f7f8fe0e20e.json",
+    "priority": 0.5
+  },
+  "3578e6e9f73eb6aa": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:26:30.486112",
+    "file_path": "data\\memory\\dialogue\\1523878699\\3578e6e9f73eb6aa.json",
+    "priority": 0.5
+  },
+  "576c0e3030d318dd": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:26:43.766051",
+    "file_path": "data\\memory\\dialogue\\1523878699\\576c0e3030d318dd.json",
+    "priority": 0.5
+  },
+  "0c0eb21f41013af2": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:26:43.973058",
+    "file_path": "data\\memory\\short_term\\1523878699\\0c0eb21f41013af2.json",
+    "priority": 0.9
+  },
+  "c54d81a4b690a899": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "qq_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:26:44.854585",
+    "file_path": "data\\memory\\dialogue\\3933327707\\c54d81a4b690a899.json",
+    "priority": 0.5
+  },
+  "a8bbc413ff4aea87": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "qq_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:26:48.891254",
+    "file_path": "data\\memory\\dialogue\\3933327707\\a8bbc413ff4aea87.json",
+    "priority": 0.5
+  },
+  "c372eafb16f29aed": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "terminal_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:26:53.141428",
+    "file_path": "data\\memory\\dialogue\\3933327707\\c372eafb16f29aed.json",
+    "priority": 0.5
+  },
+  "1c70d76173a70d1e": {
+    "level": "short_term",
+    "user_id": "3933327707",
+    "session_id": "",
+    "group_id": "",
+    "tags": [
+      "休息"
+    ],
+    "created_at": "2026-04-06T21:26:53.348223",
+    "file_path": "data\\memory\\short_term\\3933327707\\1c70d76173a70d1e.json",
+    "priority": 1.0
+  },
+  "a2908aafafca9dd5": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "qq_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:05.255148",
+    "file_path": "data\\memory\\dialogue\\3933327707\\a2908aafafca9dd5.json",
+    "priority": 0.5
+  },
+  "25a0271175dfa564": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "terminal_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:19.427372",
+    "file_path": "data\\memory\\dialogue\\3933327707\\25a0271175dfa564.json",
+    "priority": 0.5
+  },
+  "8f31da434e3990c6": {
+    "level": "short_term",
+    "user_id": "3933327707",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:19.644266",
+    "file_path": "data\\memory\\short_term\\3933327707\\8f31da434e3990c6.json",
+    "priority": 0.7
+  },
+  "699f14438dd0ab48": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "terminal_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:22.172919",
+    "file_path": "data\\memory\\dialogue\\3933327707\\699f14438dd0ab48.json",
+    "priority": 0.5
+  },
+  "cd6d268be56a39dc": {
+    "level": "short_term",
+    "user_id": "3933327707",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:22.378802",
+    "file_path": "data\\memory\\short_term\\3933327707\\cd6d268be56a39dc.json",
+    "priority": 0.9
+  },
+  "acc4fff22774bba3": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "qq_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:23.654872",
+    "file_path": "data\\memory\\dialogue\\3933327707\\acc4fff22774bba3.json",
+    "priority": 0.5
+  },
+  "afd86a0744933ebe": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "terminal_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:27.767026",
+    "file_path": "data\\memory\\dialogue\\3933327707\\afd86a0744933ebe.json",
+    "priority": 0.5
+  },
+  "83f94c8c982e12c6": {
+    "level": "short_term",
+    "user_id": "3933327707",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:28.011952",
+    "file_path": "data\\memory\\short_term\\3933327707\\83f94c8c982e12c6.json",
+    "priority": 0.3
+  },
+  "c47d0ff70a5e74a1": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "qq_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:30.103298",
+    "file_path": "data\\memory\\dialogue\\3933327707\\c47d0ff70a5e74a1.json",
+    "priority": 0.5
+  },
+  "605503861dab63d6": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:41.216123",
+    "file_path": "data\\memory\\dialogue\\1523878699\\605503861dab63d6.json",
+    "priority": 0.5
+  },
+  "8bc83e9f48027428": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "terminal_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:46.947065",
+    "file_path": "data\\memory\\dialogue\\3933327707\\8bc83e9f48027428.json",
+    "priority": 0.5
+  },
+  "acb0793dbcca0ffe": {
+    "level": "short_term",
+    "user_id": "3933327707",
+    "session_id": "",
+    "group_id": "",
+    "tags": [
+      "情绪",
+      "行程"
+    ],
+    "created_at": "2026-04-06T21:27:47.156288",
+    "file_path": "data\\memory\\short_term\\3933327707\\acb0793dbcca0ffe.json",
+    "priority": 0.8999999999999999
+  },
+  "3a7b4da89c2df54d": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:47.159765",
+    "file_path": "data\\memory\\dialogue\\1523878699\\3a7b4da89c2df54d.json",
+    "priority": 0.5
+  },
+  "b2aebe4165ca286c": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "qq_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:27:51.315255",
+    "file_path": "data\\memory\\dialogue\\3933327707\\b2aebe4165ca286c.json",
+    "priority": 0.5
+  },
+  "a2052006c4a1428e": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "terminal_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:28:10.902069",
+    "file_path": "data\\memory\\dialogue\\3933327707\\a2052006c4a1428e.json",
+    "priority": 0.5
+  },
+  "6723607898e3967f": {
+    "level": "short_term",
+    "user_id": "3933327707",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:28:11.107352",
+    "file_path": "data\\memory\\short_term\\3933327707\\6723607898e3967f.json",
+    "priority": 0.7
+  },
+  "d755f23b3bd95ed9": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "qq_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:28:21.970105",
+    "file_path": "data\\memory\\dialogue\\3933327707\\d755f23b3bd95ed9.json",
+    "priority": 0.5
+  },
+  "9369c499faf169c1": {
+    "level": "dialogue",
+    "user_id": "3933327707",
+    "session_id": "terminal_3933327707",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-06T21:28:46.688828",
+    "file_path": "data\\memory\\dialogue\\3933327707\\9369c499faf169c1.json",
+    "priority": 0.5
+  },
+  "bb3c32d42fe79185": {
+    "level": "short_term",
+    "user_id": "3933327707",
+    "session_id": "",
+    "group_id": "",
+    "tags": [
+      "休息",
+      "爱好"
+    ],
+    "created_at": "2026-04-06T21:28:46.922943",
+    "file_path": "data\\memory\\short_term\\3933327707\\bb3c32d42fe79185.json",
+    "priority": 0.3
+  },
+  "511e0ce9d2cff553": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-07T10:11:32.802862",
+    "file_path": "data\\memory\\dialogue\\1523878699\\511e0ce9d2cff553.json",
+    "priority": 0.5
+  },
+  "255303064f2281d5": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-07T10:11:36.527321",
+    "file_path": "data\\memory\\dialogue\\1523878699\\255303064f2281d5.json",
+    "priority": 0.5
+  },
+  "e8bfd9a11d7a9e08": {
+    "level": "short_term",
+    "user_id": "1523878699",
+    "session_id": "",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-07T10:11:36.730449",
+    "file_path": "data\\memory\\short_term\\1523878699\\e8bfd9a11d7a9e08.json",
+    "priority": 0.3
+  },
+  "660ed0cf7da0858c": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "qq_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-07T10:24:27.801670",
+    "file_path": "data\\memory\\dialogue\\1523878699\\660ed0cf7da0858c.json",
+    "priority": 0.5
+  },
+  "ecca7883ecc9c452": {
+    "level": "dialogue",
+    "user_id": "1523878699",
+    "session_id": "terminal_1523878699",
+    "group_id": "",
+    "tags": [],
+    "created_at": "2026-04-07T10:24:31.777551",
+    "file_path": "data\\memory\\dialogue\\1523878699\\ecca7883ecc9c452.json",
+    "priority": 0.5
   }
 }

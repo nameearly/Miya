@@ -938,7 +938,23 @@ class DeepSeekClient(BaseAIClient):
                         logger.error(
                             f"[AIClient] tool_choice='required'但模型未调用工具，可能是工具描述或系统提示词问题"
                         )
-                    return message.content
+
+                    # 提取思考过程（DeepSeek R1等模型特有）
+                    reasoning_content = getattr(
+                        message, "reasoning_content", None
+                    ) or getattr(message, "reasoning", None)
+                    if reasoning_content:
+                        logger.info(
+                            f"[AIClient] DeepSeek检测到思考过程，长度: {len(reasoning_content)}"
+                        )
+
+                    # 过滤思考过程（如 DeepSeek R1 的 reasoning_content）
+                    final_content = message.content or ""
+                    if reasoning_content:
+                        final_content = self._filter_thinking_content(
+                            final_content, reasoning_content
+                        )
+                    return final_content
 
                 # 有工具调用，执行工具
                 tool_calls = message.tool_calls

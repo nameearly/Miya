@@ -219,5 +219,18 @@
       "user_id": 0,
       "sender_name": "弥娅"
     }
+  },
+  {
+    "role": "assistant",
+    "content": "根据搜索到的信息，这张图片中的角色应该是弥娅（Miya），来自《奥奇传说》和《决胜巅峰》游戏。\n\n她是时间一族的神明之一，擅长持续输出，操作简单，适合新手。",
+    "timestamp": "2026-04-06T20:39:02.684020",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "0",
+      "sender_name": "弥娅"
+    }
   }
 ]
