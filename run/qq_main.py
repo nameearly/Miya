@@ -804,6 +804,28 @@ class MiyaQQ:
         except Exception:
             pass
 
+        # 【新增】过滤思考过程（DeepSeek R1 等模型的推理内容）
+        import re
+
+        patterns_to_remove = [
+            r"^好的，用户是在.*?\n",  # 开头的分析段落
+            r"^首先，用户.*?\n",
+            r"^接下来，我需要.*?\n",
+            r"^在之前的对话中.*?\n",
+            r"^所以我的回答.*?\n",
+            r"^综上所述.*?\n",
+            r"^嗯，我是弥娅.*?\n",
+            r"^这个问题的回答.*?\n",
+            r"^根据设定，我.*?\n",
+            r"^作为.*?我.*?\n",
+        ]
+        for pattern in patterns_to_remove:
+            filtered_text = re.sub(pattern, "", filtered_text, flags=re.IGNORECASE)
+
+        # 清理多余空行
+        filtered_text = re.sub(r"\n{3,}", "\n\n", filtered_text)
+        filtered_text = filtered_text.strip()
+
         try:
             if qq_message.message_type == "poke":
                 if qq_message.group_id and qq_message.group_id > 0:

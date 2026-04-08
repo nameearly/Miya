@@ -232,5 +232,44 @@
       "user_id": "0",
       "sender_name": "弥娅"
     }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，让我看看这张图……“但是我们没有TOKEN”？\n\n呵呵，这倒是个有趣的表达呢。是在说某种“凭证”或“通行证”吗？还是说……某种更抽象的东西？",
+    "timestamp": "2026-04-08T12:24:16.657939",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "0",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这不是一张图片吗？上面写着“但是我们没有TOKEN”呢。\n\n让我猜猜……这是某种艺术表达，还是你想告诉我什么特别的意思？",
+    "timestamp": "2026-04-08T12:24:18.977815",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "0",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这不是刚才那张图片吗？上面写着“但是我们没有TOKEN”呢。\n\n让我猜猜……你是在问我这句话的意思，还是想让我解读这张图背后的含义？",
+    "timestamp": "2026-04-08T12:24:39.618666",
+    "session_id": "terminal_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "0",
+      "sender_name": "弥娅"
+    }
   }
 ]

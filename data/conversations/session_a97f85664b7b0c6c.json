@@ -1,426 +1,6 @@
 [
   {
     "role": "user",
-    "content": "你怎又不说话了",
-    "timestamp": "2026-04-03T19:50:56.183649",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅",
-    "timestamp": "2026-04-03T19:59:08.414109",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "没事",
-    "timestamp": "2026-04-03T19:59:18.539103",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": " 前后端意识更新好像成功了哇",
-    "timestamp": "2026-04-03T20:00:18.441972",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "/形态 yae",
-    "timestamp": "2026-04-03T20:03:51.415049",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": " 不可以",
-    "timestamp": "2026-04-04T14:54:41.779707",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": " 你认为呢",
-    "timestamp": "2026-04-04T14:55:10.661625",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": " 都行",
-    "timestamp": "2026-04-04T14:55:30.797831",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": " 戳一戳 ",
-    "timestamp": "2026-04-04T14:55:51.360726",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "没这个功能（）",
-    "timestamp": "2026-04-04T14:56:09.628765",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅，看看群里刚刚聊了什么",
-    "timestamp": "2026-04-04T14:57:41.162116",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "/形态 yae",
-    "timestamp": "2026-04-04T14:58:03.192567",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "还是这个形态的弥娅活泼：)",
-    "timestamp": "2026-04-04T14:58:16.997009",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅你是谁",
-    "timestamp": "2026-04-04T14:58:20.978622",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅我1523878699是谁",
-    "timestamp": "2026-04-04T14:58:40.172258",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅我是谁",
-    "timestamp": "2026-04-04T14:58:55.850973",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "",
-    "timestamp": "2026-04-04T14:59:20.047604",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "洛雅，你和弥娅说段相声吧，一人一句，后面要加上对方的名称",
-    "timestamp": "2026-04-04T14:59:53.505608",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅，我的QQ号是多少",
-    "timestamp": "2026-04-04T15:00:03.277942",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "对的对的",
-    "timestamp": "2026-04-04T15:00:56.916624",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅开智了哇",
-    "timestamp": "2026-04-04T15:01:18.827994",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "那你倒是说说我的QQ号是什么哇",
-    "timestamp": "2026-04-04T15:02:32.111410",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": " 对的，那你刚刚这句话是怎么回事哇？",
-    "timestamp": "2026-04-04T15:03:14.749738",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "你记得你刚才说了几句话嘛",
-    "timestamp": "2026-04-04T15:04:03.970088",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "/形态 yae",
-    "timestamp": "2026-04-04T15:39:03.143589",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 1523878699,
-      "sender_name": "佳",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅，人为什么活着",
-    "timestamp": "2026-04-04T16:42:06.644101",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅，你喜欢人类吗？如果喜欢请列举理由（至少五点）如果不喜欢，请阐述理由（10分）",
-    "timestamp": "2026-04-04T16:43:22.719452",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
-    "content": "弥娅，我这是在质问你",
-    "timestamp": "2026-04-04T16:46:04.472094",
-    "session_id": "group_1092980378",
-    "images": [],
-    "agent_id": "miya_default",
-    "metadata": {
-      "source": "qq",
-      "msg_type": "group",
-      "sender_id": 2911746585,
-      "sender_name": "咕",
-      "group_name": "索多玛"
-    }
-  },
-  {
-    "role": "user",
     "content": "/形态yae",
     "timestamp": "2026-04-04T17:18:34.457520",
     "session_id": "group_1092980378",
@@ -2988,6 +2568,426 @@
     "role": "user",
     "content": "",
     "timestamp": "2026-04-07T11:22:16.970793",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "/形态",
+    "timestamp": "2026-04-08T12:22:39.237077",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "/形态 yae",
+    "timestamp": "2026-04-08T12:22:55.530537",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅?",
+    "timestamp": "2026-04-08T12:23:51.472071",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "你好啊，很高兴认识你，你在干什么",
+    "timestamp": "2026-04-08T12:34:02.180780",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 2911746585,
+      "sender_name": "咕",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "意识到在叫她了",
+    "timestamp": "2026-04-08T12:34:20.098074",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 2911746585,
+      "sender_name": "咕",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "是这样的鸭",
+    "timestamp": "2026-04-08T12:34:36.350952",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 2911746585,
+      "sender_name": "咕",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "迪迦你在吗？",
+    "timestamp": "2026-04-08T12:34:45.645160",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 2911746585,
+      "sender_name": "咕",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "对的，有检测用户活跃度的对话窗口期",
+    "timestamp": "2026-04-08T12:34:47.122772",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "我想吃饭",
+    "timestamp": "2026-04-08T12:34:57.775160",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 2911746585,
+      "sender_name": "咕",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "她难道不是回回回应吗",
+    "timestamp": "2026-04-08T12:35:18.327357",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 2911746585,
+      "sender_name": "咕",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，别乱回复了",
+    "timestamp": "2026-04-08T12:35:21.404508",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "我这句话没有任何和她说的意思啊",
+    "timestamp": "2026-04-08T12:35:32.486119",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 2911746585,
+      "sender_name": "咕",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": " 目前还在测试阶段，没想到怎么做优化",
+    "timestamp": "2026-04-08T12:35:42.069646",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "/形态 jingliu",
+    "timestamp": "2026-04-08T12:36:22.599242",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，你记得我们这个群昨天聊了什么",
+    "timestamp": "2026-04-08T12:36:47.313023",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": " 我嘞个，这图片这咋存进去了",
+    "timestamp": "2026-04-08T12:37:00.603874",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 2911746585,
+      "sender_name": "咕",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "所有的图片弥娅都会自己存起来",
+    "timestamp": "2026-04-08T12:37:34.987896",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "得让我后台手动去删",
+    "timestamp": "2026-04-08T12:38:03.839113",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "打标签的功能目前没有用上",
+    "timestamp": "2026-04-08T12:38:12.468673",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "对话还不太智能，我再去修一下",
+    "timestamp": "2026-04-08T12:38:25.417179",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "/形态 bianka",
+    "timestamp": "2026-04-08T14:58:08.421317",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "/形态",
+    "timestamp": "2026-04-08T16:59:41.656155",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "/形态 bianka",
+    "timestamp": "2026-04-08T16:59:50.693872",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，你回忆一下今天群里聊了什么",
+    "timestamp": "2026-04-08T17:00:32.620616",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "?",
+    "timestamp": "2026-04-08T17:00:57.177796",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "你说过哪些话?",
+    "timestamp": "2026-04-08T17:01:26.258437",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，你的记忆目录有多少条记忆",
+    "timestamp": "2026-04-08T17:02:27.375255",
+    "session_id": "group_1092980378",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "索多玛"
+    }
+  },
+  {
+    "role": "user",
+    "content": "看看我的生日是什么时候",
+    "timestamp": "2026-04-08T17:03:06.023148",
     "session_id": "group_1092980378",
     "images": [],
     "agent_id": "miya_default",

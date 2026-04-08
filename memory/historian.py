@@ -534,6 +534,61 @@ class Historian:
                 message_type=message_type,
             )
 
+        # 【新增】短期记忆自动归档机制
+        # 定期将短期重要记忆升级为长期记忆
+        try:
+            await self._auto_archive_short_term(user_id)
+        except Exception as e:
+            logger.debug(f"[Historian] 自动归档失败: {e}")
+
+    async def _auto_archive_short_term(self, user_id: str) -> None:
+        """短期记忆自动归档机制
+
+        检查短期记忆，将重要记忆自动升级为长期记忆
+        避免短期记忆过期丢失
+        """
+        try:
+            await self._ensure_memory_core_initialized()
+
+            # 查询短期记忆
+            from memory import MemoryLevel, MemorySource
+
+            short_term_memories = await self.memory_core.retrieve(
+                query="",
+                level=MemoryLevel.SHORT_TERM,
+                user_id=user_id,
+                limit=20,
+            )
+
+            # 统计升级数量
+            upgraded_count = 0
+
+            for mem in short_term_memories:
+                # 升级条件：高优先级(>=0.7) 或 手动标记的记忆
+                priority = getattr(mem, "priority", 0)
+                source = getattr(mem, "source", None)
+                source_val = (
+                    source.value
+                    if hasattr(source, "value")
+                    else str(source)
+                    if source
+                    else ""
+                )
+
+                if priority >= 0.7 or source_val == "manual":
+                    # 升级为长期记忆
+                    mem.level = MemoryLevel.LONG_TERM
+                    await self.memory_core.update_memory(str(mem.id), mem)
+                    upgraded_count += 1
+
+            if upgraded_count > 0:
+                logger.info(
+                    f"[Historian] 自动归档: 升级了 {upgraded_count} 条短期记忆为长期记忆"
+                )
+
+        except Exception as e:
+            logger.debug(f"[Historian] 自动归档执行失败: {e}")
+
 
 # 单例实例
 _historian: Optional[Historian] = None

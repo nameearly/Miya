@@ -226,7 +226,15 @@ class DiTingListener:
     def is_user_active_with_bot(self, group_id: str, user_id: str) -> bool:
         """检查用户是否仍在与机器人活跃对话"""
         last_active = self._active_conversations.get(group_id, {}).get(user_id, 0)
-        return (time.time() - last_active) < self.active_window
+        time_ok = (time.time() - last_active) < self.active_window
+
+        if not time_ok:
+            return False
+
+        snippets = self._group_snippets.get(group_id, [])
+        user_recent_messages = [s for s in snippets[-20:] if s.sender_id == user_id]
+        min_messages = 3
+        return len(user_recent_messages) >= min_messages
 
     def get_active_users(self, group_id: str) -> List[str]:
         """获取当前活跃用户列表"""

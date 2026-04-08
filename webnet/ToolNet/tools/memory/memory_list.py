@@ -131,7 +131,7 @@ class MemoryList(BaseTool):
                     query="",
                     limit=limit * 3,
                 )
-                # 保留长期/语义/知识记忆，以及带有特殊标记的记忆
+                # 保留长期/语义/知识记忆，以及短期重要记忆
                 filtered = []
                 for m in results:
                     level_val = (
@@ -141,17 +141,22 @@ class MemoryList(BaseTool):
                         m.source.value if hasattr(m.source, "value") else str(m.source)
                     )
                     meta = getattr(m, "metadata", {}) or {}
+                    # 保留：长期、语义、知识
                     if level_val in ("long_term", "semantic", "knowledge"):
                         filtered.append(m)
+                    # 【修复】短期记忆：如果标记为重要/高优先级，也保留
                     elif level_val == "short_term":
+                        priority = getattr(m, "priority", 0)
+                        importance = meta.get("importance", "")
                         if (
-                            meta.get("source") == "init_anchor"
-                            or meta.get("importance") == "high"
+                            priority >= 0.7  # 高优先级
+                            or importance == "high"
                             or source_val == "assistant_self"
+                            or source_val == "manual"
+                            or meta.get("pinned", False)
                         ):
                             filtered.append(m)
                     elif level_val == "dialogue" and include_dialogue:
-                        # 对话历史（可选包含）
                         if role_filter is None or getattr(m, "role", "") == role_filter:
                             filtered.append(m)
                 results = filtered[:limit]

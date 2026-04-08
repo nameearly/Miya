@@ -264,5 +264,50 @@
       "sender": "",
       "chat_label": "私聊"
     }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，这是什么",
+    "timestamp": "2026-04-08T12:24:05.625623",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": "0",
+      "group_id": "1092980378",
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "，这是什么",
+    "timestamp": "2026-04-08T12:24:11.415729",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": "0",
+      "group_id": "1092980378",
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
+  },
+  {
+    "role": "user",
+    "content": "这是什么",
+    "timestamp": "2026-04-08T12:24:27.115509",
+    "session_id": "qq_0",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": "0",
+      "group_id": "1092980378",
+      "message_type": "group",
+      "sender": "",
+      "chat_label": "群聊_1092980378"
+    }
   }
 ]

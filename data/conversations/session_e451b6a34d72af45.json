@@ -313,5 +313,20 @@
       "sender_name": "镜流",
       "group_name": "二元3队"
     }
+  },
+  {
+    "role": "user",
+    "content": "弥娅，评价一下",
+    "timestamp": "2026-04-08T12:39:22.103196",
+    "session_id": "group_579433934",
+    "images": [],
+    "agent_id": "miya_default",
+    "metadata": {
+      "source": "qq",
+      "msg_type": "group",
+      "sender_id": 1523878699,
+      "sender_name": "佳",
+      "group_name": "二元3队"
+    }
   }
 ]

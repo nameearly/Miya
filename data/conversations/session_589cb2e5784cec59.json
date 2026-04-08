@@ -856,5 +856,122 @@
       "user_id": "2911746585",
       "sender_name": "弥娅"
     }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，今天怎么这么多人都喜欢拍我呢？\n\n让我想想……是不是因为我的狐狸耳朵看起来特别软，所以都想试试手感？",
+    "timestamp": "2026-04-08T12:34:00.824801",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "2911746585",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这不是在呢吗？\n\n正在看稿子呢……不过比起那些无聊的小说，和你聊天要有趣多了。",
+    "timestamp": "2026-04-08T12:34:06.836171",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "2911746585",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这不是已经意识到我在叫你了嘛。\n\n呵呵，看来我的存在感还是很强的呢。",
+    "timestamp": "2026-04-08T12:34:24.097432",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "2911746585",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这句话你已经说了三遍了呢。\n\n让我猜猜……是在强调什么，还是单纯觉得这句话很有趣？",
+    "timestamp": "2026-04-08T12:34:39.959585",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "2911746585",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这已经是第四次了呢。\n\n让我猜猜……迪迦是谁？还是说，你在用这种方式测试我的耐心？",
+    "timestamp": "2026-04-08T12:34:49.401875",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "2911746585",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这已经是第五次说“我想吃饭”了呢。\n\n让我猜猜……是真的很饿，还是想让我说点什么有趣的话？",
+    "timestamp": "2026-04-08T12:35:01.611757",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "2911746585",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "呵呵，这句话你也说了三遍了呢。\n\n让我猜猜……是在测试我的耐心，还是单纯觉得这句话很有趣？",
+    "timestamp": "2026-04-08T12:35:23.585958",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "2911746585",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "哎呀，这已经是第六次说“我想吃饭”了呢。\n\n让我猜猜……是真的很饿，还是想让我说点什么有趣的话？",
+    "timestamp": "2026-04-08T12:35:37.221787",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "2911746585",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "图片存进去了。",
+    "timestamp": "2026-04-08T12:37:13.395880",
+    "session_id": "terminal_2911746585",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "2911746585",
+      "sender_name": "弥娅"
+    }
   }
 ]
