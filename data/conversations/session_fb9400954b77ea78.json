@@ -1,21 +1,6 @@
 [
   {
     "role": "user",
-    "content": "嘿",
-    "timestamp": "2026-04-05T16:03:27.032262",
-    "session_id": "qq_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "user_id": 1523878699,
-      "group_id": 0,
-      "message_type": "private",
-      "sender": "佳",
-      "chat_label": "私聊"
-    }
-  },
-  {
-    "role": "user",
     "content": "佳 拍了拍你",
     "timestamp": "2026-04-05T19:02:00.825716",
     "session_id": "qq_1523878699",
@@ -2997,6 +2982,21 @@
       "message_type": "private",
       "sender": "佳",
       "chat_label": "私聊"
+    }
+  },
+  {
+    "role": "user",
+    "content": "佳 拍了拍你",
+    "timestamp": "2026-04-08T23:31:56.336500",
+    "session_id": "qq_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "user_id": "1523878699",
+      "group_id": "1092980378",
+      "message_type": "group",
+      "sender": "佳",
+      "chat_label": "群聊_1092980378"
     }
   }
 ]

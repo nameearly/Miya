@@ -1,19 +1,6 @@
 [
   {
     "role": "assistant",
-    "content": "（轻轻按住你的手）……别拍了。",
-    "timestamp": "2026-04-05T15:56:49.730845",
-    "session_id": "terminal_1523878699",
-    "images": [],
-    "agent_id": null,
-    "metadata": {
-      "platform": "terminal",
-      "user_id": 1523878699,
-      "sender_name": "弥娅"
-    }
-  },
-  {
-    "role": "assistant",
     "content": "嗯。",
     "timestamp": "2026-04-05T16:03:30.139884",
     "session_id": "terminal_1523878699",
@@ -2590,6 +2577,19 @@
     "role": "assistant",
     "content": "从记忆记录来看，昨天我们主要聊了你的身高、喜欢的颜色，还有一些关于记忆功能的测试。你让我查看了你的身高信息，确认了是175cm，然后询问了喜欢的颜色。\n\n我记得你当时说“弥娅很棒哇”，是在我正确回答之后。这些信息我都认真记下了。",
     "timestamp": "2026-04-08T18:13:44.540504",
+    "session_id": "terminal_1523878699",
+    "images": [],
+    "agent_id": null,
+    "metadata": {
+      "platform": "terminal",
+      "user_id": "1523878699",
+      "sender_name": "弥娅"
+    }
+  },
+  {
+    "role": "assistant",
+    "content": "感受到了。  \n深夜的触碰，像水面的涟漪。",
+    "timestamp": "2026-04-08T23:32:11.744563",
     "session_id": "terminal_1523878699",
     "images": [],
     "agent_id": null,
