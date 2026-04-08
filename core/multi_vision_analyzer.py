@@ -271,7 +271,7 @@ class MultiVisionAnalyzer:
         self, image_data: bytes, max_retries: int = 3
     ) -> ImageAnalysisResult:
         """
-        分析图片（多模型智能路由）
+        分析图片（多模型智能路由 + 协作模式）
 
         Args:
             image_data: 图片二进制数据
@@ -290,7 +290,16 @@ class MultiVisionAnalyzer:
         image_format = self._detect_image_format(image_data)
         image_base64 = base64.b64encode(image_data).decode("utf-8")
 
-        # 选择最佳模型
+        # 检查是否启用协作模式
+        use_collaboration = getattr(self, "_use_collaboration", True)
+
+        if use_collaboration and len(self.models) > 2:
+            # 使用协作模式分析图片
+            return await self._analyze_with_collaboration(
+                image_data, image_base64, image_format, image_size_kb, start_time
+            )
+
+        # 传统模式：选择最佳模型
         selected_model = await self._select_best_model()
 
         # 尝试分析
@@ -425,6 +434,125 @@ class MultiVisionAnalyzer:
         )
 
         return available_models[0]
+
+    async def _analyze_with_collaboration(
+        self,
+        image_data: bytes,
+        image_base64: str,
+        image_format: str,
+        image_size_kb: float,
+        start_time: float,
+    ) -> ImageAnalysisResult:
+        """协作模式分析图片 - 使用链式或并行策略"""
+
+        # 获取可用模型（排除简单分析）
+        available_models = [
+            model
+            for model in self.models.values()
+            if model.enabled and model.model_type != VisionModelType.SIMPLE_ANALYSIS
+        ]
+
+        if len(available_models) < 2:
+            # 只有一个模型，回退到传统模式
+            return await self._analyze_single_model(
+                image_data, image_base64, image_format, image_size_kb, start_time
+            )
+
+        # 按优先级排序
+        available_models.sort(key=lambda m: m.priority)
+
+        # 链式协作：先语义理解，再深度分析
+        logger.info(f"[MultiVisionAnalyzer] 使用链式协作模式")
+
+        model_1 = available_models[0]
+        model_2 = (
+            available_models[1] if len(available_models) > 1 else available_models[0]
+        )
+
+        # 步骤1: 模型1语义理解
+        logger.info(f"[MultiVisionAnalyzer] 步骤1: {model_1.name} 语义理解")
+
+        prompt_1 = "请简洁描述这张图片的核心内容（30字以内）："
+        result_1 = await self._call_vision_api(model_1, image_base64, image_format)
+        understanding = result_1.get("description", "")[:100]
+
+        # 步骤2: 模型2深度分析
+        logger.info(f"[MultiVisionAnalyzer] 步骤2: {model_2.name} 深度分析")
+
+        prompt_2 = f"基于图片描述「{understanding}」，请详细分析图片内容："
+        result_2 = await self._call_vision_api(model_2, image_base64, image_format)
+
+        # 合并结果
+        final_description = (
+            f"{understanding}\n\n详细分析：{result_2.get('description', '')}"
+        )
+        final_labels = list(
+            set(result_1.get("labels", []) + result_2.get("labels", []))
+        )
+
+        # 更新模型统计
+        self._update_model_stats(model_1, success=True)
+        self._update_model_stats(model_2, success=True)
+
+        processing_time_ms = (time.time() - start_time) * 1000
+
+        logger.info(
+            f"[MultiVisionAnalyzer] 协作完成: {model_1.name} + {model_2.name}, "
+            f"耗时{processing_time_ms:.0f}ms"
+        )
+
+        return ImageAnalysisResult(
+            success=True,
+            description=final_description,
+            labels=final_labels,
+            nsfw_score=0.0,
+            has_text=result_2.get("has_text", False),
+            text=result_2.get("text", ""),
+            text_confidence=result_2.get("text_confidence", 0.0),
+            size_kb=image_size_kb,
+            format=image_format,
+            model_used=f"{model_1.name}+{model_2.name}",
+            provider="collaboration",
+            confidence=0.9,
+            processing_time_ms=processing_time_ms,
+        )
+
+    async def _analyze_single_model(
+        self,
+        image_data: bytes,
+        image_base64: str,
+        image_format: str,
+        image_size_kb: float,
+        start_time: float,
+    ) -> ImageAnalysisResult:
+        """单模型分析（回退方法）"""
+        selected_model = await self._select_best_model()
+
+        logger.info(f"[MultiVisionAnalyzer] 单模型分析: {selected_model.name}")
+
+        if selected_model.model_type == VisionModelType.SIMPLE_ANALYSIS:
+            result = self._simple_image_analysis(image_data)
+        else:
+            result = await self._call_vision_api(
+                selected_model, image_base64, image_format
+            )
+
+        self._update_model_stats(selected_model, success=True)
+
+        processing_time_ms = (time.time() - start_time) * 1000
+
+        return ImageAnalysisResult(
+            success=True,
+            description=result.get("description", ""),
+            labels=result.get("labels", []),
+            nsfw_score=result.get("nsfw_score", 0.0),
+            size_kb=image_size_kb,
+            format=image_format,
+            model_used=selected_model.name,
+            provider=selected_model.provider,
+            confidence=result.get("confidence", 0.7),
+            processing_time_ms=processing_time_ms,
+        )
 
     async def _call_vision_api(
         self, model_config: VisionModelConfig, image_base64: str, image_format: str

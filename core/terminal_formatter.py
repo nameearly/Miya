@@ -153,3 +153,10 @@ class TerminalFormatter:
         cls.MAGENTA = ""
         cls.WHITE = ""
         cls.GRAY = ""
+
+    @classmethod
+    def thinking_block(cls, thinking: str) -> str:
+        """思考过程显示"""
+        text = f"{cls.MAGENTA}{cls.BOLD}◇ 思考过程{cls.RESET}\n{cls.DIM}{thinking}{cls.RESET}"
+        cls._print(text)
+        return text

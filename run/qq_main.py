@@ -747,7 +747,7 @@ class MiyaQQ:
                         ):
                             from core.qq_command_config import is_farewell_keyword
 
-                            if is_farewell_keyword(perception.get("content", "")):
+                            if is_farewell_keyword(str(perception.get("content", ""))):
                                 self.logger.info("检测到离别语，触发会话结束处理...")
                                 try:
                                     user_id = (

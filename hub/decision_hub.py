@@ -323,10 +323,10 @@ class DecisionHub:
     async def _handle_proactive_chat(self, perception: dict, user_message: str):
         """处理主动聊天"""
         if not self.proactive_chat:
-            return
+            return None
 
         try:
-            from core.proactive_chat import ChatContext
+            from core.proactive_chat import ChatContext, ProactiveResult
 
             user_id = perception.get("user_id", 0)
             group_id = perception.get("group_id", 0)
@@ -334,7 +334,7 @@ class DecisionHub:
             message_type = perception.get("message_type", "unknown")
 
             if not user_id:
-                return
+                return None
 
             # 确定目标ID
             if message_type == "group" or (group_id and group_id != 0):
@@ -345,7 +345,7 @@ class DecisionHub:
                 chat_type = "private"
 
             if target_id == 0:
-                return
+                return None
 
             # 更新上下文
             context = ChatContext(
@@ -359,7 +359,9 @@ class DecisionHub:
             self.proactive_chat.record_message(target_id, chat_type, user_message)
 
             # 检查是否需要主动发言
-            result = await self.proactive_chat.check_and_respond(
+            result: Optional[
+                ProactiveResult
+            ] = await self.proactive_chat.check_and_respond(
                 target_id=target_id, user_message=user_message
             )
 
@@ -386,8 +388,53 @@ class DecisionHub:
                             user_id_to_send, result.message
                         )
 
+                return result
+
+            return None
+
         except Exception as e:
             logger.warning(f"[决策层] 主动聊天处理失败: {e}")
+            return None
+
+    async def _handle_smart_emoji(self, response: str, perception: dict):
+        """智能表情包发送 - 根据回复内容自动选择表情包"""
+        try:
+            from utils.emoji_manager import get_smart_emoji_manager
+
+            emoji_manager = get_smart_emoji_manager()
+            if not emoji_manager:
+                return
+
+            # 根据回复内容获取合适的表情包
+            emoji_info = emoji_manager.get_emoji_by_context(response)
+            if not emoji_info:
+                return
+
+            # 获取发送目标
+            user_id = perception.get("user_id", 0)
+            group_id = perception.get("group_id", 0)
+            message_type = perception.get("message_type", "unknown")
+
+            # 发送表情包
+            emoji_path = emoji_info.get("path", "")
+            if not emoji_path:
+                return
+
+            if message_type == "group" and group_id:
+                if self.onebot_client:
+                    await self.onebot_client.send_group_message(
+                        group_id, f"[CQ:image,file=file:///{emoji_path}]"
+                    )
+                    logger.info(f"[决策层] [智能表情包] 发送到群 {group_id}")
+            elif user_id:
+                if self.onebot_client:
+                    await self.onebot_client.send_private_message(
+                        user_id, f"[CQ:image,file=file:///{emoji_path}]"
+                    )
+                    logger.info(f"[决策层] [智能表情包] 发送到用户 {user_id}")
+
+        except Exception as e:
+            logger.debug(f"[决策层] 智能表情包发送失败: {e}")
 
     def _extract_keywords_from_input(self, text: str) -> List[str]:
         """从用户输入中提取关键词用于知识图谱检索"""
@@ -809,7 +856,24 @@ class DecisionHub:
             await self.memory_manager.store_user_message(perception)
 
         # 6. 生成响应（委托给响应生成器）
-        content = perception.get("content", "")
+        raw_content = perception.get("content", "")
+
+        # 处理 content 可能是 list 的情况（如图片消息）
+        if isinstance(raw_content, list):
+            content_parts = []
+            for item in raw_content:
+                if isinstance(item, dict):
+                    item_type = item.get("type", "")
+                    item_data = item.get("data", {})
+                    if item_type == "text":
+                        content_parts.append(item_data.get("text", ""))
+                    elif item_type == "image":
+                        content_parts.append("[图片]")
+                elif isinstance(item, str):
+                    content_parts.append(item)
+            content = " ".join(content_parts) if content_parts else "[图片消息]"
+        else:
+            content = raw_content
 
         # 【新增】手动检测定时任务关键词，直接调用工具
         timer_result = await self._detect_and_process_timer_task(
@@ -826,7 +890,15 @@ class DecisionHub:
 
         # 7. 主动聊天系统 v2.0 - 检查是否需要主动发言
         if platform == "qq" and response:
-            await self._handle_proactive_chat(perception, content)
+            proactive_result = await self._handle_proactive_chat(perception, content)
+
+            # 【新增】智能表情包发送 - 在主动聊天之后
+            if proactive_result and proactive_result.should_respond:
+                # 主动聊天已发送消息，不需要额外发送表情包
+                pass
+            else:
+                # 尝试根据回复内容发送智能表情包
+                await self._handle_smart_emoji(response, perception)
 
         # 【新增】QQ端状态标签（仅日志，不添加到响应中）
         if platform == "qq" and response and self.personality:

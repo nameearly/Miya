@@ -232,7 +232,7 @@ class BaseAIClient:
             return system_prompt[start:end]
         return ""
 
-    def _filter_thinking_content(self, content: str, reasoning: str) -> str:
+    def _filter_thinking_content(self, content: str, reasoning: str) -> tuple:
         """
         从内容中过滤掉思考过程
 
@@ -241,36 +241,49 @@ class BaseAIClient:
             reasoning: 思考过程内容
 
         Returns:
-            过滤后的内容
+            (过滤后的内容, 思考过程)
         """
-        if not reasoning or not content:
-            return content
+        thinking = reasoning or ""
 
-        # 如果内容中包含思考过程，尝试提取纯回复部分
-        # DeepSeek R1 的思考过程通常在内容开头，用换行与正文分隔
+        if not content:
+            return "", thinking
+
+        # 如果有 reasoning_content，用它来提取纯回复
         if reasoning and len(reasoning) > 10:
-            # 尝试找到思考过程结束的位置
-            # 常见的分隔模式
+            # 尝试匹配思考结束标记
             import re
 
-            # 尝试匹配思考结束标记
             patterns = [
-                r"\n\n(?!.*thought)",  # 第二个空行后（假设没有 thought 关键词）
-                r"\n(?:答|回复|回答|那么|好了|综上)",  # 以回答类词语开头的新段落
+                r"\n\n([^\n])",  # 两个换行后是新段落
+                r"\n(?:好|那么|综上|所以|最后|总结|回复|回答|建议)",  # 回答类词语
             ]
 
             for pattern in patterns:
                 match = re.search(pattern, content)
-                if match and match.start() > len(reasoning) * 0.5:
-                    # 思考过程应该比匹配位置短，否则可能不是思考结束
-                    return content[match.start() :].strip()
+                if match and match.start() > len(reasoning) * 0.3:
+                    # 找到回复部分
+                    final = content[match.start() :].strip()
+                    if len(final) > 20:  # 确保找到的是有效回复
+                        return final, thinking
 
-            # 如果没找到合适的分隔，但内容明显包含思考部分
-            # 尝试直接去除 reasoning 部分
-            if reasoning in content:
-                return content.replace(reasoning, "", 1).strip()
+            # 如果没找到，尝试找到最后一个思考标记之后的内容
+            # 查找 "好，" 或 "那么" 等常见回复开头
+            reply_markers = [
+                "好，",
+                "那么，",
+                "综上，",
+                "所以，",
+                "总结：",
+                "建议：",
+                "回复：",
+                "回答：",
+            ]
+            for marker in reply_markers:
+                idx = content.find(marker)
+                if idx > len(reasoning) * 0.3:
+                    return content[idx:].strip(), thinking
 
-        return content
+        return content, thinking
 
     def _check_needs_tool_action(self, user_message: str) -> bool:
         """
@@ -560,10 +573,22 @@ class OpenAIClient(BaseAIClient):
                         )
                     # 过滤思考过程（如 DeepSeek R1 的 reasoning_content）
                     final_content = message.content or ""
+                    thinking_content = ""
                     if reasoning_content:
-                        final_content = self._filter_thinking_content(
+                        final_content, thinking_content = self._filter_thinking_content(
                             final_content, reasoning_content
                         )
+
+                    # 打印思考过程到终端（仅终端显示，不发送给用户）
+                    if thinking_content:
+                        from core.terminal_formatter import TerminalFormatter
+
+                        thinking_lines = thinking_content.split("\n")[:10]
+                        print(
+                            TerminalFormatter.thinking_block("\n".join(thinking_lines))
+                        )
+
+                    # 返回最终回复（不含思考过程）
                     return final_content
 
                 # 有工具调用，执行工具
@@ -950,10 +975,22 @@ class DeepSeekClient(BaseAIClient):
 
                     # 过滤思考过程（如 DeepSeek R1 的 reasoning_content）
                     final_content = message.content or ""
+                    thinking_content = ""
                     if reasoning_content:
-                        final_content = self._filter_thinking_content(
+                        final_content, thinking_content = self._filter_thinking_content(
                             final_content, reasoning_content
                         )
+
+                    # 打印思考过程到终端（仅终端显示，不发送给用户）
+                    if thinking_content:
+                        from core.terminal_formatter import TerminalFormatter
+
+                        thinking_lines = thinking_content.split("\n")[:10]
+                        print(
+                            TerminalFormatter.thinking_block("\n".join(thinking_lines))
+                        )
+
+                    # 返回最终回复（不含思考过程）
                     return final_content
 
                 # 有工具调用，执行工具

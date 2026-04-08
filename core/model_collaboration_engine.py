@@ -434,7 +434,21 @@ class ModelCollaborationEngine:
             )
 
         client = self._create_client(model_config, factory, tools)
-        response = await self._call_client(client, system_prompt, user_prompt, tools)
+
+        # 思考过程
+        from core.terminal_formatter import TerminalFormatter
+
+        thinking = ""
+
+        print(TerminalFormatter.chain_step(1, model_config.id, "思考分析"))
+
+        # 单模型不使用额外思考，直接显示步骤
+        print(TerminalFormatter.chain_step(2, model_config.id, "生成回复"))
+
+        # 正式回复
+        response = await self._call_client(
+            client, system_prompt or "", user_prompt or "", tools
+        )
 
         return CollaborationResult(
             response=response,
@@ -607,17 +621,58 @@ class ModelCollaborationEngine:
                 factory,
             )
 
-        if len(model_responses) == 1:
-            final_response = model_responses[0][1]
-        else:
-            final_response = await self._consensus_decision(
-                model_responses,
-                message,
-                task_type,
-                platform,
-                system_prompt,
-                factory,
+        # 【思考-输出分离模式】
+        # 第一个模型负责思考，第二个模型负责生成最终回复
+        if len(model_responses) >= 2:
+            thinking_result = model_responses[0][1]  # 模型1的思考结果
+
+            # 显示思考过程到终端
+            try:
+                print(TerminalFormatter.thinking_block(thinking_result[:300]))
+            except Exception as e:
+                logger.debug(f"[协作引擎] 显示思考过程失败: {e}")
+
+            # 用模型2根据思考结果生成最终回复
+            output_model = parallel_models[1]
+            output_client = self._create_client(output_model, factory, tools)
+
+            output_prompt = f"""基于以下思考过程，请生成最终回复（只输出回复内容，不要包含思考过程）：
+
+思考过程：
+{thinking_result}
+
+用户问题：{message}
+
+要求：
+1. 只输出最终回复，不要包含任何思考过程
+2. 回复要简洁、自然，符合弥娅的人设
+3. 回复不超过3句话"""
+
+            final_response = await self._call_client(
+                output_client,
+                system_prompt=system_prompt,
+                user_prompt=output_prompt,
+                tools=tools,
             )
+
+            # 清理可能残留的思考过程
+            if "<think>" in final_response:
+                parts = final_response.split("")
+                final_response = parts[-1].strip()
+
+            return CollaborationResult(
+                response=final_response,
+                mode=CollaborationMode.PARALLEL,
+                complexity=ComplexityLevel.COMPLEX,
+                models_used=[parallel_model_ids[0], parallel_model_ids[1]],
+                token_estimate=self._estimate_tokens(
+                    message, thinking_result + final_response
+                ),
+                reasoning=f"思考-输出分离: {parallel_model_ids[0]}思考 → {parallel_model_ids[1]}输出",
+            )
+
+        # 只有一个模型响应时的处理
+        final_response = model_responses[0][1]
 
         return CollaborationResult(
             response=final_response,
@@ -872,7 +927,13 @@ class ModelCollaborationEngine:
                     system_prompt=system_prompt,
                     user_message=user_prompt,
                 )
-            return response or self.msg_empty_response
+
+            # 处理可能的非字符串返回值
+            if response is None:
+                return self.msg_empty_response
+            if not isinstance(response, str):
+                return str(response)
+            return response
         except Exception as e:
             logger.error(f"[协作引擎] AI 调用失败: {e}")
             return self.msg_error_call_failed.format(error=e)
