@@ -1,58 +1,47 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo Miya 一键安装依赖
+echo Miya Dependency Installer
 echo ========================================
 
 echo.
-echo [1/4] 检查 Python 版本...
-python --version >nul 2>&1 || (echo [错误] 未找到 Python，请先安装 Python 3.8+ & pause & exit /b 1)
+echo [1/4] Checking Python version...
+python --version >nul 2>&1 || (echo [ERROR] Python not found. Please install Python 3.8+ & pause & exit /b 1)
 
 echo.
-echo [2/4] 升级 pip...
+echo [2/4] Upgrading pip...
 python -m pip install --upgrade pip --quiet
 
 echo.
-echo [3/4] 安装 Python 依赖 (终端+QQ版)...
-echo [提示] 安装核心依赖 + MCP支持 + QQ基础支持
+echo [3/4] Installing Python dependencies...
+echo [INFO] Installing core packages + MCP support + QQ basic support
 pip install -r setup/requirements/lightweight.txt
 if errorlevel 1 (
-    echo [警告] 轻量级依赖安装部分失败，继续安装核心包...
+    echo [WARNING] Some lightweight dependencies failed, continuing...
 )
 
 echo.
-echo [补充] 安装终端灵魂 (MCP) 和 QQ 基础依赖...
+echo [INFO] Installing MCP and QQ core dependencies...
 pip install mcp websockets pillow aiosqlite
 
 if errorlevel 1 (
     echo.
-    echo [错误] 核心依赖安装失败，请检查网络
+    echo [ERROR] Core dependencies installation failed. Check network connection.
     pause
     exit /b 1
 )
 
 echo.
-echo [补充] 安装终端灵魂 (MCP) 和 QQ 基础依赖...
-pip install mcp websockets pillow aiosqlite
-
-if errorlevel 1 (
-    echo.
-    echo [错误] 核心依赖安装失败，请检查网络
-    pause
-    exit /b 1
-)
-
-echo.
-echo [4/4] 检查 Node.js...
-node --version >nul 2>&1 || (echo [警告] 未找到 Node.js，ClaudeCode 终端功能不可用)
+echo [4/4] Checking Node.js...
+node --version >nul 2>&1 || (echo [WARNING] Node.js not found. ClaudeCode terminal features unavailable)
 
 echo.
 echo ========================================
-echo 安装完成！
+echo Installation completed!
 echo ========================================
-echo 下一步:
-echo   1. 复制 config\.env.example 到 config\.env
-echo   2. 编辑 config\.env 填入 API 密钥
-echo   3. 运行 start.bat 启动
+echo Next steps:
+echo   1. Copy config\.env.example to config\.env
+echo   2. Edit config\.env with your API keys
+echo   3. Run start.bat to launch
 echo ========================================
 pause
