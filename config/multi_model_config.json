@@ -1,4 +1,27 @@
 {
+  "vision_preferences": {
+    "timeout": 30,
+    "http_client_timeout": 30,
+    "model_defaults": {
+      "enabled": true,
+      "cost_per_call": 0.0,
+      "max_tokens": 500,
+      "priority": 10,
+      "error_count": 0,
+      "success_count": 0,
+      "avg_response_time": 0.0
+    },
+    "simple_fallback": {
+      "timeout": 2,
+      "priority": 1
+    },
+    "model_preferences": {
+      "primary": "siliconflow_qwen_vl",
+      "secondary": "zhipu_glm_46v_flash",
+      "fallback": "simple_analysis",
+      "disabled_models": []
+    }
+  },
   "models": {
     "claude_sonnet": {
       "name": "claude-sonnet-4-20250514",
@@ -117,7 +140,7 @@
     },
     "zhipu_glm_46v_flash": {
       "name": "zai-org/GLM-4.6V",
-      "provider": "openai",
+      "provider": "siliconflow",
       "base_url": "https://api.siliconflow.cn/v1",
       "api_key": "sk-bdkzuyoohrlmxkmzzxkjkgnyuinotvrguqvmupngurhwxioo",
       "description": "GLM-4.6V 视觉模型（硅基流动）",
@@ -303,6 +326,7 @@
     "complex_reasoning": {
       "primary": "deepseek_r1_official",
       "secondary": "deepseek_r1_distill_7b",
+      "third": "deepseek_v3_official",
       "fallback": "qwen_72b"
     },
     "code_analysis": {
@@ -410,10 +434,15 @@
       }
     },
     "chain_collaboration": {
-      "understanding_system_prompt": "你是一个分析助手，请简洁地分析用户问题的核心要点和意图。",
-      "understanding_prompt_template": "请简洁分析以下问题的核心要点（任务类型: {task_type}）:\n\n{message}\n\n请输出:\n1. 用户的核心需求是什么\n2. 关键约束或背景信息\n3. 需要重点关注的方面\n保持简洁，不超过 {max_words} 字。",
-      "injection_template": "{user_prompt}\n\n--- 分析参考 ---\n{understanding}\n----------------\n请基于以上分析，给出完整回复。",
-      "max_understanding_words": 200
+      "enabled": true,
+      "thinking_system_prompt": "请代入当前人格的视角思考问题。",
+      "thinking_prompt_template": "请以{persona_name}的视角思考以下问题（任务类型: {task_type}）：\n\n{message}\n\n人格设定：\n{persona_prompt}\n\n请从{persona_name}的角度分析：\n1. 这个问题对你意味着什么\n2. 你会如何感受和回应\n3. 你的立场和原则\n\n注意：只输出思考过程，不要给出最终回复。",
+      "reasoning_system_prompt": "你是一个推理助手，负责分析思考结果并进行推理决策。",
+      "reasoning_prompt_template": "基于以下思考结果，请进行推理分析并决定如何回复：\n\n思考结果：\n{thinking_result}\n\n用户问题：{message}\n\n请输出你的推理决定：\n1. 应该采取什么回复策略\n2. 需要调用哪些工具（如果有）\n3. 回复的语气和风格\n\n注意：只输出推理决定，不要给出最终回复内容。",
+      "output_system_prompt": "你是一个回复生成助手，负责根据推理决定生成最终回复。",
+      "output_prompt_template": "基于以下推理结果，请生成最终回复：\n\n推理结果：\n{reasoning_result}\n\n用户问题：\n{message}\n\n要求：\n1. 只输出最终回复内容\n2. 回复要简洁、自然，符合弥娅的人设\n3. 不超过3句话\n4. 不要包含任何思考过程或分析步骤",
+      "max_thinking_words": 200,
+      "max_reasoning_words": 150
     },
     "parallel_voting": {
       "similarity_threshold": 0.7,
@@ -421,6 +450,7 @@
       "arbiter_priority": "speed",
       "arbiter_system_prompt": "你是一个仲裁者，请综合多个回答的优点，生成最佳版本。",
       "arbiter_user_template": "原始问题: {message}\n\n以下是多个模型的回答:\n\n{comparison_text}\n\n请综合这些回答的优点，生成一个最佳版本。保持准确性和完整性。",
+      "output_prompt_template": "基于以下思考过程，请生成最终回复（只输出回复内容，不要包含思考过程）：\n\n思考过程：\n{thinking_result}\n\n用户问题：{message}\n\n要求：\n1. 只输出最终回复，不要包含任何思考过程\n2. 回复要简洁、自然，符合弥娅的人设\n3. 回复不超过3句话",
       "comparison_separator": "\n\n---\n\n",
       "comparison_format": "[{model_id}]: {response}"
     },

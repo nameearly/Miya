@@ -1341,6 +1341,7 @@ class AIClientFactory:
         "deepseek": DeepSeekClient,
         "anthropic": AnthropicClient,
         "zhipu": ZhipuAIClient,
+        "siliconflow": OpenAIClient,  # 硅基流动使用 OpenAI 兼容格式
     }
 
     @classmethod

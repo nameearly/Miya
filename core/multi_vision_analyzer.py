@@ -327,14 +327,13 @@ class MultiVisionAnalyzer:
         image_format = self._detect_image_format(image_data)
         image_base64 = base64.b64encode(image_data).decode("utf-8")
 
+        logger.info(
+            f"[MultiVisionAnalyzer] 开始分析图片, 大小: {image_size_kb:.1f}KB, 格式: {image_format}, 模型数: {len(self.models)}"
+        )
+
+        # 直接使用简单模式（禁用协作，减少超时）
         # 检查是否启用协作模式
         use_collaboration = getattr(self, "_use_collaboration", True)
-
-        if use_collaboration and len(self.models) > 2:
-            # 使用协作模式分析图片
-            return await self._analyze_with_collaboration(
-                image_data, image_base64, image_format, image_size_kb, start_time
-            )
 
         # 传统模式：选择最佳模型
         selected_model = await self._select_best_model()
@@ -436,10 +435,16 @@ class MultiVisionAnalyzer:
 
         if not available_models:
             # 回退到简单分析
+            logger.warning("[MultiVisionAnalyzer] 没有可用的视觉模型，使用简单分析")
             return self.models["simple_analysis"]
 
-        # 按优先级排序
+        # 先按优先级排序
         available_models.sort(key=lambda m: m.priority)
+
+        # 记录所有可用模型供调试
+        logger.info(
+            f"[MultiVisionAnalyzer] 可用模型: {[(m.name, m.priority, m.error_count) for m in available_models]}"
+        )
 
         # 选择优先级最高且最近错误最少的模型
         best_model = available_models[0]
@@ -447,6 +452,9 @@ class MultiVisionAnalyzer:
             if model.error_count < best_model.error_count:
                 best_model = model
 
+        logger.info(
+            f"[MultiVisionAnalyzer] 选中模型: {best_model.name}, 优先级={best_model.priority}, 错误次数={best_model.error_count}"
+        )
         return best_model
 
     async def _select_fallback_model(
@@ -595,6 +603,10 @@ class MultiVisionAnalyzer:
         self, model_config: VisionModelConfig, image_base64: str, image_format: str
     ) -> Dict[str, Any]:
         """调用视觉模型API"""
+        logger.info(
+            f"[MultiVisionAnalyzer] _call_vision_api: provider={model_config.provider}, name={model_config.name}, base={model_config.api_base}"
+        )
+
         api_key = model_config.api_key
         if not api_key:
             raise ValueError(f"缺少 {model_config.name} 的API密钥")
@@ -609,6 +621,7 @@ class MultiVisionAnalyzer:
         if model_config.provider == "zhipu":
             # 智谱API格式
             url = f"{model_config.api_base}/chat/completions"
+            logger.info(f"[MultiVisionAnalyzer] 智谱API URL: {url}")
             payload = {
                 "model": model_config.name,
                 "messages": [
