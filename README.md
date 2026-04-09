@@ -162,12 +162,14 @@ MIYA 具备：
 
 ### 💾 多层记忆系统
 
+> **注意 (v4.3.4+)**：弥娅的记忆系统已简化，外部数据库（Redis/Milvus/Neo4j）已禁用，默认使用 SQLite 本地存储。
+
 | 记忆层 | 类型 | 说明 |
 |--------|------|------|
 | **Tide Memory** | 短期 | 会话内短期记忆，带 TTL |
 | **Dream Memory** | 长期 | 持久化存储 |
-| **Semantic Memory** | 向量 | 基于 Milvus 的语义相似度搜索 |
-| **Knowledge Graph** | 图谱 | Neo4j 知识图谱，五元组表示 |
+| **Semantic Memory** | 向量 | 基于 SQLite 的语义相似度搜索 |
+| **Knowledge Graph** | 图谱 | 已禁用（需要 Neo4j） |
 | **Session Memory** | 会话 | 多会话管理 |
 
 #### 统一记忆系统 (v4.3.0 新增)
@@ -188,20 +190,22 @@ MIYA 具备：
 │  MemoryLevel.DIALOGUE     - 对话历史 (会话级)                       │
 │  MemoryLevel.SHORT_TERM   - 短期记忆 (TTL自动过期)                 │
 │  MemoryLevel.LONG_TERM    - 长期记忆 (持久化)                       │
-│  MemoryLevel.SEMANTIC     - 语义记忆 (向量搜索)                    │
-│  MemoryLevel.KNOWLEDGE    - 知识图谱 (实体关系)                     │
+│  MemoryLevel.SEMANTIC     - 语义记忆 (向量搜索，SQLite)            │
+│  MemoryLevel.KNOWLEDGE    - 知识图谱 (已禁用)                       │
 ├─────────────────────────────────────────────────────────────────────┤
-│  存储后端：JSON文件 (主存储) + Redis (缓存) + Milvus (向量) +       │
-│           Neo4j (知识图谱)                                            │
+│  存储后端：JSON文件 (主存储) + SQLite (向量) +                     │
+│           外部数据库已禁用 (Redis/Milvus/Neo4j)                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+> **⚠️ 重要更新 (v4.3.4)**：外部数据库已禁用，系统使用 SQLite 本地存储作为替代。
 
 ##### 核心特性
 1. **单一数据结构**：所有记忆都统一为 `MemoryItem` 格式，没有任何例外
 2. **分层存储**：基于重要性、情感强度和事件类型自动分类到五个记忆层级
 3. **数据一致性**：单一数据结构确保跨模块记忆操作的一致性
 4. **自动生命周期管理**：基于TTL的短期记忆过期、旧对话归档等
-5. **企业级可靠性**：支持Redis缓存、向量检索、知识图谱等企业级特性
+5. **本地存储优先**：使用 JSON 文件 + SQLite 向量存储，无需外部依赖
 
 ##### 关键改动
 1. **迁移核心模块**：
@@ -271,11 +275,10 @@ async def example():
    - 自动清理过期记忆
    - 旧对话（>90天）自动归档
 
-3. **多存储后端**：
+3. **多存储后端**（v4.3.4 已简化）：
    - 主存储：JSON文件系统（持久化）
-   - 缓存层：Redis（短期记忆加速）
-   - 向量检索：Milvus（语义相似度搜索）
-   - 知识图谱：Neo4j（实体关系存储）
+   - 向量检索：SQLite（本地向量，已替代 Milvus）
+   - > **注意**：Redis/Milvus/Neo4j 已禁用，系统使用本地存储
 
 这个统一系统确保了弥娅的记忆操作既高效又一致，为后续的记忆功能扩展提供了坚实的基础。
 
@@ -286,11 +289,15 @@ async def example():
 
 ### 🤖 AI 模型支持
 
-- **OpenAI** - GPT-4, GPT-3.5-Turbo
-- **DeepSeek** - DeepSeek Chat
-- **Anthropic** - Claude 3
-- **ZhipuAI** - ChatGLM 系列
-- **本地模型** - 支持 Ollama 等本地部署
+> **注意 (v4.3.4+)**：模型配置在 `config/multi_model_config.json`，支持以下模型：
+
+| 类别 | 模型 | 提供商 |
+|------|------|--------|
+| **推理模型** | DeepSeek R1 / R1 Distill 7B | DeepSeek |
+| **通用模型** | DeepSeek V3, Qwen 2.5 72B/7B | DeepSeek, SiliconFlow |
+| **视觉模型** | GLM-4.6V, Qwen2.5-VL | SiliconFlow, Zhipu |
+| **嵌入模型** | BGE-Large, Qwen3-Embedding | SiliconFlow |
+| **Claude** | Claude Sonnet/Haiku (可选) | Anthropic |
 
 ### 🛠 工具生态
 
@@ -948,37 +955,46 @@ asyncio.run(main())
 
 ### 🧠 GRAG 知识图谱记忆系统
 
-弥娅 GRAG（Graph-RAG）记忆系统将对话内容提取为五元组，存储到 Neo4j 图数据库中，实现结构化知识管理。
+> **注意 (v4.3.4+)**：Neo4j 知识图谱功能已禁用，系统使用 SQLite 本地存储。
 
-#### 架构图
+弥娅 GRAG（Graph-RAG）记忆系统将对话内容提取为五元组，原存储到 Neo4j 图数据库中。现已简化为本地 SQLite 存储。
+
+#### 当前架构
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    GRAG 记忆系统架构                                  │
+│                    GRAG 记忆系统架构 (简化版)                          │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │   用户输入 ──────────────────────────────────────────────────────▶   │
 │        │                                                            │
 │        ▼                                                            │
 │   ┌─────────────────────────────────────────────────────────────┐   │
-│   │                   GRAGMemoryManager                          │   │
+│   │                   MemoryManager (记忆管理器)                  │   │
 │   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │   │
 │   │  │ add_conver-│  │   query_by  │  │   query_by  │          │   │
 │   │  │  sation()  │  │  keywords() │  │   entity()  │          │   │
 │   │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘          │   │
 │   └─────────┼────────────────┼────────────────┼──────────────────┘   │
 │             │                │                │                      │
-│    ┌────────┴───────────────┴────────────────┴────────┐             │
-│    │              任务管理器 (TaskManager)               │             │
-│    │   ┌─────────────────────────────────────────┐    │             │
-│    │   │      五元组异步提取 (quintuple_extract) │    │             │
-│    │   │      避免阻塞主流程                       │    │             │
-│    │   └─────────────────────────────────────────┘    │             │
-│    └─────────────────────────────────────────────────────┘             │
-│             │                                                      │
-│    ┌────────┴───────────────────────────────────────┐                │
-│    │              LLM 提取器                          │                │
-│    │   (GPT-4o-mini 自动提取五元组)                  │                │
+│    ┌────────┴─────────────────────────────────────────────────┐     │
+│    │              SQLite 本地存储 (v4.3.4+)                   │     │
+│    │   - JSON 文件存储 (主存储)                                │     │
+│    │   - SQLite 向量存储 (语义搜索)                            │     │
+│    └──────────────────────────────────────────────────────────┘     │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 功能特性（简化版）
+
+| 特性 | 状态 | 说明 |
+|------|------|------|
+| **五元组知识图谱** | ⚠️ 已简化 | 结构化存储已改为 JSON 文件 |
+| **Neo4j 图数据库** | ❌ 已禁用 | 外部数据库已移除 |
+| **自动提取** | ✅ 保留 | 从对话中自动提取重要信息 |
+| **语义检索** | ✅ 保留 | 使用 SQLite 本地向量 |
+| **任务队列集成** | ✅ 保留 | 异步处理，不阻塞主流程 |
 │    └─────────────────────────────────────────────────┘                │
 │             │                                                      │
 │    ┌────────┴───────────────────────────────────────┐                │
@@ -997,7 +1013,7 @@ asyncio.run(main())
 | 特性 | 说明 |
 |------|------|
 | **五元组知识图谱** | (主体, 关系, 客体, 属性, 上下文) 结构化存储 |
-| **Neo4j 图数据库** | 惰性连接，避免误触本地连接 |
+| **本地存储** | SQLite + JSON 文件，无外部依赖 |
 | **自动提取** | 从对话中自动提取知识，无需人工干预 |
 | **语义检索增强** | 结合向量检索和图谱查询 |
 | **任务队列集成** | 异步处理，不阻塞主流程 |
@@ -1465,11 +1481,11 @@ if __name__ == "__main__":
 
 ### 环境要求
 
+> **注意 (v4.3.4+)**：外部数据库已禁用，系统使用本地 SQLite 存储。
+
 - **Python** 3.10+
 - **Node.js** 18+ (用于前端/桌面应用)
-- **Redis** 6+ (推荐)
-- **Milvus** 2.x (可选，向量搜索)
-- **Neo4j** 5.x (可选，知识图谱)
+- **可选**：Redis/Milvus/Neo4j（已禁用，使用本地存储替代）
 
 ### 安装方式
 
@@ -1618,10 +1634,9 @@ Miya/
 │   └── three_layer_cognitive.py  # 三层认知记忆
 │
 ├── storage/               # 存储层
-│   ├── redis_client.py    # Redis 客户端
-│   ├── milvus_client.py   # Milvus 客户端
-│   ├── neo4j_client.py    # Neo4j 客户端
-│   └── file_manager.py    # 文件存储
+│   ├── file_manager.py    # 文件存储 (主存储)
+│   └── sqlite_client.py   # SQLite 客户端 (向量存储)
+│   # 注意：Redis/Milvus/Neo4j 客户端已禁用 (v4.3.4+)
 │
 ├── perceive/              # 感知层
 │   ├── perceptual_ring.py  # 全局感知状态
@@ -4512,7 +4527,7 @@ asyncio.run(main())
 | 分类 | 无 | 自动6分类 |
 | 优先级 | 手动设置 | 自动推断+手动 |
 | 接口 | 不统一 | 统一入口 |
-| 向量检索 | 依赖Milvus | 本地模型优先 |
+| 向量检索 | SQLite本地向量 | 无需外部依赖 |
 
 ##### 11. LifeBook 人生记录系统
 
@@ -5262,20 +5277,11 @@ python run/qq_main.py
 pip install -r requirements.txt
 ```
 
-### Q: Redis/Milvus/Neo4j 连接失败
+### Q: 记忆系统问题
 
-确保服务已启动：
-
-```bash
-# Redis
-redis-server
-
-# Milvus
-docker run -d -p 19530:19530 milvusdb/milvus
-
-# Neo4j
-docker run -d -p 7474:7474 -p 7687:7687 neo4j
-```
+> **注意 (v4.3.4+)**：外部数据库已禁用，系统使用 SQLite 本地存储。如遇问题，请检查：
+> - `data/memory/` 目录是否存在
+> - `config/memory_config.json` 配置是否正确
 
 ### Q: QQ 机器人无法连接
 
@@ -9859,17 +9865,29 @@ async def _handle_qq_callback(self, qq_message: Any) -> None:
 
 #### 6.1 配置视觉模型优先级
 
-在 `config/unified_model_config.yaml` 中配置视觉模型：
+> **注意 (v4.3.4+)**：视觉模型配置已迁移到 `config/multi_model_config.json`。
 
-```yaml
-models:
-  siliconflow_qwen_vl:
-    name: "Qwen/Qwen2.5-VL-72B-Instruct"
-    type: "vision"
-    api_key: "${SILICONFLOW_API_KEY}"
-    capabilities:
-      - "image_description"
-      - "vision_understanding"
+在 `config/multi_model_config.json` 中配置视觉模型：
+
+```json
+{
+  "vision_preferences": {
+    "timeout": 60,
+    "model_preferences": {
+      "primary": "zhipu_glm_46v_flash",
+      "secondary": "siliconflow_qwen_vl",
+      "fallback": "simple_analysis"
+    }
+  },
+  "models": {
+    "zhipu_glm_46v_flash": {
+      "name": "glm-4.5v",
+      "provider": "zhipu",
+      "type": "vision",
+      "capabilities": ["image_description", "vision_understanding"]
+    }
+  }
+}
 ```
 
 #### 6.2 自定义形态回复文本
@@ -10534,33 +10552,187 @@ results = await core.semantic_search(
 
 ##### 6. 配置系统
 
-所有记忆系统配置集中在 `config/text_config.json` 的 `memory_system` 节：
+> **注意 (v4.3.4+)**：记忆系统配置已从 `config/text_config.json` 迁移到独立的 `config/memory_config.json` 文件。
+
+###### 6.1 memory_config.json 详解
+
+所有记忆系统配置集中在 `config/memory_config.json`：
 
 ```json
 {
-  "memory_system": {
-    "importance_patterns": {
-      "explicit_info": [
-        ["我(的最爱|喜欢|讨厌).{2,20}", 0.9],
-        ["我叫.{2,10}", 0.8]
-      ]
+  "version": "1.0",
+  "description": "弥娅记忆系统统一配置",
+  
+  // 存储配置
+  "storage": {
+    "data_dir": "data/memory",           // 数据存储目录
+    "enable_backup": true,               // 启用自动备份
+    "backup_dir": "data/memory/backups", // 备份目录
+    "auto_cleanup_expired": true        // 自动清理过期记忆
+  },
+  
+  // 记忆层级配置
+  "levels": {
+    "short_term": {
+      "enabled": true,
+      "ttl_seconds": 3600,              // 短期记忆TTL（1小时）
+      "max_items": 1000                  // 最大条目数
     },
-    "auto_classify": {
-      "strong_emotions": ["愤怒", "恐惧", "悲伤"],
-      "important_keywords": {
-        "生日": 0.9,
-        "电话": 0.85
-      }
+    "dialogue": {
+      "enabled": true,
+      "max_per_session": 100            // 每会话最大对话数
     },
-    "topic_keywords": {
-      "学习": ["上课", "考试", "作业"],
-      "吃饭": ["吃饭", "饿", "外卖"]
+    "long_term": {
+      "enabled": true,
+      "max_items": 10000                // 长期记忆最大条目
+    },
+    "semantic": {
+      "enabled": true,
+      "engine": "sqlite",              // 向量引擎：sqlite/local
+      "dimension": 1024,               // 向量维度
+      "similarity_threshold": 0.7      // 相似度阈值
+    },
+    "knowledge": {
+      "enabled": false                  // 知识图谱（需要Neo4j）
     }
   },
+  
+  // 记忆锚点配置
+  "anchors": {
+    "identity_anchors": "data/memory_anchors_identity.json",
+    "user_anchors": "data/memory_anchors_user.json"
+  },
+  
+  // 自动分类配置
+  "classification": {
+    "auto_classify": true,
+    "strong_emotions": ["愤怒", "恐惧", "惊讶", "悲伤", "极度兴奋", "创伤", "崩溃", "绝望"],
+    "long_term_events": ["生日", "纪念日", "毕业", "结婚", "工作面试", "重要决定", "医疗诊断", "法律事务", "分手", "离婚"],
+    "important_keywords": {
+      "birthday": 0.9,
+      "生日": 0.9,
+      "电话": 0.85,
+      "手机": 0.85,
+      "邮箱": 0.85,
+      "email": 0.85,
+      "地址": 0.8,
+      "住址": 0.8,
+      "微信号": 0.9,
+      "QQ号": 0.85,
+      "名字": 0.8,
+      "我叫": 0.8,
+      "过敏": 0.9,
+      "病史": 0.9,
+      "病情": 0.9,
+      "疾病": 0.85
+    },
+    "priority_tags": ["重要", "必须记住", "关键信息", "personal", "contact", "health"],
+    "dialogue_strong_emotions": ["极度愉快", "深度悲伤", "强烈焦虑", "崩溃"],
+    "significance_threshold_for_long_term": 0.8,
+    "dialogue_significance_threshold": 0.6,
+    "manual_significance_threshold": 0.4
+  },
+  
+  // 工作记忆配置
+  "working_memory": {
+    "max_recent_messages": 5,
+    "max_background_topics": 5,
+    "topic_decay_rate": 0.3,
+    "topic_switch_threshold": 3,
+    "drift_threshold": 0.2,
+    "min_messages_before_fold": 5,
+    "stopwords": ["的", "了", "是", "在", "我", "你", "他", "她", "它", ...],
+    "low_info_words": ["不是", "是的", "对", "嗯", "嗯嗯", "哦", "好", "行", "哈哈", ...]
+  },
+  
+  // 信息提取配置
+  "extraction": {
+    "historian_enabled": true,
+    "auto_extract_enabled": true,
+    "min_content_length": 5,
+    "ignore_patterns": [
+      "^[嗯哦啊哈嘿诶]{1,3}[。\\.!]*$",
+      "^[好是知道行可以]{1,2}[。\\.!]*$",
+      "^[哈哈哈?]+[。!]*$",
+      "^\\[表情\\]$",
+      "^\\(?(图片|照片)\\(?$",
+      "^[/@].*"
+    ]
+  },
+  
+  // 搜索配置
+  "search": {
+    "default_limit": 20,
+    "max_limit": 100,
+    "group_boost": 1.5,
+    "user_boost": 1.3,
+    "tag_boost": 1.2,
+    "semantic_search_enabled": true,
+    "semantic_limit": 10
+  },
+  
+  // 性能配置
+  "performance": {
+    "lazy_load": true,
+    "cache_enabled": true,
+    "cache_max_size": 1000,
+    "cleanup_interval_seconds": 3600,
+    "async_write": true
+  },
+  
+  // 隐私配置
+  "privacy": {
+    "auto_redact_pii": true,
+    "pii_fields": ["phone", "email", "address", "id_card"],
+    "sensitive_tags": ["隐私", "敏感", "密码", "bank"]
+  },
+  
+  // 统计配置
+  "statistics": {
+    "enabled": true,
+    "track_access": true,
+    "track_level_distribution": true,
+    "track_storage_size": true
+  }
+}
+```
+
+###### 6.2 配置项详细说明
+
+| 配置节 | 说明 | 关键参数 |
+|--------|------|----------|
+| `storage` | 存储基础配置 | data_dir, enable_backup, auto_cleanup_expired |
+| `levels` | 各记忆层级配置 | enabled, ttl_seconds, max_items |
+| `anchors` | 记忆锚点配置 | identity_anchors, user_anchors |
+| `classification` | 自动分类配置 | auto_classify, strong_emotions, important_keywords |
+| `working_memory` | 工作记忆配置 | max_recent_messages, topic_decay_rate |
+| `extraction` | 信息提取配置 | historian_enabled, auto_extract_enabled, ignore_patterns |
+| `search` | 搜索配置 | default_limit, semantic_search_enabled |
+| `performance` | 性能优化配置 | lazy_load, cache_enabled, async_write |
+| `privacy` | 隐私保护配置 | auto_redact_pii, pii_fields |
+| `statistics` | 统计配置 | enabled, track_access |
+
+###### 6.3 text_config.json 中的记忆相关配置
+
+`config/text_config.json` 中仍保留部分记忆系统相关配置：
+
+```json
+{
+  // 记忆系统配置
   "historian": {
     "memory_triggers": {
-      "important_info": ["我最喜欢", "我喜欢", "我讨厌"]
-    }
+      "important_info": ["我最喜欢", "我喜欢", "我讨厌", "记住", "别忘了"],
+      "task_keywords": ["记得", "提醒", "待办", "任务"],
+      "emotion_keywords": ["开心", "难过", "生气", "害怕"]
+    },
+    "extraction_rules": {...}
+  },
+  
+  // 自记忆配置
+  "assistant_self": {
+    "enabled": true,
+    "min_priority": 0.7,
+    "source_filter": ["commitment", "promise", "important_revelation"]
   }
 }
 ```
@@ -10586,7 +10758,141 @@ self._tag_index = {
 - 首次查询时加载所需记忆
 - 长时间未访问的记忆自动卸载
 
-##### 8. 使用示例
+##### 8. 工作记忆系统详解
+
+工作记忆是弥娅的短期上下文记忆系统，用于在对话过程中提供即时上下文。
+
+###### 8.1 工作记忆架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     工作记忆系统架构                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                   WorkingMemory (工作记忆)               │   │
+│  │  ┌─────────────────┐  ┌────────────────────────────┐   │   │
+│  │  │ 即时层          │  │ 摘要层                      │   │   │
+│  │  │ 最近3条完整消息 │  │ 4-15条消息压缩为摘要        │   │   │
+│  │  │ ~100 tokens    │  │ ~80 tokens                 │   │   │
+│  │  └─────────────────┘  └────────────────────────────┘   │   │
+│  │  ┌─────────────────┐  ┌────────────────────────────┐   │   │
+│  │  │ 话题层          │  │ 对话历史-精确层            │   │   │
+│  │  │ 15+条背景话题   │  │ 最近10条完整对话           │   │   │
+│  │  │ ~30 tokens     │  │ ~300 tokens               │   │   │
+│  │  └─────────────────┘  └────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                              │                                   │
+│                              ▼                                   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │              分层输出到 Prompt 上下文                     │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+###### 8.2 分层说明
+
+| 层级 | 范围 | 内容格式 | Token 估算 |
+|------|------|----------|-----------|
+| 即时层 | 最近 3 条 | 完整原文 | ~100 |
+| 摘要层 | 4-15 条 | 每3条压缩为摘要 | ~80 |
+| 话题层 | 15+ 条 | 话题标签+关键词 | ~30 |
+| 对话历史-精确层 | 最近 10 条 | 完整对话（弥娅+用户） | ~300 |
+| 对话历史-摘要层 | 10-50 条 | 压缩摘要 | ~150 |
+| **总计** | | | **~660 tokens** |
+
+###### 8.3 工作记忆配置 (memory_config.json)
+
+```json
+{
+  "working_memory": {
+    "max_recent_messages": 5,
+    "max_background_topics": 5,
+    "topic_decay_rate": 0.3,
+    "topic_switch_threshold": 3,
+    "drift_threshold": 0.2,
+    "min_messages_before_fold": 5,
+    "stopwords": ["的", "了", "是", "在", "我", "你", "他", "她", "它", ...],
+    "low_info_words": ["不是", "是的", "对", "嗯", "嗯嗯", "哦", "好", "行", ...]
+  }
+}
+```
+
+###### 8.4 私聊工作记忆 (v4.3.4+ 新增)
+
+工作记忆现在支持私聊注入，使用 `private_{user_id}` 作为存储 key：
+
+```python
+# 在 hub/decision_hub.py 中
+working_memory_key = f"private_{user_id}"
+working_memory = get_working_memory(working_memory_key)
+```
+
+##### 9. 对话上下文系统 (Conversation Context)
+
+对话上下文系统用于当用户提到"你记得吗"、"上次我们聊过"等关键词时，自动检索相关历史记忆。
+
+###### 9.1 系统原理
+
+```
+用户消息 → 关键词匹配 → recall_patterns → 检索历史记忆 → 注入上下文
+```
+
+1. **关键词检测**：检测用户消息是否匹配 `recall_patterns`
+2. **记忆检索**：从长期记忆和语义记忆中检索相关内容
+3. **上下文注入**：将检索到的记忆注入到当前对话上下文
+
+###### 9.2 配置位置
+
+对话上下文配置在 `config/text_config.json` 的 `conversation_context` 节：
+
+```json
+{
+  "conversation_context": {
+    "enabled": true,
+    "max_count": 20,
+    "max_tokens": 6000,
+    "recall_patterns": [
+      "你记得", "你还记得", "记得.*吗", "上次", "上次我们",
+      "之前.*聊", "昨天", "前天", "以前.*怎么样", "我们.*聊过",
+      "过去.*事", "曾经", "记得.*什么", "记得.*吗", "回忆.*一下",
+      "想起.*什么", "刚刚", "刚才", "那张图", "那张图片",
+      "之前.*那张", "之前.*图片", "之前.*说", "之前.*告诉",
+      "先前", "先前.*说"
+    ]
+  }
+}
+```
+
+###### 9.3 配置项说明
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `enabled` | 是否启用对话上下文功能 | true |
+| `max_count` | 最大检索记忆数量 | 20 |
+| `max_tokens` | 最大注入 token 数 | 6000 |
+| `recall_patterns` | 触发记忆检索的关键词正则列表 | [...] |
+
+###### 9.4 检索逻辑
+
+当用户消息匹配 `recall_patterns` 中的任意模式时：
+
+1. 从 `MiyaMemoryCore` 检索用户的历史记忆
+2. 按时间排序，取最新的 `max_count` 条
+3. 合并内容，确保不超过 `max_tokens`
+4. 注入到当前对话的上下文中
+
+```python
+# 在 hub/conversation_context.py 中
+def should_recall(self, message: str) -> bool:
+    """检查是否需要触发记忆召回"""
+    for pattern in self.recall_patterns:
+        if re.search(pattern, message):
+            return True
+    return False
+```
+
+##### 10. 使用示例
 
 ```python
 # 完整使用示例
