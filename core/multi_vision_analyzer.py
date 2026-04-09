@@ -25,18 +25,23 @@ _vision_config = None
 
 
 def _load_vision_config():
-    """加载视觉配置"""
+    """加载视觉配置 - 从 multi_model_config.json 加载"""
     global _vision_config
     if _vision_config is None:
         import json
         from pathlib import Path
 
-        config_path = Path(__file__).parent.parent / "config" / "text_config.json"
+        # 从 multi_model_config.json 加载视觉配置
+        config_path = (
+            Path(__file__).parent.parent / "config" / "multi_model_config.json"
+        )
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 full_config = json.load(f)
-                _vision_config = full_config.get("vision", {})
-                logger.info("[MultiVisionAnalyzer] 已加载视觉配置")
+                _vision_config = full_config.get("vision_preferences", {})
+                logger.info(
+                    "[MultiVisionAnalyzer] 已从 multi_model_config.json 加载视觉配置"
+                )
         except Exception as e:
             logger.warning(f"[MultiVisionAnalyzer] 加载视觉配置失败: {e}, 使用默认配置")
             _vision_config = {}
@@ -71,12 +76,29 @@ class VisionModelConfig:
     enabled: bool = True
     cost_per_call: float = 0.0
     max_tokens: int = 500
-    timeout: int = 30
+    timeout: int = 0  # 从配置文件加载，默认0表示使用配置
     priority: int = 1
-    last_used: datetime = None
+    last_used: Optional[datetime] = None
     error_count: int = 0
     success_count: int = 0
     avg_response_time: float = 0.0
+
+
+def _get_vision_model_defaults() -> dict:
+    """从配置文件加载视觉模型默认配置"""
+    config = _load_vision_config()
+    return config.get(
+        "model_defaults",
+        {
+            "enabled": True,
+            "cost_per_call": 0.0,
+            "max_tokens": 500,
+            "priority": 1,
+            "error_count": 0,
+            "success_count": 0,
+            "avg_response_time": 0.0,
+        },
+    )
 
 
 @dataclass
@@ -106,7 +128,9 @@ class MultiVisionAnalyzer:
     """
 
     def __init__(self):
-        self.http_client = httpx.AsyncClient(timeout=30.0)
+        config = _load_vision_config()
+        http_timeout = config.get("http_client_timeout", 60)
+        self.http_client = httpx.AsyncClient(timeout=float(http_timeout))
         self.models: Dict[str, VisionModelConfig] = {}
         self.model_stats: Dict[str, Dict] = {}
         self._initialized = False
@@ -131,6 +155,8 @@ class MultiVisionAnalyzer:
             vision_models_config = config.get("vision_models", {})
             disabled_models = model_prefs.get("disabled_models", [])
             quality_settings = config.get("quality_settings", {})
+            # 加载模型默认配置
+            defaults = _get_vision_model_defaults()
 
             # 获取模型池
             from core.model_pool import get_model_pool, ModelType
@@ -187,10 +213,15 @@ class MultiVisionAnalyzer:
                     api_base=api_base,
                     api_key=api_key,
                     api_key_env="",
-                    enabled=True,
-                    max_tokens=model_cfg.get("max_tokens", 500),
-                    timeout=quality_settings.get("timeout_seconds", 30),
-                    priority=priority_map.get(model_id, 5),
+                    enabled=defaults.get("enabled", True),
+                    cost_per_call=defaults.get("cost_per_call", 0.0),
+                    max_tokens=model_cfg.get(
+                        "max_tokens", defaults.get("max_tokens", 500)
+                    ),
+                    timeout=quality_settings.get(
+                        "timeout_seconds", 0
+                    ),  # 0 表示使用配置文件的 timeout
+                    priority=priority_map.get(model_id) or defaults.get("priority", 1),
                 )
                 self.models[model_id] = vision_config
                 available_models.append(model_id)
@@ -233,10 +264,15 @@ class MultiVisionAnalyzer:
                     api_base=model_config.base_url,
                     api_key=model_config.api_key if model_config.api_key else "",
                     api_key_env="",
-                    enabled=True,
-                    max_tokens=model_config.max_tokens,
-                    timeout=model_config.timeout_seconds,
-                    priority=priority_map.get(model_id, 5),
+                    enabled=defaults.get("enabled", True),
+                    cost_per_call=defaults.get("cost_per_call", 0.0),
+                    max_tokens=model_config.max_tokens
+                    or defaults.get("max_tokens", 500),
+                    timeout=0,  # 使用配置文件 timeout
+                    priority=priority_map.get(model_id) or defaults.get("priority", 1),
+                    error_count=defaults.get("error_count", 0),
+                    success_count=defaults.get("success_count", 0),
+                    avg_response_time=defaults.get("avg_response_time", 0.0),
                 )
                 self.models[model_id] = vision_config
                 available_models.append(model_id)
@@ -245,6 +281,7 @@ class MultiVisionAnalyzer:
                 )
 
             # 添加简单分析作为兜底
+            simple_defaults = config.get("simple_fallback", {})
             self.models["simple_analysis"] = VisionModelConfig(
                 name="简单图片分析",
                 model_type=VisionModelType.SIMPLE_ANALYSIS,
@@ -253,8 +290,8 @@ class MultiVisionAnalyzer:
                 api_key_env="",
                 cost_per_call=0.0,
                 max_tokens=0,
-                timeout=5,
-                priority=99,
+                timeout=simple_defaults.get("timeout", 5),
+                priority=simple_defaults.get("priority", 99),
             )
 
             if not available_models:
@@ -637,9 +674,16 @@ class MultiVisionAnalyzer:
         else:
             raise ValueError(f"不支持的提供商: {model_config.provider}")
 
+        # 使用配置文件的 timeout（如果 model_config.timeout 为 0）
+        timeout_value = (
+            model_config.timeout
+            if model_config.timeout > 0
+            else _load_vision_config().get("timeout", 60)
+        )
+
         try:
             response = await self.http_client.post(
-                url, json=payload, headers=headers, timeout=model_config.timeout
+                url, json=payload, headers=headers, timeout=timeout_value
             )
 
             if response.status_code == 200:

@@ -110,6 +110,7 @@ class ModelRoute:
     cost_priority: float = 1.0
     speed_priority: float = 1.0
     quality_priority: float = 1.0
+    third: str = ""
 
 
 @dataclass
@@ -262,6 +263,7 @@ class ModelPool:
                         task_type=task_type,
                         primary=route_data.get("primary", ""),
                         secondary=route_data.get("secondary", ""),
+                        third=route_data.get("third", ""),
                         fallback=route_data.get("fallback", ""),
                     )
                     self._routes[task_type] = route

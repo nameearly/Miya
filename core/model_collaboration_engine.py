@@ -92,8 +92,11 @@ class ModelCollaborationEngine:
     模型协作引擎 - 零硬编码，所有配置从 multi_model_config.json 加载
     """
 
-    def __init__(self, model_pool: ModelPool, config: Optional[Dict] = None):
+    def __init__(
+        self, model_pool: ModelPool, config: Optional[Dict] = None, personality=None
+    ):
         self.model_pool = model_pool
+        self.personality = personality
         raw_config = config or {}
         self.config = raw_config.get("collaboration") or _load_collaboration_config()
 
@@ -134,12 +137,17 @@ class ModelCollaborationEngine:
         self.role_user_templates = rc.get("role_user_templates", {})
         self.role_skip_messages = rc.get("skip_messages", {})
 
-        # 链式协作
+        # 链式协作 - 三阶段：思考 → 推理 → 输出
         cc = self.config.get("chain_collaboration", {})
-        self.chain_system_prompt = cc.get("understanding_system_prompt", "")
-        self.chain_understanding_template = cc.get("understanding_prompt_template", "")
-        self.chain_injection_template = cc.get("injection_template", "")
-        self.chain_max_words = cc.get("max_understanding_words", 200)
+        self.chain_enabled = cc.get("enabled", True)
+        self.thinking_system_prompt = cc.get("thinking_system_prompt", "")
+        self.thinking_prompt_template = cc.get("thinking_prompt_template", "")
+        self.reasoning_system_prompt = cc.get("reasoning_system_prompt", "")
+        self.reasoning_prompt_template = cc.get("reasoning_prompt_template", "")
+        self.output_system_prompt = cc.get("output_system_prompt", "")
+        self.output_prompt_template = cc.get("output_prompt_template", "")
+        self.max_thinking_words = cc.get("max_thinking_words", 200)
+        self.max_reasoning_words = cc.get("max_reasoning_words", 150)
 
         # 并行投票
         pv = self.config.get("parallel_voting", {})
@@ -148,6 +156,7 @@ class ModelCollaborationEngine:
         self.arbiter_priority = pv.get("arbiter_priority", "speed")
         self.arbiter_system_prompt = pv.get("arbiter_system_prompt", "")
         self.arbiter_user_template = pv.get("arbiter_user_template", "")
+        self.parallel_output_prompt_template = pv.get("output_prompt_template", "")
         self.comparison_separator = pv.get("comparison_separator", "\n\n---\n\n")
         self.comparison_format = pv.get("comparison_format", "[{model_id}]: {response}")
 
@@ -214,6 +223,34 @@ class ModelCollaborationEngine:
             f"chain<={self.threshold_chain}, "
             f"parallel<={self.threshold_parallel}"
         )
+
+    def _get_persona_info(self) -> Dict[str, str]:
+        """获取当前人格信息，用于协作引擎的提示词"""
+        if not self.personality:
+            return {
+                "persona_name": "弥娅",
+                "persona_description": "弥娅的默认人格",
+                "persona_prompt": "",
+            }
+
+        try:
+            form_info = self.personality.get_current_form()
+            name = form_info.get("name", "弥娅")
+            description = form_info.get("description", "")
+            prompt = form_info.get("prompt", "")
+
+            return {
+                "persona_name": name,
+                "persona_description": description,
+                "persona_prompt": prompt,
+            }
+        except Exception as e:
+            logger.warning(f"[协作引擎] 获取人格信息失败: {e}")
+            return {
+                "persona_name": "弥娅",
+                "persona_description": "弥娅的默认人格",
+                "persona_prompt": "",
+            }
 
     async def process(
         self,
@@ -470,6 +507,18 @@ class ModelCollaborationEngine:
         tools,
         factory,
     ) -> CollaborationResult:
+        if not self.chain_enabled:
+            return await self._execute_single(
+                message,
+                task_type,
+                platform,
+                context,
+                system_prompt,
+                user_prompt,
+                tools,
+                factory,
+            )
+
         route = self.model_pool.get_route(task_type)
         if not route:
             return await self._execute_single(
@@ -483,8 +532,10 @@ class ModelCollaborationEngine:
                 factory,
             )
 
+        # 收集链式协作的模型（包括第三个模型）
+        chain_model_ids = [route.primary, route.secondary, route.third]
         chain_models = []
-        for model_id in [route.primary, route.secondary]:
+        for model_id in chain_model_ids:
             if model_id and model_id in self.model_pool._models:
                 config = self.model_pool._models[model_id]
                 if config.api_key and config.base_url:
@@ -502,42 +553,139 @@ class ModelCollaborationEngine:
                 factory,
             )
 
+        # 三阶段链式协作：思考 → 推理 → 输出
         model_1 = chain_models[0]
         client_1 = self._create_client(model_1, factory, None)
-        understanding_prompt = self.chain_understanding_template.format(
+
+        # 阶段1：思考 - 使用当前人格的视角
+        persona_info = self._get_persona_info()
+        thinking_system_prompt = (
+            f"你是{persona_info['persona_name']}。{persona_info['persona_description']}"
+        )
+
+        # 构建思考提示词，动态融入人格设定
+        thinking_prompt = self.thinking_prompt_template.format(
             task_type=task_type,
             message=message,
-            max_words=self.chain_max_words,
+            persona_name=persona_info["persona_name"],
+            persona_prompt=persona_info["persona_prompt"][:500]
+            if persona_info["persona_prompt"]
+            else "",
         )
-        print(TerminalFormatter.chain_step(1, model_1.id, "语义理解"))
-        understanding = await self._call_client(
+        print(
+            TerminalFormatter.chain_step(
+                1, model_1.id, f"思考分析({persona_info['persona_name']})"
+            )
+        )
+        thinking_result = await self._call_client(
             client_1,
-            system_prompt=self.chain_system_prompt,
-            user_prompt=understanding_prompt,
+            system_prompt=thinking_system_prompt,
+            user_prompt=thinking_prompt,
             tools=None,
         )
 
-        model_2 = chain_models[1]
-        client_2 = self._create_client(model_2, factory, tools)
-        enhanced_user_prompt = self.chain_injection_template.format(
-            user_prompt=user_prompt or "",
-            understanding=understanding,
-        )
-        print(TerminalFormatter.chain_step(2, model_2.id, "深度处理"))
-        response = await self._call_client(
-            client_2,
-            system_prompt,
-            enhanced_user_prompt,
-            tools,
-        )
+        # 检查思考结果是否有效
+        if not thinking_result or thinking_result in [
+            self.msg_error_client_unavailable,
+            self.msg_empty_response,
+        ]:
+            logger.warning(f"[协作引擎] 第一阶段思考结果为空，回退到单模型")
+            return await self._execute_single(
+                message,
+                task_type,
+                platform,
+                context,
+                system_prompt,
+                user_prompt,
+                tools,
+                factory,
+            )
 
-        models_used = [m.id for m in chain_models[:2]]
+        # 阶段2：推理（使用第二个模型，如果没有第三个模型）
+        if len(chain_models) >= 3:
+            model_2 = chain_models[1]
+            client_2 = self._create_client(model_2, factory, None)
+            reasoning_prompt = self.reasoning_prompt_template.format(
+                thinking_result=thinking_result, message=message
+            )
+            print(TerminalFormatter.chain_step(2, model_2.id, "推理揣摩"))
+            reasoning_result = await self._call_client(
+                client_2,
+                system_prompt=self.reasoning_system_prompt,
+                user_prompt=reasoning_prompt,
+                tools=None,
+            )
+
+            # 检查推理结果是否有效
+            if not reasoning_result or reasoning_result in [
+                self.msg_error_client_unavailable,
+                self.msg_empty_response,
+            ]:
+                logger.warning(f"[协作引擎] 第二阶段推理结果为空，使用思考结果")
+                reasoning_result = thinking_result
+
+            output_model = chain_models[2]
+        else:
+            # 只有两个模型时，第二阶段直接作为输出
+            reasoning_result = thinking_result
+            output_model = chain_models[1]
+
+        # 阶段3：输出
+        try:
+            client_output = self._create_client(output_model, factory, tools)
+
+            # 安全格式化，处理可能的特殊字符
+            try:
+                output_prompt = self.output_prompt_template.format(
+                    reasoning_result=reasoning_result, message=user_prompt or message
+                )
+            except (KeyError, ValueError) as fmt_err:
+                logger.warning(
+                    f"[协作引擎] Prompt格式化失败: {self.output_prompt_template[:100]}..., 错误: {fmt_err}"
+                )
+                output_prompt = f"推理结果：{reasoning_result}\n\n用户问题：{user_prompt or message}"
+
+            print(TerminalFormatter.chain_step(3, output_model.id, "生成回复"))
+            response = await self._call_client(
+                client_output,
+                system_prompt=system_prompt,
+                user_prompt=output_prompt,
+                tools=tools,
+            )
+
+            # 检查响应是否为空或错误
+            if not response or response in [
+                self.msg_error_client_unavailable,
+                self.msg_empty_response,
+            ]:
+                logger.warning(f"[协作引擎] 第三阶段模型响应为空，使用推理结果")
+                response = (
+                    reasoning_result if reasoning_result else self.msg_empty_response
+                )
+
+        except Exception as e:
+            logger.error(f"[协作引擎] 第三阶段执行失败: {e}")
+            # 降级使用推理结果作为最终回复
+            response = (
+                reasoning_result
+                if reasoning_result
+                else self.msg_error_call_failed.format(error=e)
+            )
+
+        # 清理回复中的思考过程
+        response = self._clean_thinking_content(response)
+
+        models_used = (
+            [m.id for m in chain_models[:3]]
+            if len(chain_models) >= 3
+            else [m.id for m in chain_models]
+        )
         return CollaborationResult(
             response=response,
             mode=CollaborationMode.CHAIN,
             complexity=ComplexityLevel.MODERATE,
             models_used=models_used,
-            token_estimate=self._estimate_tokens(message, response, understanding),
+            token_estimate=self._estimate_tokens(message, response, reasoning_result),
             reasoning=self.msg_reasoning_chain.format(
                 models=" → ".join(models_used),
             ),
@@ -636,17 +784,9 @@ class ModelCollaborationEngine:
             output_model = parallel_models[1]
             output_client = self._create_client(output_model, factory, tools)
 
-            output_prompt = f"""基于以下思考过程，请生成最终回复（只输出回复内容，不要包含思考过程）：
-
-思考过程：
-{thinking_result}
-
-用户问题：{message}
-
-要求：
-1. 只输出最终回复，不要包含任何思考过程
-2. 回复要简洁、自然，符合弥娅的人设
-3. 回复不超过3句话"""
+            output_prompt = self.parallel_output_prompt_template.format(
+                thinking_result=thinking_result, message=message
+            )
 
             final_response = await self._call_client(
                 output_client,
@@ -659,6 +799,8 @@ class ModelCollaborationEngine:
             if "<think>" in final_response:
                 parts = final_response.split("")
                 final_response = parts[-1].strip()
+
+            final_response = self._clean_thinking_content(final_response)
 
             return CollaborationResult(
                 response=final_response,
@@ -673,6 +815,7 @@ class ModelCollaborationEngine:
 
         # 只有一个模型响应时的处理
         final_response = model_responses[0][1]
+        final_response = self._clean_thinking_content(final_response)
 
         return CollaborationResult(
             response=final_response,
@@ -937,6 +1080,61 @@ class ModelCollaborationEngine:
         except Exception as e:
             logger.error(f"[协作引擎] AI 调用失败: {e}")
             return self.msg_error_call_failed.format(error=e)
+
+    def _clean_thinking_content(self, response: str) -> str:
+        """清理回复中的思考过程，只保留最终回复"""
+        if not response:
+            return response
+
+        import re
+
+        # 移除 thinking 块
+        patterns = [
+            r"<think>[\s\S]*?",  # OpenAI格式
+            r"\[think\][\s\S]*?\[/think\]",  # 其他格式
+            r"【重要规则】[\s\S]*?请严格按照上述人格设定来回复。",  # 清理提示词残留
+        ]
+
+        for pattern in patterns:
+            response = re.sub(pattern, "", response)
+
+        # 尝试找到回复部分的开始
+        # 常见回复开头：好的、明白了、所以、根据分析等
+        reply_markers = [
+            "\n\n好的",
+            "\n好的",
+            "\n明白了",
+            "\n所以",
+            "\n根据",
+            "\n综上",
+            "\n总结",
+            "\n回复",
+            "好的，",
+            "明白了，",
+            "所以，",
+            "根据分析",
+            "综上",
+            "总结：",
+        ]
+
+        for marker in reply_markers:
+            idx = response.find(marker)
+            if idx > 0:
+                return response[idx:].strip()
+
+        # 如果没找到明确回复开头，尝试清理开头的分析内容
+        lines = response.split("\n")
+        cleaned_lines = []
+        for line in lines:
+            # 跳过分析标题和列表标记
+            if re.match(r"^#{1,3}\s*|^[-*]\s*|^[0-9]+\.\s*|^###|^\[", line):
+                continue
+            # 如果行太长，可能是分析内容
+            if len(line) > 200:
+                continue
+            cleaned_lines.append(line)
+
+        return "\n".join(cleaned_lines).strip()
 
     def _estimate_tokens(self, *texts: str) -> int:
         total_chars = sum(len(t) for t in texts if t)

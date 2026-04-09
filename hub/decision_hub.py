@@ -520,6 +520,7 @@ class DecisionHub:
                 self.collaboration_engine = ModelCollaborationEngine(
                     model_pool=self.model_pool,
                     config=config,
+                    personality=self.personality,
                 )
                 logger.info(
                     f"[决策层] 模型协作引擎初始化成功 | "
@@ -1289,12 +1290,15 @@ class DecisionHub:
                 logger.warning(f"[意识感知] 注入失败: {e}")
                 logger.warning(traceback.format_exc())
 
-            # 【工作记忆】注入折叠后的群聊上下文（前台折叠 + 后台全量）
+            # 【工作记忆】注入折叠后的上下文（群聊 + 私聊）
             group_chat_context = ""
-            if message_type == "group" and context.get("group_id"):
-                from memory.working_memory import get_working_memory
+            from memory.working_memory import get_working_memory
 
-                wm = get_working_memory()
+            wm = get_working_memory()
+            user_id_str = str(user_id)
+
+            if message_type == "group" and context.get("group_id"):
+                # 群聊：使用 group_id 作为 key
                 group_id_str = str(context.get("group_id"))
                 wm.add_message(
                     group_id=group_id_str,
@@ -1306,6 +1310,20 @@ class DecisionHub:
                 if group_chat_context:
                     logger.warning(
                         f"[工作记忆] 注入群聊上下文: {len(group_chat_context)} 字符"
+                    )
+            elif message_type == "private" and user_id:
+                # 私聊：使用 private_{user_id} 作为 key
+                private_key = f"private_{user_id_str}"
+                wm.add_message(
+                    group_id=private_key,
+                    sender=context.get("sender_name", "用户"),
+                    content=content,
+                    is_at_bot=context.get("is_at_bot", False),
+                )
+                group_chat_context = wm.build_prompt_context(private_key)
+                if group_chat_context:
+                    logger.warning(
+                        f"[工作记忆] 注入私聊上下文: {len(group_chat_context)} 字符"
                     )
 
             prompt_info = self.prompt_manager.build_full_prompt(

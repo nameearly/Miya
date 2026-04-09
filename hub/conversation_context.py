@@ -92,10 +92,22 @@ class ConversationContextManager:
             conversation_context_max_count: 最大消息数量
             conversation_context_max_tokens: 最大Token数量
         """
+        # 从配置文件加载配置
+        config = self._load_config()
+
         self.memory_net = memory_net
-        self.enable_conversation_context = enable_conversation_context
-        self.conversation_context_max_count = conversation_context_max_count
-        self.conversation_context_max_tokens = conversation_context_max_tokens
+        self.enable_conversation_context = config.get(
+            "enabled", enable_conversation_context
+        )
+        self.conversation_context_max_count = config.get(
+            "max_count", conversation_context_max_count
+        )
+        self.conversation_context_max_tokens = config.get(
+            "max_tokens", conversation_context_max_tokens
+        )
+
+        # 从配置文件加载回忆关键词
+        self.recall_patterns = config.get("recall_patterns", [])
 
         # 新增：话题跟踪
         self._topic_history: Dict[str, List[str]] = defaultdict(
@@ -105,6 +117,21 @@ class ConversationContextManager:
         self._conversation_turns: Dict[str, int] = defaultdict(
             int
         )  # session_id -> 对话轮次
+
+    def _load_config(self) -> dict:
+        """从 text_config.json 加载对话上下文配置"""
+        try:
+            import json
+            from pathlib import Path
+
+            config_path = Path(__file__).parent.parent / "config" / "text_config.json"
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    full_config = json.load(f)
+                return full_config.get("conversation_context", {})
+        except Exception as e:
+            logger.warning(f"[对话上下文] 加载配置失败: {e}")
+        return {}
 
     def check_needs_recall(self, user_input: str) -> bool:
         """
@@ -142,28 +169,9 @@ class ConversationContextManager:
         if not user_input:
             return False
 
-        recall_patterns = [
-            r"你记得",
-            r"你还记得",
-            r"记得.*吗",
-            r"上次",
-            r"上次我们",
-            r"之前.*聊",
-            r"昨天",
-            r"前天",
-            r"以前.*怎么样",
-            r"我们.*聊过",
-            r"过去.*事",
-            r"曾经",
-            r"记得.*什么",
-            r"记得.*吗",
-            r"回忆.*一下",
-            r"想起.*什么",
-        ]
-
         import re
 
-        for pattern in recall_patterns:
+        for pattern in self.recall_patterns:
             if re.search(pattern, user_input):
                 logger.info(f"[对话上下文] 检测到回忆请求: {user_input[:30]}")
                 return True

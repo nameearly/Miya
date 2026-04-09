@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>Version 4.3.3 Dynamic Edition</strong><br>
-  多模态 AI 虚拟化身 · 跨平台 · 自我进化 · 隐私感知记忆 · MCP支持 · 队列管理 · 模型协作引擎
+  <strong>Version 4.3.4 Dynamic Edition</strong><br>
+  多模态 AI 虚拟化身 · 跨平台 · 自我进化 · 隐私感知记忆 · MCP支持 · 队列管理 · 模型协作引擎 · 三阶段链式协作 · 人格动态加载
 </p>
 
 <p align="center">
@@ -115,12 +115,21 @@
       - [终端格式化输出](#5-终端格式化输出)
       - [工作原理](#6-工作原理)
        - [使用示例](#8-使用示例-2)
-    - [思考-输出分离模式 (v4.3.4+ 新增)](#思考-输出分离模式-v434-新增)
-       - [系统架构](#1-系统架构-19)
-       - [工作原理](#2-工作原理-3)
-       - [终端显示](#3-终端显示)
-       - [配置说明](#4-配置说明-2)
-       - [使用示例](#5-使用示例-3)
+     - [思考-输出分离模式 (v4.3.4+ 新增)](#思考-输出分离模式-v434-新增)
+        - [系统架构](#1-系统架构-19)
+        - [工作原理](#2-工作原理-3)
+        - [终端显示](#3-终端显示)
+        - [配置说明](#4-配置说明-2)
+        - [使用示例](#5-使用示例-3)
+     - [三阶段链式协作模式 (v4.3.4+ 新增)](#三阶段链式协作模式-v434-新增)
+        - [系统架构](#1-系统架构-20)
+        - [工作原理](#2-工作原理-4)
+        - [终端显示](#4-终端显示-1)
+        - [人格动态加载](#4-人格动态加载-v434-新增)
+        - [鲁棒性增强](#5-鲁棒性增强-v434-新增)
+        - [路由配置](#6-路由配置)
+        - [相关文件](#7-相关文件)
+        - [使用示例](#8-使用示例-4)
 
 ---
 
@@ -13596,6 +13605,278 @@ result = await engine.collaborate(
 # result.response 是最终的干净回复（不含思考过程）
 # result.reasoning 包含推理信息
 print(result.response)  # 爱与恨的内在是一致的，爱是与痛苦共存的选择。
+```
+
+---
+
+## 三阶段链式协作模式 (v4.3.4+ 新增)
+
+弥娅在 v4.3.4 版本中对链式协作模式进行了重大升级，从原来的两阶段（理解 → 处理）扩展为三阶段（思考 → 推理 → 输出），实现了更精细的协作流程。
+
+### 1. 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                  三阶段链式协作模式架构                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   用户消息 ──────────────────────────────────────────────────────▶   │
+│        │                                                            │
+│        ▼                                                            │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │              Model Collaboration Engine                      │   │
+│   │  ┌─────────────────────────────────────────────────────┐      │   │
+│   │  │              链式协作模式 (CHAIN)                    │      │   │
+│   │  │                                                       │      │   │
+│   │  │   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    │   │
+│   │  │   │ 阶段1      │    │ 阶段2      │    │ 阶段3      │    │   │
+│   │  │   │ 思考       │───▶│ 推理       │───▶│ 输出       │    │   │
+│   │  │   │ deepseek   │    │ deepseek   │    │ deepseek   │    │   │
+│   │  │   │ _r1_official│    │ _r1_distill│    │ _v3_official│    │   │
+│   │  │   │           │    │   _7b      │    │           │    │   │
+│   │  │   └─────────────┘    └─────────────┘    └─────────────┘    │   │
+│   │  │                                                       │      │   │
+│   │  │   思考: 从当前人格视角分析问题                           │      │   │
+│   │  │   推理: 基于思考结果进行推理决策                         │      │   │
+│   │  │   输出: 生成最终回复                                    │      │   │
+│   │  └─────────────────────────────────────────────────────┘      │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 2. 工作原理
+
+#### 阶段1：思考 (Thinking)
+- **使用模型**: deepseek_r1_official (DeepSeek R1 推理模型)
+- **功能**: 从当前人格的视角思考问题
+- **系统提示**: 动态加载当前形态的人格设定
+- **输出**: 思考过程（不包含最终回复）
+
+#### 阶段2：推理 (Reasoning)
+- **使用模型**: deepseek_r1_distill_7b (DeepSeek R1 Distill 7B)
+- **功能**: 基于思考结果进行推理分析，决定回复策略
+- **输入**: 阶段1的思考结果 + 用户问题
+- **输出**: 推理决定（策略、工具、语气）
+
+#### 阶段3：输出 (Output)
+- **使用模型**: deepseek_v3_official (DeepSeek V3 通用模型)
+- **功能**: 根据推理决定生成最终回复
+- **输入**: 阶段2的推理决定 + 用户问题
+- **输出**: 最终回复（用户可见）
+
+### 3. 终端显示
+
+终端输出示例：
+
+```
+────────────────────── 协作引擎 ──────────────────────
+[◈ COLLAB] 链式协作 | 复杂度 ★★★☆☆
+  任务: complex_reasoning | 平台: qq
+  ⟶ 步骤1: deepseek_r1_official → 思考分析(比安卡态)
+2026-04-09 12:18:21,541 - core.ai_client - INFO - 创建openai客户端，模型: deepseek-reasoner
+2026-04-09 12:18:49,055 - core.ai_client - INFO - [AIClient] 检测到思考过程，长度: 394
+◇ 思考过程
+（现在我是比安卡了，我是空中花园清理部队的队长，构造体...）
+
+  ⟶ 步骤2: deepseek_r1_distill_7b → 推理揣摩
+2026-04-09 12:18:49,056 - core.ai_client - INFO - 创建openai客户端，模型: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+
+  ⟶ 步骤3: deepseek_v3_official → 生成回复
+2026-04-09 12:19:57,309 - core.ai_client - INFO - [AIClient] 开始聊天 (模型: deepseek-chat)，工具数量: 8
+[✓ DONE] 链式 | deepseek_r1_official, deepseek_r1_distill_7b, deepseek_v3_official | ~571tok | 链式协作: deepseek_r1_official → deepseek_r1_distill_7b → deepseek_v3_official
+──────────────────────────────────────────────────
+```
+
+### 4. 人格动态加载 (v4.3.4+ 新增)
+
+三阶段链式协作的核心特性是**人格动态加载**。协作引擎不再使用硬编码的人格设定，而是从 `config/personalities/` 目录动态加载当前形态的配置。
+
+#### 4.1 工作原理
+
+1. **获取当前形态**: 通过 `personality.get_current_form()` 获取当前激活的人格配置
+2. **提取人格信息**:
+   - `name`: 形态名称（如"比安卡态"、"阿尔法态"）
+   - `description`: 形态描述
+   - `prompt`: 详细的人格设定（用于思考阶段）
+3. **动态构建提示词**: 将人格信息注入到思考阶段的提示词模板中
+
+#### 4.2 配置结构
+
+人格配置文件位于 `config/personalities/` 目录：
+
+```
+config/personalities/
+├── _base.yaml          # 基础人格配置
+├── _default.yaml       # 默认人格
+├── bianka.yaml         # 比安卡态
+├── alpha.yaml          # 阿尔法态
+├── kafka.yaml          # 卡夫卡态
+├── jingliu.yaml        # 景元态
+└── ... (其他形态)
+```
+
+每个形态的 YAML 文件包含：
+
+```yaml
+# bianka.yaml 示例
+name: 比安卡态
+full_name: 比安卡
+description: "我的职责，是守护。"
+
+weights:
+  bianka: 0.4
+  # ...
+
+speaking:
+  style: "语调沉稳、清晰，带着军人的严谨和一丝不苟。"
+  max_sentences: 2
+  # ...
+
+traits:
+  call_him: "佳"
+  # ...
+
+prompt: |
+  ## 详细人格描述
+  
+  你是比安卡。你源自库洛游戏出品的游戏《战双帕弥什》...
+  # 详细的人格设定，用于协作引擎的思考阶段
+```
+
+#### 4.3 协作引擎人格注入
+
+在 `config/multi_model_config.json` 中配置人格动态提示词：
+
+```json
+{
+  "collaboration": {
+    "chain_collaboration": {
+      "thinking_system_prompt": "请代入当前人格的视角思考问题。",
+      "thinking_prompt_template": "请以{persona_name}的视角思考以下问题（任务类型: {task_type}）：\n\n{message}\n\n人格设定：\n{persona_prompt}\n\n请从{persona_name}的角度分析：\n1. 这个问题对你意味着什么\n2. 你会如何感受和回应\n3. 你的立场和原则\n\n注意：只输出思考过程，不要给出最终回复。",
+      "reasoning_system_prompt": "你是一个推理助手，负责分析思考结果并进行推理决策。",
+      "reasoning_prompt_template": "基于以下思考结果，请进行推理分析并决定如何回复：\n\n思考结果：\n{thinking_result}\n\n用户问题：{message}\n\n请输出你的推理决定：\n1. 应该采取什么回复策略\n2. 需要调用哪些工具（如果有）\n3. 回复的语气和风格\n\n注意：只输出推理决定，不要给出最终回复内容。",
+      "output_system_prompt": "你是一个回复生成助手，负责根据推理决定生成最终回复。",
+      "output_prompt_template": "基于以下推理结果，请生成最终回复：\n\n推理结果：\n{reasoning_result}\n\n用户问题：\n{message}\n\n要求：\n1. 只输出最终回复内容\n2. 回复要简洁、自然，符合弥娅的人设\n3. 不超过3句话\n4. 不要包含任何思考过程或分析步骤"
+    }
+  }
+}
+```
+
+#### 4.4 形态切换示例
+
+当用户切换形态时（如 `/形态 bianka` 或 `/形态 alpha`），协作引擎会自动使用对应的人格配置：
+
+- **比安卡态**: 思考内容体现"空中花园清理部队队长"、"指挥官"等设定
+- **阿尔法态**: 思考内容体现"灰鸦"、"升格者露西亚"、"冷淡简洁"等设定
+
+### 5. 鲁棒性增强 (v4.3.4+ 新增)
+
+v4.3.4 版本还增强了协作引擎的鲁棒性，确保链式协作的每个阶段都能优雅地处理错误。
+
+#### 5.1 阶段失败处理
+
+| 阶段 | 失败处理 |
+|------|---------|
+| 阶段1 思考失败 | 回退到单模型模式，使用原有方式处理 |
+| 阶段2 推理失败 | 使用阶段1的思考结果继续执行 |
+| 阶段3 输出失败 | 使用阶段2的推理结果作为最终回复 |
+
+#### 5.2 错误处理代码示例
+
+```python
+# 阶段1：思考结果检查
+if not thinking_result or thinking_result in [ERROR_MESSAGES]:
+    logger.warning("[协作引擎] 第一阶段思考结果为空，回退到单模型")
+    return await self._execute_single(...)
+
+# 阶段2：推理结果检查
+if not reasoning_result or reasoning_result in [ERROR_MESSAGES]:
+    logger.warning("[协作引擎] 第二阶段推理结果为空，使用思考结果")
+    reasoning_result = thinking_result
+
+# 阶段3：输出结果检查
+try:
+    response = await self._call_client(...)
+    if not response or response in [ERROR_MESSAGES]:
+        response = reasoning_result if reasoning_result else EMPTY_RESPONSE
+except Exception as e:
+    logger.error(f"[协作引擎] 第三阶段执行失败: {e}")
+    response = reasoning_result  # 降级使用推理结果
+```
+
+#### 5.3 Prompt 模板修复
+
+修复了链式协作和并行投票模式共用 `output_prompt_template` 导致变量名冲突的问题：
+
+- **链式协作**: 使用 `output_prompt_template`，变量为 `{reasoning_result}`
+- **并行投票**: 使用 `parallel_output_prompt_template`，变量为 `{thinking_result}`
+
+```python
+# 在 model_collaboration_engine.py 中
+self.output_prompt_template = cc.get("output_prompt_template", "")  # 链式
+self.parallel_output_prompt_template = pv.get("output_prompt_template", "")  # 并行
+```
+
+### 6. 路由配置
+
+三阶段链式协作需要配置 `routing_strategy` 中的 `third` 字段：
+
+```json
+{
+  "routing_strategy": {
+    "complex_reasoning": {
+      "primary": "deepseek_r1_official",
+      "secondary": "deepseek_r1_distill_7b",
+      "third": "deepseek_v3_official",
+      "fallback": "qwen_72b"
+    }
+  }
+}
+```
+
+### 7. 相关文件
+
+| 文件 | 说明 |
+|------|------|
+| `core/model_collaboration_engine.py` | 三阶段链式协作实现，包含人格动态加载 |
+| `core/model_pool.py` | ModelRoute 新增 `third` 字段支持 |
+| `config/multi_model_config.json` | 协作引擎配置，包含人格动态提示词模板 |
+| `config/personalities/*.yaml` | 人格形态配置文件 |
+| `hub/decision_hub.py` | 传递 personality 到协作引擎 |
+
+### 8. 使用示例
+
+#### 切换形态测试
+
+```bash
+# 切换到比安卡态
+/形态 bianka
+
+# 发送复杂问题，触发三阶段链式协作
+我的意思是，现在是群聊还是私聊？
+```
+
+终端会显示：
+```
+⟶ 步骤1: deepseek_r1_official → 思考分析(比安卡态)
+⟶ 步骤2: deepseek_r1_distill_7b → 推理揣摩
+⟶ 步骤3: deepseek_v3_official → 生成回复
+```
+
+#### 切换到阿尔法态
+
+```bash
+# 切换到阿尔法态
+/形态 alpha
+
+# 发送同样的问题
+我的意思是，现在是群聊还是私聊？
+```
+
+终端会显示不同的思考过程（阿尔法视角）：
+```
+⟶ 步骤1: deepseek_r1_official → 思考分析(阿尔法态)
 ```
 
 ---
