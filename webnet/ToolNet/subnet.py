@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from core.constants import LogLevel
-from .registry import ToolRegistry, ToolContext
+from .registry import ToolRegistry
 from .subnet_router import ToolSubnetRouter
 
 
@@ -91,6 +91,9 @@ class ToolSubnet:
         # 加载所有工具
         self.registry.load_all_tools()
 
+        # 【格式塔】加载 Agent 工具
+        self._load_agent_tools()
+
         # 初始化工具路由
         self.router = ToolSubnetRouter(self.registry)
 
@@ -128,7 +131,9 @@ class ToolSubnet:
         self.config.total_calls += 1
 
         # 创建执行上下文
-        context = ToolContext(
+        from .registry import ToolRegistry as TR
+
+        context = TR.ToolContext(
             memory_engine=self.config.memory_engine,
             unified_memory=self.config.memory_engine,  # 使用 memory_engine 作为 unified_memory
             onebot_client=self.config.onebot_client,
@@ -217,6 +222,30 @@ class ToolSubnet:
     def health_check(self) -> bool:
         """健康检查"""
         return len(self.registry.tools) > 0 and self.config.enabled
+
+    def _load_agent_tools(self):
+        """【格式塔】加载 Agent 工具到工具池"""
+        try:
+            from webnet.ToolNet.agents.hub import get_agent_hub
+
+            agent_hub = get_agent_hub()
+
+            agent_tools_count = 0
+            for agent_name in agent_hub.list_agents():
+                agent = agent_hub.get_agent(agent_name)
+                if not agent:
+                    continue
+
+                tools = agent.get_tools_schema()
+                for tool_config in tools:
+                    func = tool_config.get("function", {})
+                    tool_name = func.get("name", "")
+                    if tool_name:
+                        agent_tools_count += 1
+
+            logger.info(f"[格式塔] Agent工具已加载: {agent_tools_count} 个")
+        except Exception as e:
+            logger.warning(f"[格式塔] 加载Agent工具失败: {e}")
 
     async def shutdown(self):
         """关闭子网"""

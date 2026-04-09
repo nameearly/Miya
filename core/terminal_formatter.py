@@ -44,10 +44,23 @@ class TerminalFormatter:
     @classmethod
     def tool_call(cls, tool_name: str, args: dict | None = None) -> str:
         """工具调用信息"""
+        # 【格式塔】检查工具来源
+        from core.gestalt_controller import get_gestalt_controller
+
+        gestalt = get_gestalt_controller()
+        tool_source = gestalt.get_tool_source(tool_name)
+
         args_str = ""
         if args:
             args_str = f" {cls.DIM}| {', '.join(f'{k}={v}' for k, v in list(args.items())[:3])}"
-        text = f"{cls.CYAN}{cls.BOLD}[{cls.BOLT} TOOL]{cls.RESET} {cls.CYAN}{tool_name}{cls.RESET}{args_str}"
+
+        if tool_source:
+            # Agent 工具 - 格式塔风格
+            text = f"{cls.CYAN}{cls.BOLD}[⚡ TOOL]{cls.RESET} {cls.CYAN}{tool_name}{cls.RESET} {cls.DIM}(来自 {tool_source}){args_str}"
+        else:
+            # 原有工具
+            text = f"{cls.CYAN}{cls.BOLD}[{cls.BOLT} TOOL]{cls.RESET} {cls.CYAN}{tool_name}{cls.RESET}{args_str}"
+
         cls._print(text)
         return text
 

@@ -250,6 +250,71 @@ class QQOneBotClient:
             logger.error(f"[QQ] 获取群列表失败: {e}")
             return []
 
+    async def get_group_file_system_info(self, group_id: int) -> Optional[Dict]:
+        """获取群文件系统信息"""
+        try:
+            result = await self._call_api(
+                "get_group_file_system_info", {"group_id": group_id}
+            )
+            return result.get("data")
+        except Exception as e:
+            logger.error(f"[QQ] 获取群文件系统信息失败: {e}")
+            return None
+
+    async def get_group_root_files(self, group_id: int) -> Dict:
+        """获取群根目录文件列表"""
+        try:
+            result = await self._call_api(
+                "get_group_root_files", {"group_id": group_id}
+            )
+            return result.get("data", {})
+        except Exception as e:
+            logger.error(f"[QQ] 获取群文件列表失败: {e}")
+            return {"files": [], "folders": []}
+
+    async def get_group_files(self, group_id: int, folder_id: str) -> Dict:
+        """获取群文件夹内的文件列表"""
+        try:
+            result = await self._call_api(
+                "get_group_files", {"group_id": group_id, "folder_id": folder_id}
+            )
+            return result.get("data", {})
+        except Exception as e:
+            logger.error(f"[QQ] 获取群文件夹文件列表失败: {e}")
+            return {"files": [], "folders": []}
+
+    async def get_group_file_url(self, group_id: int, file_id: str) -> Optional[str]:
+        """获取群文件下载链接"""
+        try:
+            result = await self._call_api(
+                "get_group_file_url", {"group_id": group_id, "file_id": file_id}
+            )
+            data = result.get("data", {})
+            return data.get("url")
+        except Exception as e:
+            logger.error(f"[QQ] 获取群文件下载链接失败: {e}")
+            return None
+
+    async def download_group_file(self, url: str, save_path: str) -> bool:
+        """下载群文件到本地"""
+        import aiohttp
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        with open(save_path, "wb") as f:
+                            async for chunk in response.content.iter_chunked(8192):
+                                f.write(chunk)
+                        logger.info(f"[QQ] 群文件已下载: {save_path}")
+                        return True
+                    else:
+                        logger.error(f"[QQ] 文件下载失败，状态码: {response.status}")
+                        return False
+        except Exception as e:
+            logger.error(f"[QQ] 群文件下载失败: {e}")
+            return False
+
     async def send_group_poke(self, group_id: int, user_id: int) -> Dict[str, Any]:
         """群聊拍一拍"""
         try:

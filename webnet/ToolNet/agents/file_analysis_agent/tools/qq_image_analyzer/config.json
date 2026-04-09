@@ -1,0 +1,17 @@
+{
+    "type": "function",
+    "function": {
+        "name": "qq_image_analyzer",
+        "description": "分析QQ图片内容。当用户说'分析图片'、'看图'、'图片是什么'、'识别图片'时使用此工具。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "image_url": {
+                    "type": "string",
+                    "description": "图片URL或本地路径"
+                }
+            },
+            "required": ["image_url"]
+        }
+    }
+}

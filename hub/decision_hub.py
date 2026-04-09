@@ -698,6 +698,9 @@ class DecisionHub:
             f"[决策层] ========== 命令检测 START ========== content={content[:30]}, personality={type(self.personality) if self.personality else None}"
         )
 
+        # DEBUG: Check where we are in the code
+        logger.warning("[决策层-DEBUG] 1. 命令检测后，检查位置")
+
         # 检查是否是图片消息并返回分析结果
         has_image = perception.get("has_image", False)
         image_analysis = perception.get("image_analysis")
@@ -1016,6 +1019,8 @@ class DecisionHub:
 
         # 【新增】使用 MiyaAgentV3 处理复杂的终端任务（带安全检查和防重复调用）
         # 使用类属性来跟踪调用状态，防止递归
+        # 注意: V3 仅在 terminal 平台使用，其他平台走普通 AI 流程
+        v3_executed = False
         if (
             platform == "terminal"
             and self.ai_client
@@ -1053,12 +1058,59 @@ class DecisionHub:
 
                     # 清除标志
                     self._in_v3_execution = False
+                    v3_executed = True
                     return result
                 except Exception as e:
                     # 清除标志
                     self._in_v3_execution = False
                     logger.warning(f"V3代理失败: {e}，回退到普通模式")
                     # 静默回退，不影响正常流程
+
+        # 【新增】Agent 调度 - 根据用户输入智能选择 Agent（所有平台）
+        # 强制打印确保可见
+        print(
+            f"##### DEBUG: Agent调度检查 ##### platform={repr(platform)}, content={repr(content[:30])}"
+        )
+
+        if (
+            not v3_executed
+            and self.ai_client
+            and not getattr(self, "_in_agent_execution", False)
+        ):
+            # 【格式塔意识】Agent 工具不再单独调度，融入统一工具池
+            # 通过工具调用自动判断是否需要 Agent 工具
+
+            # 加载格式塔控制器
+            from core.gestalt_controller import get_gestalt_controller
+            from core.gestalt_display import get_gestalt_display
+
+            gestalt_controller = get_gestalt_controller()
+            gestalt_display = get_gestalt_display()
+
+            # 初始化格式塔（如果需要）
+            if not gestalt_controller._agent_tools_loaded and self.tool_subnet:
+                await gestalt_controller.initialize(self.tool_subnet)
+
+            # 显示格式塔启动信息
+            logger.info("[格式塔] 格式塔意识已激活，Agent工具已融入工具池")
+
+            # 【格式塔】不再使用旧的 Agent 调度
+            # Agent 工具现在通过 tool_subnet.get_tools_schema() 自动包含
+            # 工具调用由 AI 自行判断，协作引擎也会参与处理
+
+            # 显示格式塔工具信息
+            agent_tools = list(gestalt_controller.get_all_tool_sources().keys())
+            if agent_tools:
+                gestalt_display.print_thinking(
+                    "工具池初始化",
+                    f"Agent工具已融入: {', '.join(agent_tools[:5])}...",
+                    status="done",
+                )
+
+            # 【优化】检查 Agent 是否已处理，避免重复执行
+            if context and isinstance(context, dict) and context.get("_agent_executed"):
+                logger.info("[决策层] Agent 已处理请求，跳过主流程")
+                return ""
 
         try:
             # 构建系统提示词（包含平台信息）
@@ -1240,16 +1292,32 @@ class DecisionHub:
             reply_info = context.get("reply")
             reply_context = ""
             if reply_info:
-                sender_name = reply_info.get("sender_name", "未知")
-                content = reply_info.get("content", "")[:100]
+                # 兼容 ReplySegment 对象和字典
+                if hasattr(reply_info, "get"):
+                    sender_name = reply_info.get("sender_name", "未知")
+                    content = reply_info.get("content", "")[:100]
+                elif hasattr(reply_info, "sender_name"):
+                    sender_name = getattr(reply_info, "sender_name", "未知")
+                    content = getattr(reply_info, "content", "")[:100]
+                else:
+                    sender_name = "未知"
+                    content = ""
                 reply_context = f"\n[引用消息] 来自: {sender_name}\n内容: {content}"
 
             # 获取文件信息
             files_info = context.get("files", [])
             files_context = ""
             if files_info:
-                file_list = ", ".join([f.get("name", "文件") for f in files_info])
-                files_context = f"\n[附加文件] {file_list}"
+                # 兼容 FileSegment 对象和字典
+                file_list = []
+                for f in files_info:
+                    if hasattr(f, "get"):
+                        file_list.append(f.get("name", "文件"))
+                    elif hasattr(f, "name"):
+                        file_list.append(f.name)
+                    else:
+                        file_list.append("文件")
+                files_context = f"\n[附加文件] {', '.join(file_list)}"
 
             # 获取是否有媒体
             has_media = context.get("has_media", False)
@@ -2724,3 +2792,31 @@ class DecisionHub:
         except Exception as e:
             logger.debug(f"[决策层] 添加状态标签失败: {e}")
             return response
+
+    def _load_agent_trigger_keywords(self) -> list:
+        """从配置文件加载 Agent 触发关键词"""
+        try:
+            import json
+            from pathlib import Path
+
+            config_path = Path("config/agent_routing_config.json")
+            if not config_path.exists():
+                return []
+
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+
+            routing = config.get("agent_routing", {})
+            if not routing.get("enabled", True):
+                return []
+
+            rules = routing.get("routing_rules", {})
+            keywords = []
+            for agent_name, rule in rules.items():
+                keywords.extend(rule.get("keywords", []))
+
+            logger.info(f"[决策层] 从配置加载触发关键词: {len(keywords)} 个")
+            return keywords
+        except Exception as e:
+            logger.warning(f"[决策层] 加载触发关键词失败: {e}")
+            return []

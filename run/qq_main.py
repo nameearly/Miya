@@ -32,6 +32,18 @@ from dotenv import load_dotenv
 # 导入QQ相关
 from webnet import QQNet
 
+# 导入消息队列
+from core.message_queue import (
+    get_message_queue,
+    MessageQueueManager,
+    QUEUE_LANE_SUPERADMIN,
+    QUEUE_LANE_GROUP_SUPERADMIN,
+    QUEUE_LANE_PRIVATE,
+    QUEUE_LANE_GROUP_MENTION,
+    QUEUE_LANE_GROUP_NORMAL,
+    QUEUE_LANE_BACKGROUND,
+)
+
 
 class MiyaQQ:
     """弥娅 QQ 模式主类 - 使用新版 ToolNet 架构"""
@@ -44,6 +56,11 @@ class MiyaQQ:
         self.miya: Any = None
         self.qq_net: Any = None
         self.tts_net: Any = None
+
+        # 初始化消息队列
+        self.message_queue = get_message_queue()
+        self._queue_initialized = False
+        self._superadmin_qq = 0
 
     def _setup_logger(self) -> logging.Logger:
         """设置日志"""
@@ -116,6 +133,9 @@ class MiyaQQ:
         self.logger.info(f"  Bot QQ: {bot_qq}")
         self.logger.info(f"  Super Admin: {superadmin_qq}")
 
+        # 保存 superadmin QQ 用于队列判断
+        self._superadmin_qq = superadmin_qq
+
         # 创建弥娅核心实例（使用新版架构）
         self.miya = Miya()
 
@@ -159,6 +179,9 @@ class MiyaQQ:
             bot_qq=bot_qq,
             superadmin_qq=superadmin_qq,
         )
+
+        # 初始化消息队列
+        self._init_message_queue()
 
         # 初始化消息汇总窗口期管理器
         self._init_message_batcher()
@@ -211,6 +234,117 @@ class MiyaQQ:
         except Exception as e:
             self.logger.warning(f"TTS系统初始化失败: {e}")
             self.tts_net = None
+
+    def _init_message_queue(self):
+        """初始化消息队列"""
+        try:
+            import json
+            from pathlib import Path
+
+            config_path = Path(__file__).parent.parent / "config" / "qq_config.yaml"
+            queue_config = {}
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    import yaml
+
+                    full_config = yaml.safe_load(f)
+                    queue_config = full_config.get("qq", {}).get("message_queue", {})
+
+            enabled = queue_config.get("enabled", True)
+            if not enabled:
+                self.logger.info("[消息队列] 消息队列已禁用")
+                return
+
+            default_interval = queue_config.get("default_interval", 1.0)
+            model_intervals = queue_config.get("model_intervals", {})
+
+            self.message_queue = MessageQueueManager.get_instance(default_interval)
+            if model_intervals:
+                self.message_queue.update_model_intervals(model_intervals)
+
+            async def handle_request(request: dict):
+                await self._queue_process_message(request)
+
+            self.message_queue.start(handle_request)
+            self._queue_initialized = True
+
+            self.logger.info(
+                f"[消息队列] 队列管理器已启动: interval={default_interval}s, models={list(model_intervals.keys()) or ['default']}"
+            )
+        except Exception as e:
+            self.logger.warning(f"[消息队列] 初始化失败: {e}")
+
+    async def _queue_process_message(self, request: dict):
+        """队列处理消息"""
+        qq_message = request.get("qq_message")
+        perception = request.get("perception")
+
+        if qq_message and perception:
+            await self._process_message_with_perception(
+                qq_message, qq_message.message, perception
+            )
+
+    def _get_queue_lane(self, qq_message: Any, is_superadmin: bool = False) -> str:
+        """判断消息应该进入哪个队列"""
+        msg_type = (
+            qq_message.message_type
+            if hasattr(qq_message, "message_type")
+            else "private"
+        )
+
+        if msg_type == "private":
+            if is_superadmin:
+                return QUEUE_LANE_SUPERADMIN
+            return QUEUE_LANE_PRIVATE
+
+        if msg_type == "group":
+            group_id = getattr(qq_message, "group_id", 0)
+            if is_superadmin and group_id:
+                return QUEUE_LANE_GROUP_SUPERADMIN
+
+            is_at_bot = getattr(qq_message, "is_at_bot", False)
+            if is_at_bot:
+                return QUEUE_LANE_GROUP_MENTION
+            return QUEUE_LANE_GROUP_NORMAL
+
+        return QUEUE_LANE_BACKGROUND
+
+    async def _enqueue_message(
+        self, qq_message: Any, perception: dict, model_name: str = "default"
+    ):
+        """将消息加入队列"""
+        if not self._queue_initialized:
+            return await self._process_message_with_perception(
+                qq_message, qq_message.message, perception
+            )
+
+        is_superadmin = (
+            getattr(qq_message, "sender_id", 0) == self._superadmin_qq
+            and self._superadmin_qq > 0
+        )
+
+        lane = self._get_queue_lane(qq_message, is_superadmin)
+
+        request = {
+            "qq_message": qq_message,
+            "perception": perception,
+            "user_id": getattr(qq_message, "sender_id", 0),
+            "group_id": getattr(qq_message, "group_id", 0),
+            "model_name": model_name,
+        }
+
+        if lane == QUEUE_LANE_SUPERADMIN:
+            await self.message_queue.add_superadmin(request, model_name)
+        elif lane == QUEUE_LANE_GROUP_SUPERADMIN:
+            await self.message_queue.add_group_superadmin(request, model_name)
+        elif lane == QUEUE_LANE_PRIVATE:
+            await self.message_queue.add_private(request, model_name)
+        elif lane == QUEUE_LANE_GROUP_MENTION:
+            await self.message_queue.add_group_mention(request, model_name)
+        elif lane == QUEUE_LANE_GROUP_NORMAL:
+            await self.message_queue.add_group_normal(request, model_name)
+        else:
+            await self.message_queue.add_background(request, model_name)
 
     def _init_message_batcher(self):
         """初始化消息汇总窗口期管理器"""
@@ -349,8 +483,43 @@ class MiyaQQ:
             self.logger.error(f"处理QQ消息失败: {e}", exc_info=True)
 
     async def _process_single_message(self, qq_message: Any) -> None:
-        """处理单条消息"""
-        await self._process_message_with_perception(qq_message, qq_message.message)
+        """处理单条消息（加入队列或直接处理）"""
+        msg_type = qq_message.message_type
+        if msg_type not in ["group", "private"]:
+            if qq_message.group_id and qq_message.group_id > 0:
+                msg_type = "group"
+            else:
+                msg_type = "private"
+
+        perception = {
+            "source": "qq",
+            "message_type": msg_type,
+            "raw_message_type": qq_message.message_type,
+            "user_id": qq_message.sender_id,
+            "sender_id": qq_message.sender_id,
+            "sender_name": qq_message.sender_name,
+            "group_id": qq_message.group_id,
+            "group_name": getattr(qq_message, "group_name", ""),
+            "content": qq_message.message,
+            "is_at_bot": qq_message.is_at_bot,
+            "at_list": getattr(qq_message, "at_list", []),
+            "bot_qq": self.qq_net.bot_qq if self.qq_net else 0,
+            "timestamp": datetime.now().isoformat(),
+            "message_id": getattr(qq_message, "message_id", 0),
+            "reply": getattr(qq_message, "reply", None),
+            "files": getattr(qq_message, "files", []),
+            "raw_message": getattr(qq_message, "raw_message", []),
+            "has_media": getattr(qq_message, "has_media", False),
+            "has_image": getattr(qq_message, "has_image", False),
+            "image_analysis": getattr(qq_message, "image_analysis", None),
+        }
+
+        if self._queue_initialized:
+            await self._enqueue_message(qq_message, perception)
+        else:
+            await self._process_message_with_perception(
+                qq_message, qq_message.message, perception
+            )
 
     async def _batch_consumer_loop(self) -> None:
         """后台消费窗口期批次消息的循环"""

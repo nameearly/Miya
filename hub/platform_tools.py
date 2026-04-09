@@ -22,6 +22,11 @@ class PlatformToolsManager:
     CORE_TOOLS = [
         "get_current_time",
         "web_search",
+        "tavily_search",
+        "douyinhot",
+        "weibohot",
+        "baiduhot",
+        "grok_search",
     ]
 
     # 平台特定工具映射
@@ -37,6 +42,17 @@ class PlatformToolsManager:
             "find_member",
             "memory_add",
             "memory_list",
+            # 搜索工具
+            "web_search",
+            "tavily_search",
+            "douyinhot",
+            "weibohot",
+            "baiduhot",
+            "grok_search",
+            "crawl_webpage",
+            # 信息查询
+            "qq_level_query",
+            "weather_query",
             # 跨端工具（从QQ控制终端）
             "execute_on_desktop",
             "send_to_desktop",
@@ -70,13 +86,26 @@ class PlatformToolsManager:
             "project_context",
             "task_plan",
             "suggestions",
-            # Agent 工具
-            "code_explorer_agent",
-            "code_reviewer_agent",
-            "code_architect_agent",
-            "terminal_agent",
             # Skills 工具
             "list_skills",
+            # 【格式塔】Agent 工具
+            "group_file_downloader",
+            "local_file_finder",
+            "qq_file_reader",
+            "qq_image_analyzer",
+            "python_interpreter",
+            "horoscope",
+            "qq_like",
+            "send_poke",
+            "react_emoji",
+            "wenchang_dijun",
+            "baiduhot",
+            "douyinhot",
+            "qq_level_query",
+            "weibohot",
+            "crawl_webpage",
+            "grok_search",
+            "web_search",
         ],
         "terminal": [
             # 核心终端工具
@@ -243,6 +272,25 @@ class PlatformToolsManager:
         "send_to_desktop",
         "send_to_terminal",
         "terminal_command",
+        # 搜索工具（新增）
+        "web_search",
+        "tavily_search",
+        "douyinhot",
+        "weibohot",
+        "baiduhot",
+        "grok_search",
+        "crawl_webpage",
+        # 信息查询
+        "qq_level_query",
+        "weather_query",
+        # 【格式塔】Agent 工具
+        "group_file_downloader",
+        "local_file_finder",
+        "qq_file_reader",
+        "qq_image_analyzer",
+        "python_interpreter",
+        "horoscope",
+        "wenchang_dijun",
     ]
 
     def __init__(self, tool_subnet):

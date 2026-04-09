@@ -280,6 +280,7 @@ class ToolRegistry:
         self._load_network_tools()
         self._load_core_tools()
         self._load_social_tools()
+        self._load_agent_tools()
 
     def _load_basic_tools(self):
         """加载基础工具"""
@@ -556,6 +557,7 @@ class ToolRegistry:
             from webnet.ToolNet.tools.network.tcping import TCPingTool
             from webnet.ToolNet.tools.network.speed_test import SpeedTestTool
             from webnet.ToolNet.tools.network.tavily_search_tool import TavilySearchTool
+            from webnet.ToolNet.tools.network.weather_query import WeatherQueryTool
 
             self.register(GrokSearchTool())
             self.register(CrawlWebpageTool())
@@ -563,9 +565,10 @@ class ToolRegistry:
             self.register(TCPingTool())
             self.register(SpeedTestTool())
             self.register(TavilySearchTool())
+            self.register(WeatherQueryTool())
 
             self.logger.info(
-                "已加载网络工具: GrokSearch, CrawlWebpage, WhoisQuery, TCPing, SpeedTest, TavilySearch"
+                "已加载网络工具: GrokSearch, CrawlWebpage, WhoisQuery, TCPing, SpeedTest, TavilySearch, WeatherQuery"
             )
         except Exception as e:
             self.logger.warning(f"加载网络工具失败: {e}")
@@ -591,6 +594,124 @@ class ToolRegistry:
             self.logger.info("已加载社交工具: QQLevel")
         except Exception as e:
             self.logger.warning(f"加载社交工具失败: {e}")
+
+    def _load_agent_tools(self):
+        """加载 Agent 专用工具（新增）"""
+        try:
+            import json
+            from pathlib import Path
+
+            agents_base = Path(__file__).parent / "agents"
+            if not agents_base.exists():
+                return
+
+            for agent_dir in agents_base.iterdir():
+                if not agent_dir.is_dir():
+                    continue
+
+                tools_dir = agent_dir / "tools"
+                if not tools_dir.exists():
+                    continue
+
+                for tool_dir in tools_dir.iterdir():
+                    if not tool_dir.is_dir():
+                        continue
+
+                    handler_file = tool_dir / "handler.py"
+                    config_file = tool_dir / "config.json"
+
+                    if not (handler_file.exists() and config_file.exists()):
+                        continue
+
+                    try:
+                        with open(config_file, "r", encoding="utf-8") as f:
+                            config = json.load(f)
+
+                        if "type" in config and "function" in config:
+                            tool_name = config["function"]["name"]
+                            tool_desc = config["function"].get("description", "")
+                            tool_params = config["function"].get("parameters", {})
+
+                            class DynamicTool:
+                                def __init__(
+                                    self,
+                                    name,
+                                    desc,
+                                    params,
+                                    handler_path,
+                                    agent_name,
+                                    tool_dir_name,
+                                ):
+                                    self._name = name
+                                    self._desc = desc
+                                    self._params = params
+                                    self._handler_path = handler_path
+                                    self._agent_name = agent_name
+                                    self._tool_dir = tool_dir_name
+
+                                @property
+                                def config(self):
+                                    return {
+                                        "name": self._name,
+                                        "description": self._desc,
+                                        "parameters": self._params,
+                                    }
+
+                                async def execute(self, args, context):
+                                    try:
+                                        import sys
+                                        from importlib import import_module
+
+                                        # 将 ToolContext 转换为字典
+                                        ctx_dict = {}
+                                        if context:
+                                            # 检查是否是 dataclass (ToolContext)
+                                            if hasattr(context, "__dataclass_fields__"):
+                                                ctx_dict = {
+                                                    f.name: getattr(context, f.name)
+                                                    for f in context.__dataclass_fields__.values()
+                                                }
+                                                logger.info(
+                                                    f"[Agent工具] 转换 ToolContext 为字典, onebot_client: {ctx_dict.get('onebot_client')}"
+                                                )
+                                            elif isinstance(context, dict):
+                                                ctx_dict = context
+                                                logger.info(
+                                                    f"[Agent工具] 收到 dict context, onebot_client: {ctx_dict.get('onebot_client')}"
+                                                )
+                                            else:
+                                                logger.info(
+                                                    f"[Agent工具] 收到未知类型 context: {type(context)}"
+                                                )
+
+                                        module_path = f"webnet.ToolNet.agents.{self._agent_name}.tools.{self._tool_dir}.handler"
+                                        module = import_module(module_path)
+                                        if hasattr(module, "execute"):
+                                            return await module.execute(
+                                                args, ctx_dict if ctx_dict else context
+                                            )
+                                        return f"工具 {self._name} 没有 execute 函数"
+                                    except Exception as e:
+                                        return f"执行工具失败: {str(e)}"
+
+                            tool = DynamicTool(
+                                tool_name,
+                                tool_desc,
+                                tool_params,
+                                handler_file,
+                                agent_dir.name,
+                                tool_dir.name,
+                            )
+                            self.register(tool)
+                            self.logger.info(
+                                f"已加载 Agent 工具: {agent_dir.name}/{tool_dir.name}"
+                            )
+                    except Exception as e:
+                        self.logger.warning(f"加载 Agent 工具失败 {tool_dir.name}: {e}")
+
+            self.logger.info("Agent 工具加载完成")
+        except Exception as e:
+            self.logger.warning(f"加载 Agent 工具失败: {e}")
 
 
 class BaseTool:

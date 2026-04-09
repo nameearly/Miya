@@ -2,12 +2,35 @@
 """
 Slash Commands 系统 - Claude Code 风格的命令
 支持 /git, /feature-dev 等命令组
+从 text_config.json 加载配置
 """
 
 import re
+import json
 from typing import Dict, List, Callable, Any, Optional
 from dataclasses import dataclass, field
-from enum import Enum
+from pathlib import Path
+
+
+def _load_commands_from_config() -> Dict[str, Any]:
+    """从 text_config.json 加载命令配置"""
+    try:
+        # 正确计算项目根目录路径
+        script_dir = Path(__file__).resolve().parent
+        # 从 core/skills/ 向上两级到项目根目录
+        project_root = script_dir.parent.parent
+        config_path = project_root / "config" / "text_config.json"
+
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            return config.get("command_keywords", {})
+    except Exception as e:
+        print(f"Warning: Failed to load command config: {e}")
+    return {}
+
+
+_config = _load_commands_from_config()
 
 
 @dataclass
@@ -27,7 +50,9 @@ class SlashCommandManager:
         self._register_default_commands()
 
     def _register_default_commands(self):
-        """注册默认命令"""
+        """注册默认命令 - 从配置加载 + 固定命令"""
+
+        # Git命令组 (固定)
         self.register_command(
             "git",
             "Git 操作",
@@ -85,6 +110,52 @@ class SlashCommandManager:
                 ("format", "格式化代码", None),
             ],
         )
+
+        # 从配置加载命令组
+        self._register_config_commands()
+
+    def _register_config_commands(self):
+        """从配置加载命令组"""
+
+        # stats 命令
+        stats_config = _config.get("stats", {})
+        if stats_config:
+            subcommands = []
+            for sub_name, sub_keywords in stats_config.get("subcommands", {}).items():
+                desc = sub_keywords[0] if isinstance(sub_keywords, list) else sub_name
+                subcommands.append((sub_name, desc, None))
+            if subcommands:
+                self.register_command("stats", "系统统计", subcommands)
+
+        # admin 命令
+        admin_config = _config.get("admin", {})
+        if admin_config:
+            subcommands = []
+            for sub_name, sub_keywords in admin_config.get("subcommands", {}).items():
+                desc = sub_keywords[0] if isinstance(sub_keywords, list) else sub_name
+                subcommands.append((sub_name, desc, None))
+            if subcommands:
+                self.register_command("admin", "管理员操作", subcommands)
+
+        # faq 命令
+        faq_config = _config.get("faq", {})
+        if faq_config:
+            subcommands = []
+            for sub_name, sub_keywords in faq_config.get("subcommands", {}).items():
+                desc = sub_keywords[0] if isinstance(sub_keywords, list) else sub_name
+                subcommands.append((sub_name, desc, None))
+            if subcommands:
+                self.register_command("faq", "FAQ管理", subcommands)
+
+        # system 命令
+        system_config = _config.get("system", {})
+        if system_config:
+            subcommands = []
+            for sub_name, sub_keywords in system_config.get("subcommands", {}).items():
+                desc = sub_keywords[0] if isinstance(sub_keywords, list) else sub_name
+                subcommands.append((sub_name, desc, None))
+            if subcommands:
+                self.register_command("system", "系统操作", subcommands)
 
     def register_command(
         self, name: str, description: str, subcommands: List[tuple] = None

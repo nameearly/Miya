@@ -713,6 +713,19 @@ class OpenAIClient(BaseAIClient):
                         # 检查工具结果是否包含 FINAL 标记
                         if result and result.startswith("[FINAL]"):
                             logger.info(f"[AIClient] 检测到 FINAL 标记: {result[:80]}")
+
+                            # 【新增】检查是否包含嵌入的消息内容
+                            if "|||" in result:
+                                parts = result.split("|||", 1)
+                                embedded_message = (
+                                    parts[0].replace("[FINAL]", "").strip()
+                                )
+                                if embedded_message:
+                                    logger.info(
+                                        f"[AIClient] 提取嵌入消息内容: {embedded_message[:50]}..."
+                                    )
+                                    return embedded_message
+
                             final_detected = True
 
                         current_messages.append(
@@ -741,13 +754,61 @@ class OpenAIClient(BaseAIClient):
                 else:
                     # 串行执行（保持兼容性）
                     final_detected = False
+                    final_tool_result = None
                     for tool_call in tool_calls:
                         _, result = await execute_single_tool(tool_call)
+                        final_tool_result = result
 
                         # 检查工具结果是否包含 FINAL 标记
                         if result and result.startswith("[FINAL]"):
                             logger.info(f"[AIClient] 检测到 FINAL 标记: {result[:80]}")
                             final_detected = True
+
+                            # 【新增】FINAL 标记触发，检查是否包含嵌入的消息内容
+                            # 格式: [FINAL]message_content|||TARGET:xxx
+                            if "|||" in result:
+                                # 提取嵌入的消息内容，直接返回给用户
+                                parts = result.split("|||", 1)
+                                embedded_message = (
+                                    parts[0].replace("[FINAL]", "").strip()
+                                )
+                                if embedded_message:
+                                    logger.info(
+                                        f"[AIClient] 提取嵌入消息内容: {embedded_message[:50]}..."
+                                    )
+                                    return embedded_message
+
+                            # 原有逻辑：生成最终文本回复
+                            logger.info("[AIClient] FINAL 标记触发，生成最终文本回复")
+                            try:
+                                # 只保留非tool消息和最后一条tool消息
+                                filtered_messages = []
+                                for m in current_messages:
+                                    if m.role != "tool":
+                                        filtered_messages.append(
+                                            {"role": m.role, "content": m.content}
+                                        )
+                                    else:
+                                        # 只保留最后一条tool消息
+                                        if m == current_messages[-1]:
+                                            filtered_messages.append(
+                                                {
+                                                    "role": "tool",
+                                                    "content": m.content,
+                                                    "tool_call_id": tool_call.id,
+                                                }
+                                            )
+
+                                final_resp = await self.client.chat.completions.create(
+                                    model=self.model,
+                                    messages=filtered_messages,
+                                    tool_choice="none",
+                                )
+                                if final_resp.choices and final_resp.choices[0].message:
+                                    return final_resp.choices[0].message.content or ""
+                            except Exception as e:
+                                logger.warning(f"[AIClient] 最终回复生成失败: {e}")
+                            return ""
 
                         # 检查是否是直接返回工具（如运势、抽签、游戏存档等）
                     # 这些工具返回的结果已经是格式化的，直接返回给用户
@@ -774,6 +835,19 @@ class OpenAIClient(BaseAIClient):
                         "combat_log",
                         "kp_command",
                         "terminal_command",  # 终端命令工具直接返回结果
+                        # 热搜工具 - 返回完整列表，不摘要
+                        "douyinhot",
+                        "weibohot",
+                        "baiduhot",
+                        "grok_search",
+                        "web_search",
+                        "crawl_webpage",
+                        # Agent 工具 - 返回完整结果
+                        "group_file_downloader",
+                        "local_file_finder",
+                        "qq_file_reader",
+                        "qq_image_analyzer",
+                        "python_interpreter",
                     ]
                     if tool_call.function.name in direct_return_tools:
                         logger.info(
@@ -1229,6 +1303,21 @@ class DeepSeekClient(BaseAIClient):
                             "wenchang_dijun",
                             "terminal_command",
                             "multi_terminal",
+                            # 热搜工具 - 返回完整列表，不摘要
+                            "douyinhot",
+                            "weibohot",
+                            "baiduhot",
+                            "grok_search",
+                            "web_search",
+                            "crawl_webpage",
+                            "qq_level_query",
+                            "tavily_search",
+                            # Agent 工具 - 返回完整结果
+                            "group_file_downloader",
+                            "local_file_finder",
+                            "qq_file_reader",
+                            "qq_image_analyzer",
+                            "python_interpreter",
                         ]
                         if tool_call.function.name in direct_return_tools:
                             logger.info(

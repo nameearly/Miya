@@ -130,6 +130,17 @@
         - [路由配置](#6-路由配置)
         - [相关文件](#7-相关文件)
         - [使用示例](#8-使用示例-4)
+      - [格式塔意识系统 (v4.3.4+ 新增)](#格式塔意识系统-v434-新增)
+         - [系统概述](#1-系统概述-21)
+         - [与传统Agent调用的对比](#2-与传统agent调用的对比)
+         - [核心架构](#3-核心架构)
+         - [GestaltController 格式塔控制器](#4-gestaltcontroller-格式塔控制器)
+         - [GestaltDisplay 格式塔终端显示](#5-gestaltdisplay-格式塔终端显示)
+         - [Agent工具集成](#6-agent工具集成)
+         - [工具注册与来源追踪](#7-工具注册与来源追踪)
+         - [直接返回机制](#8-直接返回机制)
+         - [使用示例](#9-使用示例-5)
+         - [相关文件](#10-相关文件)
 
 ---
 
@@ -146,6 +157,7 @@ MIYA 具备：
 - **自我进化** - 从交互中学习，不断完善自我
 - **多平台接入** - QQ、Web、桌面应用、命令行
 - **工具使用** - 搜索、文件操作、代码执行
+- **格式塔意识** - 统一的 Agent 工具管理，AI 自主工具选择
 
 ---
 
@@ -308,6 +320,253 @@ async def example():
 - **ToolNet** - 通用工具执行框架
 - **CognitiveNet** - 认知处理子网
 - **EntertainmentNet** - TRPG、Tavern AI 娱乐功能
+- **格式塔意识系统** - Agent工具统一管理，AI自主工具选择 (v4.3.4+)
+
+### 🎯 格式塔意识系统 (v4.3.4+ 新增)
+
+弥娅在 v4.3.4 版本中引入了**格式塔意识系统（Gestalt Consciousness System）**，这是一套创新的 Agent 工具管理架构。与传统的外部 Agent 调用不同，格式塔系统将所有 Agent 工具内化为弥娅自身的"统一能力"，让 AI 在工具选择上拥有更大的自主权和连贯性。
+
+#### 1. 系统概述
+
+格式塔意识系统的核心设计理念是**"Gestalt"（格式塔）**——强调整体性、统一性和感知连贯性。在传统架构中，Agent 工具被视为外部独立模块，AI 需要显式指定调用哪个 Agent；而在格式塔系统中，所有工具被整合为统一的工具池，AI 根据上下文自主判断使用哪个工具，并且清楚地知道每个工具的来源。
+
+#### 2. 与传统 Agent 调用的对比
+
+| 维度 | 传统模式 | 格式塔模式 |
+|------|----------|------------|
+| **工具归属** | 外部 Agent 的独立能力 | 弥娅自身的统一能力 |
+| **调用方式** | 显式指定 Agent 名称 | AI 根据上下文自主判断 |
+| **扩展方式** | 需要修改路由配置 | 直接加入工具池 |
+| **工具来源** | AI 不知道工具来自哪里 | AI 知道工具来自哪个 Agent |
+| **用户体验** | "调用了某个外部工具" | "弥娅展现了她自己的能力" |
+
+#### 3. 核心架构
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    格式塔意识系统架构 (Gestalt)                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   用户消息 ──────────────────────────────────────────────────────▶   │
+│        │                                                            │
+│        ▼                                                            │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │              GestaltController (格式塔控制器)                  │   │
+│   │  ┌─────────────────────────────────────────────────────┐      │   │
+│   │  │         工具注册表 (Tool Registry)                     │      │   │
+│   │  │   tool_name → {handler, source_agent, description}   │      │   │
+│   │  └─────────────────────────────────────────────────────┘      │   │
+│   │  ┌─────────────────────────────────────────────────────┐      │   │
+│   │  │         Agent 工具加载器                                │      │   │
+│   │  │   - file_analysis_agent (4个工具)                      │      │   │
+│   │  │   - entertainment_agent (5个工具)                      │      │   │
+│   │  │   - code_delivery_agent (1个工具)                      │      │   │
+│   │  │   - info_agent (4个工具)                               │      │   │
+│   │  │   - web_agent (3个工具)                                │      │   │
+│   │  └─────────────────────────────────────────────────────┘      │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│        │                                                            │
+│        ▼                                                            │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │              统一工具池 (69+ 工具)                             │   │
+│   │  ┌─────────────┬─────────────┬─────────────┬─────────────┐   │   │
+│   │  │ QQ平台工具   │ Agent工具   │ 终端工具    │ 搜索工具    │   │   │
+│   │  │ (24个)      │ (17个)      │ (20+)       │ (8个)       │   │   │
+│   │  └─────────────┴─────────────┴─────────────┴─────────────┘   │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│        │                                                            │
+│        ▼                                                            │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │              AI 自主选择工具 (非显式指定)                       │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 4. GestaltController 格式塔控制器
+
+`core/gestalt_controller.py` 是格式塔系统的核心控制器，负责：
+
+- **工具注册**：将所有 Agent 工具注册到统一工具池
+- **来源追踪**：记录每个工具来自哪个 Agent
+- **工具选择**：在复杂任务中参与决策
+
+```python
+class GestaltController:
+    """格式塔意识控制器 - 统一管理所有 Agent 工具"""
+
+    def __init__(self):
+        self._tool_sources = {}  # 工具名 -> Agent来源
+        self._agent_tools_loaded = False
+
+    async def initialize(self):
+        """初始化格式塔，加载所有 Agent 工具"""
+        await self._load_agent_tools()
+
+    def register_tool(self, tool_name: str, source_agent: str):
+        """注册工具及其来源"""
+        self._tool_sources[tool_name] = source_agent
+
+    def is_agent_tool(self, tool_name: str) -> bool:
+        """判断工具是否来自 Agent"""
+        return tool_name in self._tool_sources
+
+    def get_all_tool_sources(self) -> Dict[str, str]:
+        """获取所有工具来源映射"""
+        return self._tool_sources.copy()
+```
+
+#### 5. GestaltDisplay 格式塔终端显示
+
+`core/gestalt_display.py` 提供了青色科幻风格的终端显示，展示弥娅的"思考过程"和工具选择逻辑：
+
+```
+═══════════════════════════════════════════════════════════
+                    【格式塔】意识觉醒
+═══════════════════════════════════════════════════════════
+[意识感知] 成功: 【当前感知】
+时间：2026-04-09 22:23 (深夜, 星期四)
+地点：群聊 [索多玛] (1092980378)
+...
+────────────────────── 协作引擎 ──────────────────────
+[◈ COLLAB] 单模型 | 复杂度 ★★☆☆☆
+
+[格式塔] 初始化格式塔意识控制器...
+[格式塔] 注册工具: group_file_downloader (来自 file_analysis_agent)
+[格式塔] 注册工具: horoscope (来自 entertainment_agent)
+[格式塔] 已加载 17 个 Agent 工具
+═══════════════════════════════════════════════════════════
+```
+
+#### 6. Agent 工具集成
+
+格式塔系统支持 5 个 Agent，每个 Agent 提供不同的工具能力：
+
+| Agent | 工具数 | 工具列表 |
+|-------|--------|----------|
+| **file_analysis_agent** | 4 | group_file_downloader, local_file_finder, qq_file_reader, qq_image_analyzer |
+| **entertainment_agent** | 5 | horoscope, qq_like, send_poke, react_emoji, wenchang_dijun |
+| **code_delivery_agent** | 1 | python_interpreter |
+| **info_agent** | 4 | baiduhot, douyinhot, qq_level_query, weibohot |
+| **web_agent** | 3 | crawl_webpage, grok_search, web_search |
+
+#### 7. 工具注册与来源追踪
+
+每个 Agent 工具在注册时都会被标记来源：
+
+```python
+# hub/platform_tools.py
+PLATFORM_TOOLS = {
+    "qq": [
+        # ... 原有工具
+        # 【格式塔】Agent 工具
+        "group_file_downloader",  # 来自 file_analysis_agent
+        "local_file_finder",       # 来自 file_analysis_agent
+        "qq_file_reader",         # 来自 file_analysis_agent
+        "qq_image_analyzer",      # 来自 file_analysis_agent
+        "python_interpreter",     # 来自 code_delivery_agent
+        "horoscope",              # 来自 entertainment_agent
+        "wenchang_dijun",         # 来自 entertainment_agent
+        "baiduhot",               # 来自 info_agent
+        "douyinhot",              # 来自 info_agent
+        "weibohot",               # 来自 info_agent
+        "grok_search",            # 来自 web_agent
+        "web_search",             # 来自 web_agent
+    ]
+}
+```
+
+#### 8. 直接返回机制
+
+为了避免 AI 对工具结果进行不必要的"摘要化"，格式塔系统引入了**直接返回机制**。对于格式化后的工具结果（如热搜列表、运势信息等），系统会直接将结果返回给用户，而不经过 AI 的二次处理：
+
+```python
+# core/ai_client.py
+direct_return_tools = [
+    "horoscope",
+    "wenchang_dijun",
+    "terminal_command",
+    # 热搜工具 - 返回完整列表，不摘要
+    "douyinhot",
+    "weibohot",
+    "baiduhot",
+    "grok_search",
+    "web_search",
+    "crawl_webpage",
+    # Agent 工具 - 返回完整结果
+    "group_file_downloader",
+    "local_file_finder",
+    "qq_file_reader",
+    "qq_image_analyzer",
+    "python_interpreter",
+    "qq_level_query",
+    "tavily_search",
+]
+```
+
+#### 9. 使用示例
+
+**查看群文件：**
+
+```
+用户: "弥娅，看看群文件"
+
+[AI 思考]
+- 检测到需要查看群文件
+- 自动选择 group_file_downloader 工具
+- 自动填入当前群号 1092980378
+
+[工具执行]
+→ group_file_downloader(action="list", group_id=1092980378)
+
+[返回结果]
+📁 群 1092980378 的文件:
+  ├ 项目文档.pdf (2.3MB)
+  ├ 代码.zip (1.1MB)
+  └ 图片集 (5张)
+```
+
+**查询抖音热搜：**
+
+```
+用户: "弥娅，看看今日抖音热搜前十，我需要全部的"
+
+[AI 思考]
+- 检测到需要查询热搜
+- 自动选择 douyinhot 工具
+
+[工具执行]
+→ douyinhot(limit=10)
+
+[返回结果 - 直接返回完整列表]
+【抖音热搜 TOP 10】
+
+1. 抖音第0届拼豆大赛
+   热度: 12153901
+2. 如果春风有形状
+   热度: 11762389
+3. 一镜到底看"十五五"重大工程
+   热度: 1131...
+```
+
+#### 10. 相关文件
+
+格式塔系统涉及的核心文件：
+
+| 文件 | 功能 |
+|------|------|
+| `core/gestalt_controller.py` | 格式塔意识控制器 |
+| `core/gestalt_display.py` | 格式塔终端显示（青色科幻风格） |
+| `hub/platform_tools.py` | 平台工具管理器，集成 Agent 工具 |
+| `hub/decision_hub.py` | 决策中心，初始化格式塔 |
+| `core/ai_client.py` | AI 客户端，添加直接返回机制 |
+| `webnet/ToolNet/agents/` | Agent 工具目录 |
+| `webnet/ToolNet/agents/file_analysis_agent/` | 文件分析 Agent |
+| `webnet/ToolNet/agents/entertainment_agent/` | 娱乐 Agent |
+| `webnet/ToolNet/agents/info_agent/` | 信息查询 Agent |
+| `webnet/ToolNet/agents/web_agent/` | 网络搜索 Agent |
+| `webnet/ToolNet/agents/code_delivery_agent/` | 代码执行 Agent |
+| `webnet/ToolNet/registry.py` | 工具注册表，支持动态加载 Agent 工具 |
 
 ### 💻 超级终端 (Terminal Ultra) → Open-ClaudeCode (v4.3.2+)
 

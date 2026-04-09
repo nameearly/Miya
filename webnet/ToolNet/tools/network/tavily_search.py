@@ -78,7 +78,13 @@ class TavilyAISearch:
             payload["exclude_domains"] = exclude_domains
 
         try:
-            with httpx.Client() as client:
+            import ssl
+
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+
+            with httpx.Client(verify=context) as client:
                 response = client.post(
                     self.base_url,
                     json=payload,
