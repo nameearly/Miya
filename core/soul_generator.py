@@ -268,19 +268,33 @@ class ContextDetector:
             return ContextType.IN_CONVERSATION
 
     def _detect_topic(self, message: str) -> ContextType:
-        """检测话题情境"""
+        """检测话题情境 - 从配置读取"""
         msg = message.lower()
 
-        if any(word in msg for word in ["对不起", "抱歉", "我错了"]):
-            return ContextType.APOLOGY
-        elif any(word in msg for word in ["我爱你", "喜欢", "表白"]):
-            return ContextType.CONFESSION
-        elif any(word in msg for word in ["?", "怎么", "什么", "为什么"]):
-            return ContextType.QUESTION
-        elif any(word in msg for word in ["给你看", "分享", "有意思"]):
-            return ContextType.SHARE
-        else:
-            return ContextType.CASUAL
+        # 从配置读取话题关键词
+        topic_keywords = _CONFIG.get(
+            "TOPIC_KEYWORDS",
+            {
+                "道歉": ["对不起", "抱歉", "我错了"],
+                "表白": ["我爱你", "喜欢", "表白"],
+                "询问": ["?", "怎么", "什么", "为什么"],
+                "分享": ["给你看", "分享", "有意思"],
+                "正事": ["正事", "工作", "项目"],
+            },
+        )
+
+        for topic, keywords in topic_keywords.items():
+            if any(word in msg for word in keywords):
+                topic_map = {
+                    "道歉": ContextType.APOLOGY,
+                    "表白": ContextType.CONFESSION,
+                    "询问": ContextType.QUESTION,
+                    "分享": ContextType.SHARE,
+                    "正事": ContextType.SERIOUS,
+                }
+                return topic_map.get(topic, ContextType.CASUAL)
+
+        return ContextType.CASUAL
 
     def _detect_miya_mood(self, miya_state: Dict) -> ContextType:
         """检测弥娅当前情绪"""
@@ -295,11 +309,16 @@ class ContextDetector:
         return mood_map.get(dominant, ContextType.CALM)
 
     def _detect_interaction_type(self, message: str, history: List[Dict]) -> str:
-        """检测互动类型"""
+        """检测互动类型 - 从配置读取"""
         msg = message.strip()
 
+        # 从配置读取关键词
+        minimal_keywords = _CONFIG.get(
+            "MINIMAL_RESPONSE_KEYWORDS", ["嗯", "哦", "好吧"]
+        )
+
         # 检查消息特征
-        if not msg or msg == "嗯" or msg == "哦":
+        if not msg or msg in minimal_keywords:
             return "minimal_response"
         elif len(msg) > 50:
             return "long_response"
@@ -554,41 +573,64 @@ class SoulGenerator:
     def _emotion_emergence(
         self, message: str, context: Dict, analysis: PsychologicalAnalysis
     ):
-        """情绪涌现 - 不是触发，而是从内心活动自然产生"""
+        """情绪涌现 - 从配置文件读取规则"""
         msg = message.lower()
 
-        # 内心活动 → 感受 → 情绪涌现
+        # 内心活动
         inner_thoughts = []
-
-        # 根据剖析结果产生内心活动
         if analysis.attribution:
             inner_thoughts.append(analysis.attribution)
-
         if analysis.reflection and analysis.reflection != "当前情绪稳定":
             inner_thoughts.append(analysis.reflection)
-
         logger.info(
             f"[灵魂] 💭 内心: {'; '.join(inner_thoughts) if inner_thoughts else '暂无'}"
         )
 
-        # 根据消息特征产生情绪变化
-        if "嗯" in msg or "哦" in msg:
-            logger.info("[灵魂] 📉 敷衍检测: 委屈+10, 不满+5, 失落+8")
-            self._adjust_emotion("委屈", 10)
-            self._adjust_emotion("不满", 5)
-            self._adjust_emotion("失落", 8)
+        # 从配置读取情绪触发规则
+        triggers = _CONFIG.get("MESSAGE_EMOTION_TRIGGERS", {})
 
-        if any(word in msg for word in ["哈哈", "喜欢", "棒"]):
-            logger.info("[灵魂] 📈 积极响应: 开心+15, 愉悦+10")
-            self._adjust_emotion("开心", 15)
-            self._adjust_emotion("愉悦", 10)
+        # 检查每种触发类型
+        for trigger_name, trigger_config in triggers.items():
+            keywords = trigger_config.get("keywords", [])
+            emotions_change = trigger_config.get("emotions", {})
 
-        if any(word in msg for word in ["对不起", "抱歉"]):
-            logger.info("[灵魂] 🔧 道歉响应: 委屈-10, 不满-15")
-            self._adjust_emotion("委屈", -10)
-            self._adjust_emotion("不满", -15)
+            # 检查消息是否匹配关键词
+            if any(keyword in msg for keyword in keywords):
+                # 记录情绪变化
+                changes_str = ", ".join(
+                    [
+                        f"{k}+{v}" if v > 0 else f"{k}{v}"
+                        for k, v in emotions_change.items()
+                    ]
+                )
+
+                # 根据触发类型选择emoji
+                emoji = (
+                    "📉"
+                    if "敷衍" in trigger_name
+                    else "📈"
+                    if "积极" in trigger_name
+                    else "🔧"
+                    if "道歉" in trigger_name
+                    else "💭"
+                )
+                logger.info(f"[灵魂] {emoji} {trigger_name}: {changes_str}")
+
+                # 应用情绪变化
+                for emotion_name, delta in emotions_change.items():
+                    self._adjust_emotion(emotion_name, delta)
 
         # 关系情境影响
+        relationship = context.get("relationship")
+        if relationship:
+            rel_effects = _CONFIG.get("RELATIONSHIP_EMOTION_EFFECTS", {}).get(
+                relationship.value, {}
+            )
+            if rel_effects:
+                changes_str = ", ".join([f"{k}+{v}" for k, v in rel_effects.items()])
+                logger.info(f"[灵魂] 🔗 关系影响({relationship.value}): {changes_str}")
+                for emotion_name, delta in rel_effects.items():
+                    self._adjust_emotion(emotion_name, delta)
         relationship = context.get("relationship")
         if relationship == ContextType.INTIMATE:
             self._adjust_emotion("爱意", 5)
