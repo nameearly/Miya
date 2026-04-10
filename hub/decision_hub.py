@@ -142,6 +142,10 @@ class DecisionHub:
 
         # 鉴权子网
         self.auth_subnet: Any | None = None
+
+        # 【新增】灵魂发生器
+        self._soul_generator: Any | None = None
+        self._init_soul_generator()
         self._init_auth_subnet()
 
         # 响应回调
@@ -479,6 +483,21 @@ class DecisionHub:
         """
         self.terminal_tool = None
         logger.info("[决策层] 终端功能由 Open-ClaudeCode 提供")
+
+    def _init_soul_generator(self) -> None:
+        """
+        初始化灵魂发生器 (Soul Generator)
+
+        弥娅的"灵魂"系统，让弥娅拥有类似人类的情绪、认知和行为模式
+        """
+        try:
+            from core.soul_generator import init_soul_generator
+
+            self._soul_generator = init_soul_generator()
+            logger.info("[决策层] 灵魂发生器已初始化")
+        except Exception as e:
+            logger.warning(f"[决策层] 灵魂发生器初始化失败: {e}")
+            self._soul_generator = None
 
     def _init_auth_subnet(self) -> None:
         """
@@ -1523,6 +1542,24 @@ class DecisionHub:
                             tools=tools_schema,
                             ai_client_factory=AIClientFactory,
                         )
+
+                        # 【新增】灵魂发生器处理
+                        if self._soul_generator:
+                            try:
+                                # 获取对话历史
+                                history = perception.get("_conversation_history", [])
+                                # 灵魂发生器处理
+                                soul_result = self._soul_generator.process(
+                                    content, history
+                                )
+                                logger.info(
+                                    f"[灵魂发生器] 处理完成 - 主导情绪: {soul_result.get('dominant_emotion', '未知')}, "
+                                    f"情绪: {soul_result.get('emotions', {})}"
+                                )
+                                # 可以根据灵魂发生器的结果调整回复风格
+                                # 这里暂时只做日志记录，不影响主流程
+                            except Exception as e:
+                                logger.warning(f"[灵魂发生器] 处理失败: {e}")
 
                         # 记录协作结果
                         self._last_selected_model = ",".join(collab_result.models_used)
