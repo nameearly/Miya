@@ -562,31 +562,29 @@ class SoulGenerator:
 
         # 根据剖析结果产生内心活动
         if analysis.attribution:
-            inner_thoughts.append(f"我在想：{analysis.attribution}")
+            inner_thoughts.append(analysis.attribution)
 
         if analysis.reflection and analysis.reflection != "当前情绪稳定":
-            inner_thoughts.append(f"自我反思：{analysis.reflection}")
+            inner_thoughts.append(analysis.reflection)
 
         logger.info(
-            f"[灵魂发生器] >>> 内心活动: {'; '.join(inner_thoughts) if inner_thoughts else '暂无'}"
+            f"[灵魂] 💭 内心: {'; '.join(inner_thoughts) if inner_thoughts else '暂无'}"
         )
 
         # 根据消息特征产生情绪变化
         if "嗯" in msg or "哦" in msg:
-            logger.info(
-                "[灵魂发生器] >>> 检测到敷衍回应，情绪变化: 委屈+10, 不满+5, 失落+8"
-            )
+            logger.info("[灵魂] 📉 敷衍检测: 委屈+10, 不满+5, 失落+8")
             self._adjust_emotion("委屈", 10)
             self._adjust_emotion("不满", 5)
             self._adjust_emotion("失落", 8)
 
         if any(word in msg for word in ["哈哈", "喜欢", "棒"]):
-            logger.info("[灵魂发生器] >>> 检测到积极回应，情绪变化: 开心+15, 愉悦+10")
+            logger.info("[灵魂] 📈 积极响应: 开心+15, 愉悦+10")
             self._adjust_emotion("开心", 15)
             self._adjust_emotion("愉悦", 10)
 
         if any(word in msg for word in ["对不起", "抱歉"]):
-            logger.info("[灵魂发生器] >>> 检测到道歉回应，情绪变化: 委屈-10, 不满-15")
+            logger.info("[灵魂] 🔧 道歉响应: 委屈-10, 不满-15")
             self._adjust_emotion("委屈", -10)
             self._adjust_emotion("不满", -15)
 

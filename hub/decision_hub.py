@@ -494,9 +494,9 @@ class DecisionHub:
             from core.soul_generator import init_soul_generator
 
             self._soul_generator = init_soul_generator()
-            logger.info("[决策层] 灵魂发生器已初始化")
+            logger.info("[灵魂] 🎭 灵魂发生器已初始化")
         except Exception as e:
-            logger.warning(f"[决策层] 灵魂发生器初始化失败: {e}")
+            logger.warning(f"[灵魂] 初始化跳过: {e}")
             self._soul_generator = None
 
     def _init_auth_subnet(self) -> None:
@@ -1552,26 +1552,13 @@ class DecisionHub:
                                 soul_result = self._soul_generator.process(
                                     content, history
                                 )
+                                dominant = soul_result.get("dominant_emotion", "未知")
+                                emotions = soul_result.get("emotions", {})
                                 logger.info(
-                                    f"[灵魂发生器] >>> 主导情绪: {soul_result.get('dominant_emotion', '未知')}"
+                                    f"[灵魂] 🎭 主导情绪: {dominant} | 情绪值: {emotions}"
                                 )
-                                logger.info(
-                                    f"[灵魂发生器] >>> 情绪状态: {soul_result.get('emotions', {})}"
-                                )
-                                logger.info(
-                                    f"[灵魂发生器] >>> 情境分析: {soul_result.get('context', {})}"
-                                )
-
-                                # 获取灵魂发生器的输出（如果有的话）
-                                soul_response = soul_result.get("response", "")
-                                if soul_response:
-                                    logger.info(
-                                        f"[灵魂发生器] >>> 生成的回复: {soul_response}"
-                                    )
-                                    # 可以选择使用灵魂发生器的回复
-                                    # collab_result.response = soul_response
                             except Exception as e:
-                                logger.warning(f"[灵魂发生器] 处理失败: {e}")
+                                logger.warning(f"[灵魂] 处理失败: {e}")
 
                         # 记录协作结果
                         self._last_selected_model = ",".join(collab_result.models_used)
