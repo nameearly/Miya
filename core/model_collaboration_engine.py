@@ -481,10 +481,10 @@ class ModelCollaborationEngine:
 
         thinking = ""
 
-        print(TerminalFormatter.chain_step(1, model_config.id, "思考分析"))
-
-        # 单模型不使用额外思考，直接显示步骤
-        print(TerminalFormatter.chain_step(2, model_config.id, "生成回复"))
+        # 仅在终端模式下显示详细步骤，QQ等其他平台不显示
+        if platform == "terminal":
+            print(TerminalFormatter.chain_step(1, model_config.id, "思考分析"))
+            print(TerminalFormatter.chain_step(2, model_config.id, "生成回复"))
 
         # 正式回复
         response = await self._call_client(
@@ -576,11 +576,13 @@ class ModelCollaborationEngine:
             if persona_info["persona_prompt"]
             else "",
         )
-        print(
-            TerminalFormatter.chain_step(
-                1, model_1.id, f"思考分析({persona_info['persona_name']})"
+        # 仅在终端模式下显示步骤
+        if platform == "terminal":
+            print(
+                TerminalFormatter.chain_step(
+                    1, model_1.id, f"思考分析({persona_info['persona_name']})"
+                )
             )
-        )
         thinking_result = await self._call_client(
             client_1,
             system_prompt=thinking_system_prompt,
@@ -612,7 +614,8 @@ class ModelCollaborationEngine:
             reasoning_prompt = self.reasoning_prompt_template.format(
                 thinking_result=thinking_result, message=message
             )
-            print(TerminalFormatter.chain_step(2, model_2.id, "推理揣摩"))
+            if platform == "terminal":
+                print(TerminalFormatter.chain_step(2, model_2.id, "推理揣摩"))
             reasoning_result = await self._call_client(
                 client_2,
                 system_prompt=self.reasoning_system_prompt,
@@ -649,7 +652,8 @@ class ModelCollaborationEngine:
                 )
                 output_prompt = f"推理结果：{reasoning_result}\n\n用户问题：{user_prompt or message}"
 
-            print(TerminalFormatter.chain_step(3, output_model.id, "生成回复"))
+            if platform == "terminal":
+                print(TerminalFormatter.chain_step(3, output_model.id, "生成回复"))
             response = await self._call_client(
                 client_output,
                 system_prompt=system_prompt,
