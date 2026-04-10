@@ -1553,11 +1553,23 @@ class DecisionHub:
                                     content, history
                                 )
                                 logger.info(
-                                    f"[灵魂发生器] 处理完成 - 主导情绪: {soul_result.get('dominant_emotion', '未知')}, "
-                                    f"情绪: {soul_result.get('emotions', {})}"
+                                    f"[灵魂发生器] >>> 主导情绪: {soul_result.get('dominant_emotion', '未知')}"
                                 )
-                                # 可以根据灵魂发生器的结果调整回复风格
-                                # 这里暂时只做日志记录，不影响主流程
+                                logger.info(
+                                    f"[灵魂发生器] >>> 情绪状态: {soul_result.get('emotions', {})}"
+                                )
+                                logger.info(
+                                    f"[灵魂发生器] >>> 情境分析: {soul_result.get('context', {})}"
+                                )
+
+                                # 获取灵魂发生器的输出（如果有的话）
+                                soul_response = soul_result.get("response", "")
+                                if soul_response:
+                                    logger.info(
+                                        f"[灵魂发生器] >>> 生成的回复: {soul_response}"
+                                    )
+                                    # 可以选择使用灵魂发生器的回复
+                                    # collab_result.response = soul_response
                             except Exception as e:
                                 logger.warning(f"[灵魂发生器] 处理失败: {e}")
 
