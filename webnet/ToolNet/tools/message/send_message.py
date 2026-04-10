@@ -62,10 +62,23 @@ class SendMessageTool(BaseTool):
 
         # 检查 OneBot 客户端是否可用
         if not context.onebot_client:
-            # 消息将通过 DecisionHub 的正常响应路径发送
-            # 返回 FINAL 标记，防止 AI 重复调用
-            logger.info(f"[send_message] 消息将通过响应路径发送: {message[:80]}...")
-            return "[FINAL] 消息将通过正常响应路径自动发送，无需再次调用此工具。"
+            # 尝试从 context 的其他属性获取 onebot_client
+            onebot_from_context = getattr(context, "onebot_from_context", None)
+            if onebot_from_context:
+                logger.info("[send_message] 使用备用的 onebot_client")
+                context.onebot_client = onebot_from_context
+            else:
+                # 【修复】将原始消息内容嵌入 FINAL 响应中，供 AI 客户端提取使用
+                # 格式: [FINAL]消息内容|||TARGET:group_123 或 TARGET:user_456
+                target_info = (
+                    f"group_{target_group_id}"
+                    if target_group_id
+                    else f"user_{target_user_id}"
+                    if target_user_id
+                    else "unknown"
+                )
+                logger.info(f"[send_message] 消息将通过响应路径发送: {message[:50]}...")
+                return f"[FINAL]{message}|||TARGET:{target_info}"
 
         try:
             # 确定发送目标

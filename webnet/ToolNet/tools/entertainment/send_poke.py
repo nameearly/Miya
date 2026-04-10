@@ -34,15 +34,25 @@ class SendPoke(BaseTool):
             },
         }
 
-    async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
-        """发送戳一戳 - 感知模式"""
-        # 获取目标用户
-        if context.at_list and len(context.at_list) > 0:
-            target_user_id = context.at_list[0]
-        elif context.user_id:
-            target_user_id = context.user_id
+    async def execute(self, context, *args, **kwargs) -> str:
+        """发送戳一戳 - 兼容两种签名"""
+        # 兼容 execute(context, **kwargs) 和 execute(args, context)
+        if args and not isinstance(args[0], dict):
+            actual_args = args[0]
+            context = args[1] if len(args) > 1 else context
         else:
-            target_user_id = args.get("target_user_id")
+            actual_args = kwargs
+
+        user_id = getattr(context, "user_id", 0)
+        at_list = getattr(context, "at_list", [])
+
+        # 获取目标用户
+        if at_list and len(at_list) > 0:
+            target_user_id = at_list[0]
+        elif user_id:
+            target_user_id = user_id
+        else:
+            target_user_id = actual_args.get("target_user_id")
 
         # 戳一戳功能在当前环境不可用，转为感知模式
         # 让 AI 感受到被拍，然后自然回应

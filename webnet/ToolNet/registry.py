@@ -115,10 +115,8 @@ class ToolRegistry:
         self.logger.info(f"[ToolRegistry] 生成工具schema，共{len(tools_schema)}个工具")
         return tools_schema
 
-    async def execute_tool(
-        self, name: str, args: Dict[str, Any], context: ToolContext
-    ) -> str:
-        """执行工具（含权限检查）"""
+    async def execute_tool(self, name: str, context, **kwargs) -> str:
+        """执行工具（含权限检查）- BaseTool 标准签名"""
         tool = self.get_tool(name)
         if not tool:
             return f"❌ 工具不存在: {name}"
@@ -127,7 +125,7 @@ class ToolRegistry:
         permission_check = await self._check_tool_permission(name, context)
         if not permission_check["allowed"]:
             self.logger.warning(
-                f"[权限拒绝] 用户 {context.user_id} 尝试执行工具 {name}，缺少权限"
+                f"[权限拒绝] 用户 {getattr(context, 'user_id', 'unknown')} 尝试执行工具 {name}，缺少权限"
             )
             from core.text_loader import get_permission
 
@@ -146,23 +144,27 @@ class ToolRegistry:
             )
 
         try:
-            # 【修复】确保args是字典类型
-            import json
-
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except json.JSONDecodeError:
-                    return f"❌ 参数格式错误: 无效的JSON"
-
             # 验证参数（如果工具实现了validate_args方法）
             if hasattr(tool, "validate_args") and callable(tool.validate_args):
-                valid, error = tool.validate_args(args)
+                valid, error = tool.validate_args(kwargs)
                 if not valid:
                     return f"❌ 参数错误: {error}"
 
-            # 执行工具
-            result = await tool.execute(args, context)
+            # 执行工具 - 兼容两种签名
+            logger.info(f"[Registry] 执行工具: {name}, kwargs: {list(kwargs.keys())}")
+            try:
+                # 方式1: execute(context, **kwargs) - BaseTool 标准
+                result = await tool.execute(context, **kwargs)
+            except TypeError as e:
+                if (
+                    "positional argument" in str(e).lower()
+                    or "unexpected keyword argument" in str(e).lower()
+                ):
+                    # 方式2: execute(kwargs_dict, context) - 旧签名
+                    logger.info(f"[Registry] 尝试旧签名调用: {name}")
+                    result = await tool.execute(kwargs, context)
+                else:
+                    raise
             return result
         except Exception as e:
             self.logger.error(f"执行工具失败 {name}: {e}", exc_info=True)
@@ -195,7 +197,8 @@ class ToolRegistry:
             superadmin = getattr(context, "superadmin", None)
             onebot_client = getattr(context, "onebot_client", None)
 
-            if user_id is None:
+            if user_id is None or user_id == 0:
+                self.logger.info(f"[权限检查] user_id 未指定，跳过权限检查")
                 return {"allowed": True, "required_permission": None}
 
             if superadmin and user_id == superadmin:
@@ -657,7 +660,7 @@ class ToolRegistry:
                                         "parameters": self._params,
                                     }
 
-                                async def execute(self, args, context):
+                                async def execute(self, context, **kwargs):
                                     try:
                                         import sys
                                         from importlib import import_module
@@ -688,7 +691,8 @@ class ToolRegistry:
                                         module = import_module(module_path)
                                         if hasattr(module, "execute"):
                                             return await module.execute(
-                                                args, ctx_dict if ctx_dict else context
+                                                kwargs,
+                                                ctx_dict if ctx_dict else context,
                                             )
                                         return f"工具 {self._name} 没有 execute 函数"
                                     except Exception as e:

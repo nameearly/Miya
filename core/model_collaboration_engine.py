@@ -268,6 +268,10 @@ class ModelCollaborationEngine:
         self.stats["total_calls"] += 1
         start_time = time.time()
 
+        logger.warning(
+            f"[协作引擎] process接收到的 context type: {type(context)}, keys: {list(context.keys()) if context else 'None'}"
+        )
+
         if not self.enabled:
             return await self._fallback_to_single(
                 message,
@@ -470,7 +474,7 @@ class ModelCollaborationEngine:
                 factory,
             )
 
-        client = self._create_client(model_config, factory, tools)
+        client = self._create_client(model_config, factory, tools, context)
 
         # 思考过程
         from core.terminal_formatter import TerminalFormatter
@@ -555,7 +559,7 @@ class ModelCollaborationEngine:
 
         # 三阶段链式协作：思考 → 推理 → 输出
         model_1 = chain_models[0]
-        client_1 = self._create_client(model_1, factory, None)
+        client_1 = self._create_client(model_1, factory, None, context)
 
         # 阶段1：思考 - 使用当前人格的视角
         persona_info = self._get_persona_info()
@@ -604,7 +608,7 @@ class ModelCollaborationEngine:
         # 阶段2：推理（使用第二个模型，如果没有第三个模型）
         if len(chain_models) >= 3:
             model_2 = chain_models[1]
-            client_2 = self._create_client(model_2, factory, None)
+            client_2 = self._create_client(model_2, factory, None, context)
             reasoning_prompt = self.reasoning_prompt_template.format(
                 thinking_result=thinking_result, message=message
             )
@@ -632,7 +636,7 @@ class ModelCollaborationEngine:
 
         # 阶段3：输出
         try:
-            client_output = self._create_client(output_model, factory, tools)
+            client_output = self._create_client(output_model, factory, tools, context)
 
             # 安全格式化，处理可能的特殊字符
             try:
@@ -741,7 +745,7 @@ class ModelCollaborationEngine:
 
         tasks = []
         for model_config in parallel_models:
-            client = self._create_client(model_config, factory, None)
+            client = self._create_client(model_config, factory, None, context)
             task = self._call_client(client, system_prompt, user_prompt, None)
             tasks.append((model_config.id, task))
 
@@ -782,7 +786,7 @@ class ModelCollaborationEngine:
 
             # 用模型2根据思考结果生成最终回复
             output_model = parallel_models[1]
-            output_client = self._create_client(output_model, factory, tools)
+            output_client = self._create_client(output_model, factory, tools, context)
 
             output_prompt = self.parallel_output_prompt_template.format(
                 thinking_result=thinking_result, message=message
@@ -869,7 +873,7 @@ class ModelCollaborationEngine:
         analyst_config = roles.get("analyst")
         if analyst_config and analyst_config.api_key:
             print(TerminalFormatter.role_step("analyst", analyst_config.id))
-            analyst_client = self._create_client(analyst_config, factory, None)
+            analyst_client = self._create_client(analyst_config, factory, None, context)
             analysis = await self._call_client(
                 analyst_client,
                 system_prompt=analyst_prompt,
@@ -886,7 +890,9 @@ class ModelCollaborationEngine:
         creator_config = roles.get("creator")
         if creator_config and creator_config.api_key:
             print(TerminalFormatter.role_step("creator", creator_config.id))
-            creator_client = self._create_client(creator_config, factory, tools)
+            creator_client = self._create_client(
+                creator_config, factory, tools, context
+            )
             draft = await self._call_client(
                 creator_client,
                 system_prompt=system_prompt or creator_prompt_text,
@@ -903,7 +909,9 @@ class ModelCollaborationEngine:
         reviewer_config = roles.get("reviewer")
         if reviewer_config and reviewer_config.api_key:
             print(TerminalFormatter.role_step("reviewer", reviewer_config.id))
-            reviewer_client = self._create_client(reviewer_config, factory, None)
+            reviewer_client = self._create_client(
+                reviewer_config, factory, None, context
+            )
             final_response = await self._call_client(
                 reviewer_client,
                 system_prompt=reviewer_prompt_text,
@@ -946,6 +954,7 @@ class ModelCollaborationEngine:
         platform: str,
         system_prompt: str,
         factory,
+        context=None,
     ) -> str:
         if len(model_responses) == 2:
             resp_1 = model_responses[0][1]
@@ -965,7 +974,7 @@ class ModelCollaborationEngine:
         if not arbiter_config or not arbiter_config.api_key:
             return model_responses[0][1]
 
-        arbiter_client = self._create_client(arbiter_config, factory, None)
+        arbiter_client = self._create_client(arbiter_config, factory, None, context)
 
         comparison_text = self.comparison_separator.join(
             self.comparison_format.format(model_id=mid, response=resp)
@@ -1024,13 +1033,16 @@ class ModelCollaborationEngine:
     def _get_endpoint(self, platform: str) -> str:
         return self.endpoint_map.get(platform, self.default_endpoint)
 
-    def _create_client(self, model_config: ModelConfig, factory, tools=None):
+    def _create_client(
+        self, model_config: ModelConfig, factory, tools=None, context=None
+    ):
         if factory:
             client = factory.create_client(
                 provider=model_config.provider.value,
                 api_key=model_config.api_key or "",
                 model=model_config.name,
                 base_url=model_config.base_url,
+                tool_context=context,
             )
         else:
             from core.ai_client import AIClientFactory
@@ -1040,6 +1052,7 @@ class ModelCollaborationEngine:
                 api_key=model_config.api_key or "",
                 model=model_config.name,
                 base_url=model_config.base_url,
+                tool_context=context,
             )
 
         if client and tools:

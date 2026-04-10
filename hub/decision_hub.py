@@ -971,7 +971,7 @@ class DecisionHub:
         return response
 
     async def _generate_response_cross_platform(
-        self, content, platform: str, context: dict
+        self, content, platform: str, context: dict = None
     ) -> str:
         """
         生成响应（跨平台统一）
@@ -979,11 +979,12 @@ class DecisionHub:
         Args:
             content: 用户输入（可能是字符串或列表）
             platform: 平台类型 ('terminal', 'pc_ui', 'qq')
-            context: 上下文信息
+            context: 上下文信息（现已废弃，保留参数兼容）
 
         Returns:
             响应文本
         """
+        perception = context  # 使用 context 作为感知数据源
         # 规范化 content 为字符串
         if isinstance(content, list):
             text_parts = []
@@ -1002,7 +1003,7 @@ class DecisionHub:
             content = str(content) if content else ""
 
         sender_name = context.get("sender_name", "用户")
-        user_id = context.get("user_id", "unknown")
+        user_id = context.get("user_id") or context.get("sender_id") or 0
 
         # 如果没有 AI 客户端，使用简化回复
         if not self.ai_client:
@@ -1067,11 +1068,6 @@ class DecisionHub:
                     # 静默回退，不影响正常流程
 
         # 【新增】Agent 调度 - 根据用户输入智能选择 Agent（所有平台）
-        # 强制打印确保可见
-        print(
-            f"##### DEBUG: Agent调度检查 ##### platform={repr(platform)}, content={repr(content[:30])}"
-        )
-
         if (
             not v3_executed
             and self.ai_client
@@ -1406,7 +1402,7 @@ class DecisionHub:
                     "user_id": user_id,
                     "sender_name": sender_name,
                     "available_tools": available_tools,
-                    "at_list": context.get("at_list", []),
+                    "at_list": perception.get("at_list", []),
                     "bot_qq": context.get("bot_qq"),
                     "is_creator": self.platform_tools_manager.is_creator(
                         user_id, self.onebot_client
@@ -1448,12 +1444,12 @@ class DecisionHub:
 
                 tool_context = {
                     "platform": platform,
-                    "user_id": user_id,
-                    "group_id": context.get("group_id"),
-                    "message_type": context.get("message_type"),
+                    "user_id": user_id if user_id else 0,
+                    "group_id": perception.get("group_id"),
+                    "message_type": perception.get("message_type"),
                     "sender_name": sender_name,
-                    "at_list": context.get("at_list", []),
-                    "bot_qq": context.get("bot_qq"),
+                    "at_list": perception.get("at_list", []) or [],
+                    "bot_qq": perception.get("bot_qq"),
                     "memory_engine": self.memory_engine,
                     "emotion": self.emotion,
                     "personality": self.personality,
@@ -1464,102 +1460,121 @@ class DecisionHub:
                     else None,
                     "game_mode_adapter": self.game_mode_adapter,
                 }
+                logger.warning(
+                    f"[决策层] 构建的tool_context keys: {list(tool_context.keys())}"
+                )
+                logger.warning(
+                    f"[决策层] tool_context中 onebot_client={tool_context.get('onebot_client')}, send_like_callback={tool_context.get('send_like_callback')}"
+                )
                 self.ai_client.set_tool_context(tool_context)
+                self._temp_tool_context = tool_context
 
-                # 调用 AI（带工具）
-                # 【修改】使用 auto 让 AI 自行决定是否调用工具
-                # 注意：不使用 required，因为很多 API 不支持此参数
-                tool_choice = "auto"
+            # 调用 AI（带工具）
+            # 【修改】使用 auto 让 AI 自行决定是否调用工具
+            # 注意：不使用 required，因为很多 API 不支持此参数
+            tool_choice = "auto"
 
-                # 只获取当前平台相关的核心工具，减少 API 负担
-                # 避免 101 个工具导致 500 错误
-                platform_tools = (
-                    self.platform_tools_manager.get_platform_specific_tools(platform)
+            # 只获取当前平台相关的核心工具，减少 API 负担
+            # 避免 101 个工具导致 500 错误
+            platform_tools = self.platform_tools_manager.get_platform_specific_tools(
+                platform
+            )
+            tools_schema = (
+                platform_tools
+                if platform_tools
+                else self.tool_subnet.get_tools_schema()
+            )
+
+            logger.info(
+                f"[决策层-跨平台] 使用平台工具: {platform}, 工具数量: {len(tools_schema)}"
+            )
+
+            # 使用模型池动态选择模型
+            ai_client_to_use = self.ai_client  # 默认使用传入的AI客户端
+
+            if self.model_pool:
+                from core.model_pool import TaskType
+
+                task_type = await self.model_pool.classify_task(content, context)
+
+                # 尝试使用协作引擎处理
+                if self.collaboration_engine and self.collaboration_engine.enabled:
+                    try:
+                        from core.ai_client import AIClientFactory
+
+                        # 使用正确的tool_context，包含onebot_client和send_like_callback
+                        tool_ctx_for_collab = (
+                            self._temp_tool_context
+                            if hasattr(self, "_temp_tool_context")
+                            and self._temp_tool_context
+                            else tool_context
+                        )
+                        logger.warning(
+                            f"[决策层] 传递给协作引擎的tool_context keys: {list(tool_ctx_for_collab.keys()) if tool_ctx_for_collab else 'None'}"
+                        )
+
+                        collab_result = await self.collaboration_engine.process(
+                            message=content,
+                            task_type=task_type.value,
+                            platform=platform,
+                            context=tool_ctx_for_collab,
+                            system_prompt=prompt_info["system"],
+                            user_prompt=prompt_info["user"],
+                            tools=tools_schema,
+                            ai_client_factory=AIClientFactory,
+                        )
+
+                        # 记录协作结果
+                        self._last_selected_model = ",".join(collab_result.models_used)
+                        self._last_task_type = task_type.value
+                        logger.info(
+                            f"[决策层-协作引擎] 模式={collab_result.mode.value} | "
+                            f"模型={collab_result.models_used} | "
+                            f"Token≈{collab_result.token_estimate} | "
+                            f"原因={collab_result.reasoning}"
+                        )
+
+                        # 协作引擎已直接返回最终响应
+                        return collab_result.response
+
+                    except Exception as e:
+                        logger.warning(f"[决策层-协作引擎] 协作失败，降级为单模型: {e}")
+                        # 继续走原有单模型路径
+
+                # 原有单模型选择逻辑（作为协作引擎的降级路径）
+                model_config = self.model_pool.select_model_for_task(
+                    task_type.value, platform
                 )
-                tools_schema = (
-                    platform_tools
-                    if platform_tools
-                    else self.tool_subnet.get_tools_schema()
-                )
 
-                logger.info(
-                    f"[决策层-跨平台] 使用平台工具: {platform}, 工具数量: {len(tools_schema)}"
-                )
+                if model_config and model_config.api_key and model_config.base_url:
+                    try:
+                        from core.ai_client import AIClientFactory
 
-                # 使用模型池动态选择模型
-                ai_client_to_use = self.ai_client  # 默认使用传入的AI客户端
-
-                if self.model_pool:
-                    from core.model_pool import TaskType
-
-                    task_type = await self.model_pool.classify_task(content, context)
-
-                    # 尝试使用协作引擎处理
-                    if self.collaboration_engine and self.collaboration_engine.enabled:
-                        try:
-                            from core.ai_client import AIClientFactory
-
-                            collab_result = await self.collaboration_engine.process(
-                                message=content,
-                                task_type=task_type.value,
-                                platform=platform,
-                                context=context,
-                                system_prompt=prompt_info["system"],
-                                user_prompt=prompt_info["user"],
-                                tools=tools_schema,
-                                ai_client_factory=AIClientFactory,
+                        # 传递 tool_context 给工厂方法
+                        tool_ctx = (
+                            self._temp_tool_context
+                            if hasattr(self, "_temp_tool_context")
+                            else None
+                        )
+                        selected_client = AIClientFactory.create_client(
+                            provider=model_config.provider.value,
+                            api_key=model_config.api_key,
+                            model=model_config.name,
+                            base_url=model_config.base_url,
+                            tool_context=tool_ctx,
+                        )
+                        if selected_client:
+                            ai_client_to_use = selected_client
+                            selected_client.set_tool_registry(
+                                self.tool_subnet.get_tools_schema
                             )
-
-                            # 记录协作结果
-                            self._last_selected_model = ",".join(
-                                collab_result.models_used
-                            )
+                            self._last_selected_model = model_config.id
                             self._last_task_type = task_type.value
                             logger.info(
-                                f"[决策层-协作引擎] 模式={collab_result.mode.value} | "
-                                f"模型={collab_result.models_used} | "
-                                f"Token≈{collab_result.token_estimate} | "
-                                f"原因={collab_result.reasoning}"
+                                f"[决策层-跨平台] 使用模型 {model_config.id} 处理任务类型 {task_type.value}"
                             )
-
-                            # 协作引擎已直接返回最终响应
-                            return collab_result.response
-
-                        except Exception as e:
-                            logger.warning(
-                                f"[决策层-协作引擎] 协作失败，降级为单模型: {e}"
-                            )
-                            # 继续走原有单模型路径
-
-                    # 原有单模型选择逻辑（作为协作引擎的降级路径）
-                    model_config = self.model_pool.select_model_for_task(
-                        task_type.value, platform
-                    )
-
-                    if model_config and model_config.api_key and model_config.base_url:
-                        try:
-                            from core.ai_client import AIClientFactory
-
-                            selected_client = AIClientFactory.create_client(
-                                provider=model_config.provider.value,
-                                api_key=model_config.api_key,
-                                model=model_config.name,
-                                base_url=model_config.base_url,
-                            )
-                            if selected_client:
-                                ai_client_to_use = selected_client
-                                # 关键修复：将工具上下文也设置到动态创建的客户端上
-                                selected_client.set_tool_context(tool_context)
-                                selected_client.set_tool_registry(
-                                    self.tool_subnet.get_tools_schema
-                                )
-                                self._last_selected_model = model_config.id
-                                self._last_task_type = task_type.value
-                                logger.info(
-                                    f"[决策层-跨平台] 使用模型 {model_config.id} 处理任务类型 {task_type.value}"
-                                )
-                        except Exception as e:
-                            logger.warning(f"[决策层] 创建模型客户端失败: {e}")
+                    except Exception as e:
+                        logger.warning(f"[决策层] 创建模型客户端失败: {e}")
 
                 # 记录模型信息
                 model_name = getattr(ai_client_to_use, "model", "unknown")
@@ -1645,11 +1660,18 @@ class DecisionHub:
                         try:
                             from core.ai_client import AIClientFactory
 
+                            # 传递 tool_context 给工厂方法
+                            tool_ctx = (
+                                self._temp_tool_context
+                                if hasattr(self, "_temp_tool_context")
+                                else None
+                            )
                             selected_client = AIClientFactory.create_client(
                                 provider=model_config.provider.value,
                                 api_key=model_config.api_key,
                                 model=model_config.name,
                                 base_url=model_config.base_url,
+                                tool_context=tool_ctx,
                             )
                             if selected_client:
                                 ai_client_to_use = selected_client
@@ -2237,7 +2259,9 @@ class DecisionHub:
                 task_args = {
                     "task_type": task_type,
                     "target_type": "private" if platform == "qq" else "group",
-                    "target_id": int(user_id) if user_id.isdigit() else 0,
+                    "target_id": int(user_id)
+                    if isinstance(user_id, str) and user_id.isdigit()
+                    else (user_id if isinstance(user_id, int) else 0),
                     "schedule_time": scheduled_time,
                     "repeat": "once",
                     "priority": 5,
@@ -2273,6 +2297,7 @@ class DecisionHub:
                 group_id=perception.get("group_id", 0),
                 message_type=perception.get("message_type", "private"),
                 sender_name=sender_name,
+                at_list=perception.get("at_list", []),
             )
 
             logger.info(f"[决策层-定时任务] 定时任务创建结果: {result[:100]}...")
@@ -2464,10 +2489,13 @@ class DecisionHub:
             result = await self.tool_subnet.execute_tool(
                 tool_name="send_emoji",
                 args=tool_args,
-                user_id=int(user_id) if user_id.isdigit() else 0,
+                user_id=int(user_id)
+                if isinstance(user_id, str) and user_id.isdigit()
+                else (user_id if isinstance(user_id, int) else 0),
                 group_id=perception.get("group_id", 0),
                 message_type=perception.get("message_type", "private"),
                 sender_name=sender_name,
+                at_list=perception.get("at_list", []),
             )
 
             logger.info(f"[决策层-表情包-工具] 表情包工具调用结果: {result[:100]}...")

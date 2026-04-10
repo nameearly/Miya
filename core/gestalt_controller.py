@@ -19,22 +19,126 @@ class GestaltController:
     - Agent 工具不再是"外来者"，而是弥娅意识的一部分
     - 统一工具池，保留弥娅主程序风格
     - 支持协作引擎集成
+    - 直接管理工具执行（格式塔核心模式）
     """
 
     def __init__(self, tool_subnet=None):
         self.tool_subnet = tool_subnet
         self._agent_tools_loaded = False
         self._tool_sources: Dict[str, str] = {}  # tool_name -> agent_name
+        self._tool_registry = None  # 工具注册表引用
 
     async def initialize(self, tool_subnet=None):
         """初始化格式塔控制器"""
-        # 如果传入 tool_subnet，则设置
         if tool_subnet:
             self.tool_subnet = tool_subnet
+            self._tool_registry = (
+                tool_subnet.registry if hasattr(tool_subnet, "registry") else None
+            )
 
         logger.info("[格式塔] 初始化格式塔意识控制器...")
         await self._load_agent_tools()
         logger.info(f"[格式塔] 已加载 {len(self._tool_sources)} 个 Agent 工具")
+
+    def _build_tool_context(self, context: Dict[str, Any]) -> Any:
+        """构建完整的工具执行上下文（格式塔核心模式）"""
+        try:
+            from webnet.ToolNet.base import ToolContext
+        except ImportError:
+            from dataclasses import dataclass
+
+            @dataclass
+            class ToolContext:
+                qq_net: Any = None
+                onebot_client: Any = None
+                send_like_callback: Any = None
+                memory_engine: Any = None
+                unified_memory: Any = None
+                memory_net: Any = None
+                emotion: Any = None
+                personality: Any = None
+                scheduler: Any = None
+                lifenet: Any = None
+                request_id: Any = None
+                group_id: Any = None
+                user_id: Any = None
+                message_type: Any = None
+                sender_name: Any = None
+                is_at_bot: bool = False
+                at_list: list = None
+                message_sent_this_turn: bool = False
+                bot_qq: Any = None
+
+                def __post_init__(self):
+                    if self.at_list is None:
+                        self.at_list = []
+
+        supported_fields = {
+            "qq_net",
+            "onebot_client",
+            "send_like_callback",
+            "memory_engine",
+            "unified_memory",
+            "memory_net",
+            "emotion",
+            "personality",
+            "scheduler",
+            "lifenet",
+            "request_id",
+            "group_id",
+            "user_id",
+            "message_type",
+            "sender_name",
+            "is_at_bot",
+            "at_list",
+            "bot_qq",
+            "superadmin",
+        }
+
+        filtered = {k: v for k, v in context.items() if k in supported_fields}
+
+        if "at_list" not in filtered or filtered["at_list"] is None:
+            filtered["at_list"] = []
+
+        if "user_id" not in filtered or filtered["user_id"] is None:
+            filtered["user_id"] = 0
+
+        if "group_id" not in filtered or filtered["group_id"] is None:
+            filtered["group_id"] = 0
+
+        logger.info(
+            f"[格式塔] 构建上下文: user_id={filtered.get('user_id')}, at_list={filtered.get('at_list')}, onebot_client={filtered.get('onebot_client')}, send_like_callback={filtered.get('send_like_callback')}"
+        )
+
+        return ToolContext(**filtered)
+
+    async def execute_tool(
+        self, tool_name: str, args: Dict[str, Any], context: Dict[str, Any]
+    ) -> str:
+        """直接执行工具（格式塔核心模式）- 统一转换为 ToolContext"""
+        logger.info(f"[格式塔] 执行工具: {tool_name}, 参数: {args}")
+
+        # 统一转换为 ToolContext 对象
+        tool_context = self._build_tool_context(context)
+
+        if (
+            self.tool_subnet
+            and hasattr(self.tool_subnet, "registry")
+            and self.tool_subnet.registry
+        ):
+            try:
+                result = await self.tool_subnet.registry.execute_tool(
+                    tool_name, tool_context, **args
+                )
+                logger.info(
+                    f"[格式塔] 工具执行完成: {tool_name}, 结果: {result[:100] if result else '(无)'}..."
+                )
+                return result
+            except Exception as e:
+                logger.error(f"[格式塔] 工具执行失败 {tool_name}: {e}", exc_info=True)
+                return f"❌ 工具执行失败: {str(e)}"
+
+        return f"❌ 工具系统未初始化"
 
     async def _load_agent_tools(self):
         """加载 Agent 工具到统一工具池"""

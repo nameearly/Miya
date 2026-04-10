@@ -113,6 +113,7 @@ class ToolSubnet:
         message_type: Optional[str] = None,
         sender_name: Optional[str] = None,
         lifenet: Any = None,
+        at_list: List[int] = field(default_factory=list),
     ) -> str:
         """执行工具
 
@@ -131,9 +132,12 @@ class ToolSubnet:
         self.config.total_calls += 1
 
         # 创建执行上下文
-        from .registry import ToolRegistry as TR
+        try:
+            from .base import ToolContext
+        except ImportError:
+            from .registry import ToolContext
 
-        context = TR.ToolContext(
+        context = ToolContext(
             memory_engine=self.config.memory_engine,
             unified_memory=self.config.memory_engine,  # 使用 memory_engine 作为 unified_memory
             onebot_client=self.config.onebot_client,
@@ -143,6 +147,7 @@ class ToolSubnet:
             group_id=group_id,
             message_type=message_type,
             sender_name=sender_name,
+            at_list=at_list if at_list is not None else [],
         )
 
         try:

@@ -146,7 +146,42 @@
         "memory_tags": ["记忆标签", "标签", "热门标签"],
         "memory_my": ["我的记忆", "我的"],
         "trpg": ["trpg", "跑团"],
-        "exit": ["退出", "exit", "quit"]
+        "exit": ["退出", "exit", "quit"],
+        
+        "stats": {
+            "keywords": ["/统计", "统计", "stats"],
+            "subcommands": {
+                "queue": ["队列状态", "队列"],
+                "memory": ["记忆统计", "记忆状态"],
+                "session": ["会话统计"]
+            }
+        },
+        "admin": {
+            "keywords": ["/管理员", "admin"],
+            "subcommands": {
+                "list": ["列出管理员", "管理员列表"],
+                "add": ["添加管理员", "加管理员"],
+                "remove": ["移除管理员", "删管理员"]
+            }
+        },
+        "faq": {
+            "keywords": ["/faq", "常见问题"],
+            "subcommands": {
+                "list": ["列出FAQ", "faq列表"],
+                "view": ["查看FAQ", "看faq"],
+                "search": ["搜索FAQ", "faq搜索"],
+                "add": ["添加FAQ"],
+                "delete": ["删除FAQ", "删faq"]
+            }
+        },
+        "system": {
+            "keywords": ["/系统", "system"],
+            "subcommands": {
+                "status": ["系统状态", "状态"],
+                "reload": ["重载配置", "重载"],
+                "restart": ["重启服务", "重启"]
+            }
+        }
     },
     
     "emotion_keywords": {

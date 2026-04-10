@@ -447,8 +447,8 @@ class CognitiveEngine:
         # 按相关度排序
         scored_memories.sort(key=lambda x: x[1], reverse=True)
 
-        # 4. 返回 top N
-        results = [m for m, _ in scored_memories[:limit]]
+        # 4. MMR去重（最大边际相关性）- 减少相似记忆的重复
+        results = self._mmr_deduplicate(scored_memories, limit)
 
         # 5. 记录共现关系（用于关联度学习）
         retrieved_ids = [m.id for m in results]
@@ -456,9 +456,93 @@ class CognitiveEngine:
             self._record_co_occurrence(retrieved_ids)
             self._last_retrieved_ids = retrieved_ids
 
-        logger.info(f"[认知引擎] 检索到 {len(results)} 条相关记忆")
+        logger.info(f"[认知引擎] 检索到 {len(results)} 条相关记忆（MMR去重后）")
 
         return results
+
+    def _mmr_deduplicate(
+        self,
+        scored_memories: List[tuple],
+        limit: int,
+        mmr_threshold: float = 0.7,
+    ) -> List[MemoryItem]:
+        """MMR（最大边际相关性）去重
+
+        MMR在相关性和多样性之间取得平衡：
+        - 选择相关度最高的项目
+        - 同时惩罚与已选项目过于相似的项目
+
+        Args:
+            scored_memories: (MemoryItem, relevance_score) 列表
+            limit: 返回数量限制
+            mmr_threshold: 相似度阈值，超过则视为重复
+
+        Returns:
+            去重后的记忆列表
+        """
+        if len(scored_memories) <= limit:
+            return [m for m, _ in scored_memories]
+
+        selected = []
+        remaining = list(scored_memories)
+
+        while len(selected) < limit and remaining:
+            best_score = -1
+            best_idx = 0
+
+            for i, (memory, relevance) in enumerate(remaining):
+                # 计算与已选项目的最大相似度
+                max_similarity = 0.0
+                for selected_mem in selected:
+                    similarity = self._calculate_similarity(memory, selected_mem)
+                    max_similarity = max(max_similarity, similarity)
+
+                # MMR公式: score = relevance - λ * similarity
+                # λ = 0.5 表示在相关性和多样性之间平衡
+                mmr_score = relevance - 0.5 * max_similarity
+
+                if mmr_score > best_score:
+                    best_score = mmr_score
+                    best_idx = i
+
+            selected_item = remaining[best_idx][0]
+            selected.append(selected_item)
+            remaining.pop(best_idx)
+
+        return selected
+
+    def _calculate_similarity(self, mem1: MemoryItem, mem2: MemoryItem) -> float:
+        """计算两条记忆的相似度（0-1之间）
+
+        考虑因素：
+        - 内容相似度（文本重叠）
+        - 标签重叠度
+        - 时间接近度
+        - 用户/群组相关性
+        """
+        similarity = 0.0
+
+        # 1. 内容相似度（简单词重叠）
+        words1 = set(mem1.content.lower().split())
+        words2 = set(mem2.content.lower().split())
+        if words1 and words2:
+            overlap = len(words1 & words2) / len(words1 | words2)
+            similarity += overlap * 0.4
+
+        # 2. 标签重叠度
+        if mem1.tags and mem2.tags:
+            tag_overlap = len(set(mem1.tags) & set(mem2.tags)) / max(
+                len(mem1.tags), len(mem2.tags)
+            )
+            similarity += tag_overlap * 0.3
+
+        # 3. 用户/群组相关性
+        if mem1.user_id and mem2.user_id and mem1.user_id == mem2.user_id:
+            similarity += 0.2
+        if mem1.group_id and mem2.group_id and mem1.group_id == mem2.group_id:
+            similarity += 0.1
+
+        return min(1.0, similarity)
 
     async def build_context(
         self,

@@ -355,7 +355,7 @@ class ToolAdapter:
         for call in tool_calls:
             tool_name = call.get("tool_name")
             args = call.get("args", {})
-            result = await self.execute_tool(tool_name, args, context)
+            result = await self.execute_tool(tool_name, args, tool_context)
             results.append(result)
 
         return results

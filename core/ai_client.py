@@ -658,9 +658,13 @@ class OpenAIClient(BaseAIClient):
                             f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
                         )
 
-                        adapter = get_tool_adapter()
+                        from core.gestalt_controller import get_gestalt_controller
 
-                        result = await adapter.execute_tool(
+                        gestalt = get_gestalt_controller()
+                        logger.info(
+                            f"[AIClient] 传入格式塔的tool_context keys: {list((self.tool_context or {}).keys())}"
+                        )
+                        result = await gestalt.execute_tool(
                             tool_call.function.name, tool_args, self.tool_context or {}
                         )
 
@@ -1133,15 +1137,18 @@ class DeepSeekClient(BaseAIClient):
                         logger.info(
                             f"[AIClient] 工具调用: {tool_call.function.name}, 参数: {tool_args}"
                         )
+
+                        from core.gestalt_controller import get_gestalt_controller
                         from core.terminal_formatter import TerminalFormatter
 
                         TerminalFormatter.tool_call(tool_call.function.name, tool_args)
 
-                    result = await adapter.execute_tool(
-                        tool_call.function.name, tool_args, self.tool_context or {}
-                    )
+                        gestalt = get_gestalt_controller()
+                        result = await gestalt.execute_tool(
+                            tool_call.function.name, tool_args, self.tool_context or {}
+                        )
 
-                    return tool_call, result
+                        return tool_call, result
 
                 # 判断是否可以并发执行
                 concurrent_tool_names = [
@@ -1458,7 +1465,20 @@ class AIClientFactory:
             )
 
         logger.info(f"创建{provider}客户端，模型: {model}")
-        return client_class(api_key=api_key, model=model, **kwargs)
+        client = client_class(api_key=api_key, model=model, **kwargs)
+
+        # 如果传入了 tool_context，设置到新客户端
+        if "tool_context" in kwargs and kwargs["tool_context"]:
+            client.set_tool_context(kwargs["tool_context"])
+            logger.info(
+                f"[AIClientFactory] 为新客户端设置 tool_context, keys: {list(kwargs['tool_context'].keys())}"
+            )
+
+        logger.info(
+            f"[AIClientFactory] create_client完成，client.tool_context keys: {list(client.tool_context.keys()) if client.tool_context else 'None'}"
+        )
+
+        return client
 
     @classmethod
     def list_providers(cls) -> List[str]:

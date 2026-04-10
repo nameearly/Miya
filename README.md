@@ -141,6 +141,13 @@
          - [直接返回机制](#8-直接返回机制)
          - [使用示例](#9-使用示例-5)
          - [相关文件](#10-相关文件)
+         - [工具调用修复与 ToolContext 传递机制 (v4.3.4 新增)](#11-工具调用修复与-toolcontext-传递机制-v434-新增)
+            - [问题背景](#111-问题背景)
+            - [问题根因分析](#112-问题根因分析)
+            - [修复方案：方案B](#113-修复方案方案b---统一转换为-toolcontext)
+            - [Context 传递链详解](#114-context-传递链详解)
+            - [关键文件变更](#115-关键文件变更)
+            - [QQ 点赞/戳功能配置](#116-qq-点赞戳功能配置)
 
 ---
 
@@ -567,6 +574,164 @@ direct_return_tools = [
 | `webnet/ToolNet/agents/web_agent/` | 网络搜索 Agent |
 | `webnet/ToolNet/agents/code_delivery_agent/` | 代码执行 Agent |
 | `webnet/ToolNet/registry.py` | 工具注册表，支持动态加载 Agent 工具 |
+
+#### 11. 工具调用修复与 ToolContext 传递机制 (v4.3.4 新增)
+
+在 v4.3.4 版本中，格式塔系统进行了重要的工具调用修复，解决了从旧版工具系统迁移到 BaseTool 标准时的兼容性问题。以下是修复的详细原理和实现：
+
+##### 11.1 问题背景
+
+在升级到格式塔核心（Gestalt Core）模式后，部分工具如 `qq_like`（QQ点赞）和 `send_poke`（戳一戳）出现以下错误：
+- `'dict' object has no attribute 'user_id'`
+- 工具无法正确获取 user_id、onebot_client、send_like_callback 等上下文
+
+##### 11.2 问题根因分析
+
+**问题1：ToolContext 对象类型问题**
+
+原始调用链：
+```
+decision_hub.py → 构建 tool_context dict → 
+传递到 collaboration_engine → 
+传递到 AIClientFactory.create_client() → 
+传递到格式塔 execute_tool() → 
+执行工具时 context 仍是 dict，不是 ToolContext 对象
+```
+
+当工具尝试使用 `context.user_id` 时，因为 context 是 dict，所以报错。
+
+**问题2：工具签名兼容性问题**
+
+存在两种工具签名：
+- **BaseTool 标准签名**：`execute(context, **kwargs)` - 第一个参数是 ToolContext 对象
+- **旧版工具签名**：`execute(args, context)` - 第一个参数是参数字典，第二个是 context
+
+修复前的 registry.py 使用旧版签名，导致 BaseTool 标准的工具无法正确调用。
+
+##### 11.3 修复方案：方案B - 统一转换为 ToolContext
+
+采用**方案B**（dict → ToolContext 对象转换），在工具执行链的各个节点统一转换：
+
+**修复1：gestalt_controller.py - _build_tool_context() 方法**
+
+```python
+def _build_tool_context(self, context: Dict[str, Any]) -> ToolContext:
+    """将 dict 转换为 ToolContext 对象"""
+    from webnet.ToolNet.base import ToolContext
+    
+    supported_fields = {
+        "qq_net", "onebot_client", "send_like_callback",
+        "memory_engine", "unified_memory", "memory_net",
+        "emotion", "personality", "scheduler", "lifenet",
+        "request_id", "group_id", "user_id", "message_type",
+        "sender_name", "is_at_bot", "at_list", "bot_qq", "superadmin",
+    }
+    
+    # 过滤并转换
+    filtered = {k: v for k, v in context.items() if k in supported_fields}
+    return ToolContext(**filtered)
+```
+
+**修复2：registry.py - 双签名兼容**
+
+```python
+async def execute_tool(self, name: str, context, **kwargs) -> str:
+    # 执行工具 - 兼容两种签名
+    try:
+        # 方式1: execute(context, **kwargs) - BaseTool 标准
+        result = await tool.execute(context, **kwargs)
+    except TypeError as e:
+        if "positional argument" in str(e).lower():
+            # 方式2: execute(kwargs_dict, context) - 旧签名
+            result = await tool.execute(kwargs, context)
+        else:
+            raise
+```
+
+**修复3：qqlike.py / send_poke.py - 兼容两种签名**
+
+```python
+async def execute(self, context, *args, **kwargs) -> str:
+    # 兼容 execute(context, *args, **kwargs) 和 execute(args, context)
+    if args and not isinstance(args[0], dict):
+        actual_args = args[0]
+        context = args[1] if len(args) > 1 else context
+    else:
+        actual_args = kwargs
+    
+    # 现在可以正确访问 context 的属性
+    user_id = getattr(context, "user_id", 0)
+    onebot_client = getattr(context, "onebot_client", None)
+    send_like_callback = getattr(context, "send_like_callback", None)
+```
+
+##### 11.4 Context 传递链详解
+
+完整的 context 传递链：
+
+```
+1. decision_hub.py (line ~1450)
+   └── 构建 tool_context dict，包含:
+       - user_id, group_id, message_type
+       - onebot_client (QQOneBotClient 实例)
+       - send_like_callback (QQOneBotClient.send_like 方法)
+   
+2. self.ai_client.set_tool_context(tool_context)
+   
+3. ai_client.py - AIClientFactory.create_client()
+   └── 接收 tool_context dict，传递给新客户端
+   
+4. 新客户端调用 gestalt.execute_tool(tool_name, args, self.tool_context)
+   
+5. gestalt_controller.py - execute_tool()
+   └── 调用 self._build_tool_context(context) 将 dict 转为 ToolContext
+   
+6. tool_subnet.registry.execute_tool(tool_name, tool_context, **args)
+   
+7. 工具内部 (如 qqlike.py)
+   └── 可以正确通过 getattr(context, "user_id") 访问属性
+```
+
+##### 11.5 关键文件变更
+
+| 文件 | 变更内容 |
+|------|----------|
+| `core/gestalt_controller.py` | 新增 `_build_tool_context()` 方法，将 dict 转换为 ToolContext |
+| `webnet/ToolNet/registry.py` | 修改 `execute_tool()` 支持双签名兼容 |
+| `webnet/ToolNet/tools/entertainment/qqlike.py` | 修改 `execute()` 兼容两种签名，增强日志 |
+| `webnet/ToolNet/tools/entertainment/send_poke.py` | 修改 `execute()` 兼容两种签名 |
+| `core/ai_client.py` | 确保 tool_context 正确传递给格式塔 |
+| `hub/decision_hub.py` | 确保 onebot_client 和 send_like_callback 正确传递 |
+
+##### 11.6 QQ 点赞/戳功能配置
+
+**前置要求：**
+
+1. **NapCat 服务配置**：确保 NapCat OneBot 服务已启用以下 API：
+   - `send_like` - 发送好友点赞
+   - `send_poke` - 戳一戳
+
+2. **config/qq_config.yaml 配置**：
+```yaml
+qq:
+  bot_qq: "你的机器人QQ号"
+  onebot_url: "ws://localhost:3001"
+  # 或其他端口
+```
+
+**工作原理：**
+
+1. `qq_like` 工具通过 ToolContext 获取 `send_like_callback`
+2. `send_like_callback` 是 `QQOneBotClient.send_like` 方法的绑定
+3. 调用 `await send_like_callback(user_id, times)` 即可执行点赞
+4. 如果 NapCat 不支持 `send_like` API，将返回"点赞功能暂时不可用"
+
+**错误排查：**
+
+如果返回"点赞功能暂时不可用"，检查：
+1. NapCat 日志中是否有 `retcode=1200` 或其他错误
+2. NapCat 配置是否启用了 `send_like` API
+3. OneBot WebSocket 连接是否正常
 
 ### 💻 超级终端 (Terminal Ultra) → Open-ClaudeCode (v4.3.2+)
 

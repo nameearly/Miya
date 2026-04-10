@@ -168,6 +168,17 @@ qq:
     cooldown_seconds: 3                   # 两条消息间隔小于此时长才触发窗口期
     status_message: ""                    # 窗口期内的状态提示（留空则不发送）
 
+  # ===== 消息队列配置 =====
+  # 6车道优先级队列：superadmin/群超级管理员/私聊/群@/群普通/后台
+  message_queue:
+    enabled: true                         # 是否启用消息队列
+    default_interval: 1.0                # 默认发车间隔（秒），越小越快响应
+    # 各模型独立发车间隔（可选）
+    model_intervals:
+      default: 1.0
+      # deepseek_v3: 0.5                  # deepseek模型可以设置更快
+      # glm_4: 1.0                        # glm模型按默认
+
   # ===== 性能优化 =====
   performance:
     cache:

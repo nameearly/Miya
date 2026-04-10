@@ -37,36 +37,59 @@ class QQLike(BaseTool):
             },
         }
 
-    async def execute(self, args: Dict[str, Any], context: ToolContext) -> str:
-        """执行点赞"""
-        # 优先检查@提及：如果有@，给@的用户点赞
-        if context.at_list and len(context.at_list) > 0:
-            target_user_id = context.at_list[0]
-            logger.info(f"[qq_like] 检测到@提及，使用at_list中的用户: {target_user_id}")
+    async def execute(self, context, *args, **kwargs) -> str:
+        """执行点赞 - 兼容两种签名"""
+        # 兼容 execute(context, *args, **kwargs) 和 execute(args, context)
+        if args and not isinstance(args[0], dict):
+            # 旧签名: execute(args, context) -> args[0] 是 args dict, context 是第二个参数
+            actual_args = args[0]
+            context = args[1] if len(args) > 1 else context
         else:
-            # 否则使用AI传递的参数或当前用户ID
-            target_user_id_from_args = args.get("target_user_id")
-            if target_user_id_from_args is not None:
-                try:
-                    target_user_id = int(target_user_id_from_args)
-                    logger.info(f"[qq_like] 使用AI传递的QQ号: {target_user_id}")
-                except (ValueError, TypeError):
-                    logger.warning(
-                        f"[qq_like] AI传递的QQ号无效: {target_user_id_from_args}，使用当前用户ID"
-                    )
-                    target_user_id = context.user_id
-            else:
-                target_user_id = context.user_id
-                logger.info(f"[qq_like] 使用当前用户ID: {target_user_id}")
+            actual_args = kwargs
 
-        times = args.get("times", 1)
+        user_id = getattr(context, "user_id", 0)
+        at_list = getattr(context, "at_list", [])
+        bot_qq = getattr(context, "bot_qq", None)
+        send_like_callback = getattr(context, "send_like_callback", None)
+        onebot_client = getattr(context, "onebot_client", None)
 
         logger.info(
-            f"[qq_like] 工具被调用: args={args}, context.user_id={context.user_id}, context.at_list={context.at_list}, times={times}"
+            f"[qq_like DEBUG] user_id={user_id}, at_list={at_list}, bot_qq={bot_qq}, "
+            f"send_like_callback={send_like_callback}, onebot_client={onebot_client}"
+        )
+
+        # 检查 send_like_callback 是否可用
+        logger.info(
+            f"[qq_like] 开始检查 send_like_callback, 初始值: {send_like_callback}, "
+            f"onebot_client: {onebot_client}, context对象: {type(context)}, "
+            f"context是否有send_like_callback: {hasattr(context, 'send_like_callback')}"
+        )
+
+        # 如果 send_like_callback 为 None，尝试从 onebot_client 获取
+        if send_like_callback is None and onebot_client is not None:
+            send_like_callback = getattr(onebot_client, "send_like", None)
+            logger.info(
+                f"[qq_like] 从 onebot_client 获取 send_like: {send_like_callback}"
+            )
+
+        # 优先检查@提及：如果有@，给@的用户点赞
+        if at_list and len(at_list) > 0:
+            target_user_id = at_list[0]
+            logger.info(f"[qq_like] 检测到@提及，使用at_list中的用户: {target_user_id}")
+        else:
+            # 使用 actual_args 参数或当前用户ID
+            target_user_id = actual_args.get("target_user_id")
+            if target_user_id is None:
+                target_user_id = user_id
+                logger.info(f"[qq_like] 使用当前用户ID: {target_user_id}")
+
+        times = actual_args.get("times", 1)
+
+        logger.info(
+            f"[qq_like] 最终参数: target_user_id={target_user_id}, times={times}"
         )
 
         # 检查是否给自己点赞
-        bot_qq = getattr(context, "bot_qq", None)
         if bot_qq and target_user_id == bot_qq:
             return "❌ 不能给自己点赞哦~"
 
@@ -86,17 +109,22 @@ class QQLike(BaseTool):
             return "单次点赞次数不能超过10次"
 
         # 尝试直接调用点赞回调
-        send_like_callback = getattr(context, "send_like_callback", None)
         if send_like_callback:
             try:
-                await send_like_callback(target_user_id, times)
+                logger.info(
+                    f"[qq_like] 准备调用 send_like_callback, target={target_user_id}, times={times}"
+                )
+                result = await send_like_callback(target_user_id, times)
+                logger.info(f"[qq_like] send_like_callback 执行完成, result={result}")
 
                 if times == 1:
                     return f"✅ 已给 QQ{target_user_id} 点赞。"
                 else:
                     return f"✅ 已给 QQ{target_user_id} 点赞 {times} 次。"
             except Exception as callback_error:
-                logger.error(f"点赞回调执行失败: {callback_error}", exc_info=True)
+                logger.error(
+                    f"[qq_like] 点赞回调执行失败: {callback_error}", exc_info=True
+                )
 
         # 如果没有点赞回调或回调执行失败，返回提示
-        return f"⚠️ 点赞功能暂时不可用，但我已记录您的点赞意图"
+        return "⚠️ 点赞功能暂时不可用，请稍后重试~"
