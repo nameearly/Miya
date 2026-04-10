@@ -271,28 +271,23 @@ class ContextDetector:
         """检测话题情境 - 从配置读取"""
         msg = message.lower()
 
-        # 从配置读取话题关键词
-        topic_keywords = _CONFIG.get(
-            "TOPIC_KEYWORDS",
-            {
-                "道歉": ["对不起", "抱歉", "我错了"],
-                "表白": ["我爱你", "喜欢", "表白"],
-                "询问": ["?", "怎么", "什么", "为什么"],
-                "分享": ["给你看", "分享", "有意思"],
-                "正事": ["正事", "工作", "项目"],
-            },
-        )
+        # 从配置读取话题关键词和映射
+        topic_keywords = _CONFIG.get("TOPIC_KEYWORDS", {})
+        topic_context_map = _CONFIG.get("TOPIC_CONTEXT_MAP", {})
+
+        # 映射配置中的字符串到枚举
+        context_map = {
+            "APOLOGY": ContextType.APOLOGY,
+            "CONFESSION": ContextType.CONFESSION,
+            "QUESTION": ContextType.QUESTION,
+            "SHARE": ContextType.SHARE,
+            "SERIOUS": ContextType.SERIOUS,
+        }
 
         for topic, keywords in topic_keywords.items():
             if any(word in msg for word in keywords):
-                topic_map = {
-                    "道歉": ContextType.APOLOGY,
-                    "表白": ContextType.CONFESSION,
-                    "询问": ContextType.QUESTION,
-                    "分享": ContextType.SHARE,
-                    "正事": ContextType.SERIOUS,
-                }
-                return topic_map.get(topic, ContextType.CASUAL)
+                context_str = topic_context_map.get(topic, "CASUAL")
+                return context_map.get(context_str, ContextType.CASUAL)
 
         return ContextType.CASUAL
 

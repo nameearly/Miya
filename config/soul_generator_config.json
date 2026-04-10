@@ -24,6 +24,13 @@
     "分享": ["给你看", "分享", "有意思", "看这个"],
     "正事": ["正事", "工作", "项目", "正经事"]
   },
+  "TOPIC_CONTEXT_MAP": {
+    "道歉": "APOLOGY",
+    "表白": "CONFESSION",
+    "询问": "QUESTION",
+    "分享": "SHARE",
+    "正事": "SERIOUS"
+  },
   "MINIMAL_RESPONSE_KEYWORDS": ["嗯", "哦", "好吧", "都行", "随便"],
   "ATTRIBUTION_RULES": {
     "敷衍": {
