@@ -9,18 +9,35 @@
 - 行为引擎：意图残留与追踪，防止行动中断
 - 认知系统：偏见形成与自我修正
 - 情绪记忆锚点：记住情绪事件而非细节
-- 情绪恢复曲线：情绪自然衰减
+- 情绪恢复曲线：自然衰减
 - 社交面具：真实情绪与表达分离
 """
 
 import logging
 import time
 import random
+import json
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+
+def _load_config() -> Dict:
+    """加载配置文件"""
+    config_path = Path(__file__).parent.parent / "config" / "soul_generator_config.json"
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"[灵魂发生器] 配置文件加载失败: {e}，使用默认配置")
+        return {}
+
+
+# 加载配置
+_CONFIG = _load_config()
 
 
 class EmotionCategory(Enum):
@@ -602,11 +619,14 @@ class SoulGenerator:
         if not self.pending_intents:
             return None
 
+        # 从配置获取激活概率
+        activation_chance = _CONFIG.get("INTENT_ACTIVATION_CHANCE", 0.4)
+
         # 检查是否可以激活
         for intent in self.pending_intents:
             if intent.can_activate():
                 # 随机决定是否激活（避免每次都激活）
-                if random.random() > 0.6:  # 40%概率激活
+                if random.random() > (1 - activation_chance):
                     intent.record_attempt()
                     return f"对了，{intent.intent}"
 
@@ -645,24 +665,30 @@ class SoulGenerator:
         # 根据主导情绪生成不同风格回复
         dominant = self._get_dominant_emotion()
 
+        # 从配置获取阈值
+        high_threshold = _CONFIG.get("HIGH_EMOTION_THRESHOLD", 70)
+
         # 简化版：根据情绪值决定回复风格
         emotion_value = self.emotions.get(
             dominant, Emotion(EmotionCategory.PEACEFUL, 50)
         ).value
 
-        if emotion_value > 70:
+        if emotion_value > high_threshold:
             # 高情绪 - 可能带有情绪表达
-            if dominant in ["委屈", "不满"]:
-                # 傲娇反应
-                responses = [
-                    "哼~",
-                    "好吧...",
-                    "知道了啦~",
-                ]
+            if dominant in ["委屈", "不满", "傲娇", "赌气"]:
+                # 傲娇反应 - 从配置获取
+                responses = _CONFIG.get(
+                    "HIGH_EMOTION_RESPONSES",
+                    [
+                        "哼~",
+                        "好吧...",
+                        "知道了啦~",
+                    ],
+                )
                 return random.choice(responses)
 
         # 正常回复 - 不带明显情绪
-        return None  # 返回None表示使用默认回复
+        return ""  # 返回空字符串表示使用默认回复
 
     def get_status(self) -> Dict:
         """获取当前状态"""
