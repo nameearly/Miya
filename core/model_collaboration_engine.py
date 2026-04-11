@@ -488,7 +488,19 @@ class ModelCollaborationEngine:
         if not ai_emotion_context and self.soul_generator:
             try:
                 history = context.get("history", []) if context else []
-                soul_result = await self.soul_generator.process(message, history, None)
+
+                # 构建用户信息
+                user_info = None
+                if context:
+                    user_info = {
+                        "user_id": context.get("user_id"),
+                        "group_id": context.get("group_id"),
+                        "is_group": (context.get("message_type") == "group"),
+                    }
+
+                soul_result = await self.soul_generator.process(
+                    message, history, None, user_info
+                )
                 if soul_result:
                     # 用户情绪
                     dominant = soul_result.get("dominant_emotion", "平静")
@@ -708,7 +720,19 @@ class ModelCollaborationEngine:
         if not ai_emotion_context and self.soul_generator:
             try:
                 history = context.get("history", []) if context else []
-                soul_result = await self.soul_generator.process(message, history, None)
+
+                # 构建用户信息
+                user_info = None
+                if context:
+                    user_info = {
+                        "user_id": context.get("user_id"),
+                        "group_id": context.get("group_id"),
+                        "is_group": (context.get("message_type") == "group"),
+                    }
+
+                soul_result = await self.soul_generator.process(
+                    message, history, None, user_info
+                )
                 if soul_result:
                     # 用户情绪
                     dominant = soul_result.get("dominant_emotion", "平静")
@@ -916,7 +940,19 @@ class ModelCollaborationEngine:
         if not ai_emotion_context and self.soul_generator:
             try:
                 history = context.get("history", []) if context else []
-                soul_result = await self.soul_generator.process(message, history, None)
+
+                # 构建用户信息
+                user_info = None
+                if context:
+                    user_info = {
+                        "user_id": context.get("user_id"),
+                        "group_id": context.get("group_id"),
+                        "is_group": (context.get("message_type") == "group"),
+                    }
+
+                soul_result = await self.soul_generator.process(
+                    message, history, None, user_info
+                )
                 if soul_result:
                     # 用户情绪
                     dominant = soul_result.get("dominant_emotion", "平静")
@@ -1095,7 +1131,19 @@ class ModelCollaborationEngine:
         if not ai_emotion_context and self.soul_generator:
             try:
                 history = context.get("history", []) if context else []
-                soul_result = await self.soul_generator.process(message, history, None)
+
+                # 构建用户信息
+                user_info = None
+                if context:
+                    user_info = {
+                        "user_id": context.get("user_id"),
+                        "group_id": context.get("group_id"),
+                        "is_group": (context.get("message_type") == "group"),
+                    }
+
+                soul_result = await self.soul_generator.process(
+                    message, history, None, user_info
+                )
                 if soul_result:
                     # 用户情绪
                     dominant = soul_result.get("dominant_emotion", "平静")

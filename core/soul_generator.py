@@ -16,12 +16,164 @@ import logging
 import time
 import random
 import json
+import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass, field
 from enum import Enum
 
 logger = logging.getLogger("Miya.灵魂发生器")
+
+
+class SoulDisplay:
+    """
+    灵魂发生器终端显示 - 青色科幻风格
+    用于美化灵魂发生器的日志输出
+    """
+
+    # 颜色代码
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    CYAN = "\033[36m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    MAGENTA = "\033[35m"
+    BLUE = "\033[34m"
+    WHITE = "\033[37m"
+    GRAY = "\033[90m"
+    LIGHT_CYAN = "\033[96m"
+    PINK = "\033[95m"  # 粉色 - 用于情绪变化
+    ORANGE = "\033[38;5;208m"  # 橙色 - 用于关系影响
+    LIGHT_GREEN = "\033[92m"  # 亮绿色 - 用于积极效果
+
+    # 符号
+    HEART = "♥"
+    SPARKLE = "✦"
+    WAVE = "〰"
+    ARROW = "→"
+    BRAIN = "◈"
+    FIRE = "🔥"
+    STARS = "✨"
+
+    @classmethod
+    def _print(cls, text: str) -> None:
+        """输出到 stderr"""
+        sys.stderr.write(text + "\n")
+        sys.stderr.flush()
+
+    @classmethod
+    def header(cls, title: str = "灵魂发生器") -> str:
+        """显示标题"""
+        text = (
+            f"\n{cls.CYAN}{cls.BOLD}╔{'═' * 40}╗{cls.RESET}\n"
+            f"{cls.CYAN}{cls.BOLD}║ {cls.BRAIN} {title} {cls.BRAIN}{' ' * (32 - len(title))}║{cls.RESET}\n"
+            f"{cls.CYAN}{cls.BOLD}╚{'═' * 40}╝{cls.RESET}"
+        )
+        cls._print(text)
+        return text
+
+    @classmethod
+    def emotion_analysis(cls, emotion: str, intensity: int, reasoning: str = "") -> str:
+        """情绪分析结果"""
+        # 根据情绪强度选择颜色
+        if intensity >= 70:
+            color = cls.MAGENTA  # 强烈情绪
+        elif intensity >= 50:
+            color = cls.CYAN  # 中等情绪
+        else:
+            color = cls.GRAY  # 平静
+
+        text = f"  {cls.CYAN}{cls.HEART} 情绪分析{cls.RESET} {color}{emotion}{cls.RESET} {cls.DIM}(强度: {intensity}%){cls.RESET}"
+        if reasoning:
+            text += f"\n    {cls.DIM}{reasoning[:60]}...{cls.RESET}"
+        cls._print(text)
+        return text
+
+    @classmethod
+    def inner_thought(cls, thought: str) -> str:
+        """AI内心独白"""
+        text = (
+            f"  {cls.MAGENTA}{cls.SPARKLE} 内心独白{cls.RESET}\n"
+            f'    {cls.LIGHT_CYAN}"{thought}"{cls.RESET}'
+        )
+        cls._print(text)
+        return text
+
+    @classmethod
+    def emotion_change(cls, trigger: str, changes: str) -> str:
+        """情绪变化 - 粉色显示"""
+        text = f"  {cls.PINK}{cls.ARROW} {trigger}: {cls.PINK}{changes}{cls.RESET}"
+        cls._print(text)
+        return text
+
+    @classmethod
+    def relationship_effect(cls, relationship: str, effects: str) -> str:
+        """关系影响 - 粉色显示"""
+        text = f"  {cls.PINK}{cls.HEART} 关系影响({relationship}){cls.RESET} {cls.PINK}{effects}{cls.RESET}"
+        cls._print(text)
+        return text
+
+    @classmethod
+    def context_detected(cls, context_type: str, value: str) -> str:
+        """检测到的情境"""
+        text = f"    {cls.DIM}├ {cls.CYAN}{context_type}{cls.RESET}: {cls.WHITE}{value}{cls.RESET}"
+        cls._print(text)
+        return text
+
+    @classmethod
+    def psycho_analysis(cls, analysis_type: str, result: str) -> str:
+        """心理学剖析结果"""
+        icons = {
+            "归因": "◆",
+            "识别": "◇",
+            "预测": "▷",
+            "反思": "◈",
+            "调节": "◎",
+        }
+        icon = icons.get(analysis_type, "·")
+        text = f"    {cls.DIM}├ {cls.MAGENTA}{icon}{cls.RESET} {analysis_type}: {cls.WHITE}{result[:50]}{cls.RESET}"
+        cls._print(text)
+        return text
+
+    @classmethod
+    def status(cls, status_text: str) -> str:
+        """状态显示 - 浅蓝色"""
+        text = f"  {cls.LIGHT_CYAN}{cls.WAVE} {status_text}{cls.RESET}"
+        cls._print(text)
+        return text
+
+    @classmethod
+    def separator(cls) -> str:
+        """分隔线 - 青色"""
+        text = f"{cls.CYAN}{'─' * 44}{cls.RESET}"
+        cls._print(text)
+        return text
+
+    @classmethod
+    def init_complete(cls) -> str:
+        """初始化完成"""
+        text = f"\n{cls.CYAN}{cls.BOLD}  {cls.SPARKLE} 灵魂发生器初始化完成 {cls.SPARKLE}{cls.RESET}\n"
+        cls._print(text)
+        return text
+
+    @classmethod
+    def disable_colors(cls) -> None:
+        """禁用颜色"""
+        cls.RESET = ""
+        cls.BOLD = ""
+        cls.DIM = ""
+        cls.CYAN = ""
+        cls.GREEN = ""
+        cls.YELLOW = ""
+        cls.MAGENTA = ""
+        cls.BLUE = ""
+        cls.WHITE = ""
+        cls.GRAY = ""
+        cls.LIGHT_CYAN = ""
+        cls.PINK = ""
+        cls.ORANGE = ""
+        cls.LIGHT_GREEN = ""
 
 
 def _load_config() -> Dict:
@@ -943,7 +1095,8 @@ class SoulGenerator:
         self.last_update = time.time()
         self.current_mood = "平静"
 
-        logger.info("[灵魂发生器] 初始化完成")
+        # 使用美化输出
+        SoulDisplay.init_complete()
 
     def _init_emotions(self) -> Dict[str, Emotion]:
         """初始化完整情绪图谱"""
@@ -961,7 +1114,12 @@ class SoulGenerator:
         return emotions
 
     async def _ai_generate_inner_thought(
-        self, message: str, history: List[Dict], ai_client, dominant_emotion: str
+        self,
+        message: str,
+        history: List[Dict],
+        ai_client,
+        dominant_emotion: str,
+        user_info: Dict = None,
     ) -> Optional[str]:
         """
         用AI生成弥娅的内心反思 - 增强版
@@ -984,16 +1142,57 @@ class SoulGenerator:
             # 根据主导情绪使用不同的prompt风格
             emotion_style = self._get_emotion_style(dominant_emotion)
 
+            # 从配置获取用户身份配置
+            owner_id = _CONFIG.get("OWNER_USER_ID", "")
+            user_labels = _CONFIG.get("USER_LABELS", {})
+            user_pronouns = _CONFIG.get("USER_PRONOUNS", {})
+
+            # 判断用户身份
+            user_label = user_labels.get("owner", "")
+            pronoun = user_pronouns.get("owner", "")
+            if user_info:
+                user_id = user_info.get("user_id")
+                if user_id and str(user_id) != owner_id:
+                    user_label = user_labels.get("other", "")
+                    pronoun = user_pronouns.get("other", "")
+
+            # 获取之前的主导情绪（如果有）
+            previous_emotion = getattr(self, "_last_emotion", None)
+            if previous_emotion is None:
+                previous_emotion = "无"
+
+            # 从配置获取内心独白prompt模板
+            prompt_config = _CONFIG.get("INNER_THOUGHT_PROMPT", {})
+            role = prompt_config.get("role", "你是弥娅的内心独白系统...")
+            rules = prompt_config.get("rules", [])
+            pronoun_rule = prompt_config.get("pronoun_rule", "")
+            emotion_continuity_rule = prompt_config.get("emotion_continuity_rule", "")
+
+            # 构建规则列表，格式化emotion_style
+            rules_text = "\n".join(
+                [
+                    f"{i + 1}. {rule.format(emotion_style=emotion_style)}"
+                    for i, rule in enumerate(rules)
+                ]
+            )
+
+            # 格式化代词规则和情绪持续性规则
+            pronoun_rule_formatted = pronoun_rule.format(
+                user_label=user_label, pronoun=pronoun
+            )
+            emotion_continuity_formatted = emotion_continuity_rule.format(
+                previous_emotion=previous_emotion
+            )
+
             prompt = (
-                f"你是弥娅的内心独白系统。你的任务是生成弥娅真实的内心思考。\n\n"
+                f"{role}\n\n"
                 f"【规则】\n"
-                f"1. 只输出内心独白，不要有任何格式或前缀\n"
-                f"2. 30-80字，简洁但有情感深度\n"
-                f"3. 根据当前情绪用对应语气：{emotion_style}\n"
-                f"4. 结合对话历史，但不要重复用户的话\n"
-                f"5. 可以有犹豫、纠结、自我怀疑，但要真实\n\n"
+                f"{rules_text}\n"
+                f"{pronoun_rule_formatted}\n"
+                f"{emotion_continuity_formatted}\n\n"
                 f"【当前状态】\n"
                 f"- 弥娅主导情绪: {dominant_emotion}\n"
+                f"- 当前对话用户: {user_label}\n"
                 f"- 对话历史:\n{context_str if context_str else '暂无'}\n"
                 f"- 用户最新消息: {message[:80]}\n\n"
                 f"【输出】\n"
@@ -1017,6 +1216,8 @@ class SoulGenerator:
                     cleaned = cleaned[1:-1]
 
                 logger.info(f"[灵魂] AI反思: {cleaned[:100]}")
+                # 使用美化输出
+                SoulDisplay.inner_thought(cleaned[:80])
                 return cleaned
 
         except Exception as e:
@@ -1058,11 +1259,39 @@ class SoulGenerator:
         }
         return style_map.get(emotion, "平和自然，像日常思考")
 
-    async def process(self, message: str, history: List[Dict], ai_client=None) -> Dict:
+    async def process(
+        self, message: str, history: List[Dict], ai_client=None, user_info: Dict = None
+    ) -> Dict:
         """
         处理消息 → 生成回复
         完整流程：检测 → AI分析(可选) → 涌现 → 行为 → 输出
+
+        Args:
+            message: 用户消息
+            history: 对话历史
+            ai_client: AI客户端
+            user_info: 用户信息 dict，包含 user_id, group_id, is_group 等
         """
+        # 解析用户信息
+        user_id = None
+        group_id = None
+        is_group = False
+        is_non_owner_in_group = False
+
+        if user_info:
+            user_id = user_info.get("user_id")
+            group_id = user_info.get("group_id")
+            is_group = user_info.get("is_group", False)
+
+            # 判断是否是群聊中的非配置用户
+            if is_group and group_id and user_id:
+                # 从配置获取主人QQ号
+                owner_id = _CONFIG.get("OWNER_USER_ID", "")
+                if str(user_id) != owner_id:
+                    is_non_owner_in_group = True
+                    logger.info(
+                        f"[灵魂] 群聊中非主人用户: user_id={user_id}, group_id={group_id}"
+                    )
         # 1. 获取弥娅当前状态
         miya_state = {
             "dominant_emotion": self._get_dominant_emotion(),
@@ -1094,7 +1323,15 @@ class SoulGenerator:
                 current_dominant = self._get_dominant_emotion()
                 try:
                     ai_inner_thought = await self._ai_generate_inner_thought(
-                        message, history, ai_client, current_dominant
+                        message,
+                        history,
+                        ai_client,
+                        current_dominant,
+                        user_info={
+                            "user_id": user_id,
+                            "group_id": group_id,
+                            "is_group": is_group,
+                        },
                     )
                 except Exception as e:
                     logger.debug(f"[灵魂] AI反思失败: {e}")
@@ -1103,7 +1340,9 @@ class SoulGenerator:
         self._apply_default_fluctuation()
 
         # 6. 情绪涌现（内部活动）
-        self._emotion_emergence(message, context, analysis)
+        self._emotion_emergence(
+            message, context, analysis, is_non_owner_in_group, user_id
+        )
 
         # 7. 行为引擎 - 检查待完成意图
         intent_response = self._check_pending_intents(context)
@@ -1115,6 +1354,10 @@ class SoulGenerator:
         output = self._generate_output(message, context, intent_response)
 
         self.last_update = time.time()
+
+        # 记录当前情绪，供下次对话参考（实现情绪持续性）
+        current_emotion = self._get_dominant_emotion()
+        self._last_emotion = current_emotion
 
         # 合并内心独白
         inner_thought = ai_inner_thought or (
@@ -1194,8 +1437,11 @@ class SoulGenerator:
                 return None
 
             result = json.loads(json_match.group())
-            logger.info(
-                f"[灵魂] AI分析: {result.get('dominant_emotion')} | 强度: {result.get('intensity')} | 理由: {result.get('reasoning', '')[:30]}"
+            # 使用美化输出
+            SoulDisplay.emotion_analysis(
+                result.get("dominant_emotion", "未知"),
+                result.get("intensity", 50),
+                result.get("reasoning", "")[:50],
             )
             return result
 
@@ -1237,7 +1483,12 @@ class SoulGenerator:
             emotion.value = new_value
 
     def _emotion_emergence(
-        self, message: str, context: Dict, analysis: PsychologicalAnalysis
+        self,
+        message: str,
+        context: Dict,
+        analysis: PsychologicalAnalysis,
+        is_non_owner_in_group: bool = False,
+        user_id=None,
     ):
         """情绪涌现 - 从配置文件读取规则"""
         msg = message.lower()
@@ -1251,6 +1502,10 @@ class SoulGenerator:
         logger.info(
             f"[灵魂] 内心: {'; '.join(inner_thoughts) if inner_thoughts else '暂无'}"
         )
+
+        # 显示心理学剖析结果
+        if inner_thoughts:
+            SoulDisplay.status(f"内心: {'; '.join(inner_thoughts[:2])}")
 
         # 从配置读取情绪触发规则
         triggers = _CONFIG.get("MESSAGE_EMOTION_TRIGGERS", {})
@@ -1270,7 +1525,8 @@ class SoulGenerator:
                     ]
                 )
 
-                logger.info(f"[灵魂] {trigger_name}: {changes_str}")
+                # 使用美化输出
+                SoulDisplay.emotion_change(trigger_name, changes_str)
 
                 # 应用情绪变化
                 for emotion_name, delta in emotions_change.items():
@@ -1279,17 +1535,35 @@ class SoulGenerator:
         # 关系情境影响
         relationship = context.get("relationship")
         if relationship:
+            rel_key = relationship.value
+
+            # 群聊中非配置用户，使用不同的关系效果
+            if is_non_owner_in_group and relationship == ContextType.INTIMATE:
+                # 从配置获取非主人关系效果键名
+                rel_key = _CONFIG.get("NON_OWNER_INTIMATE_KEY")
+                logger.info(f"[灵魂] 群聊非主人用户，使用关系效果: {rel_key}")
+
             rel_effects = _CONFIG.get("RELATIONSHIP_EMOTION_EFFECTS", {}).get(
-                relationship.value, {}
+                rel_key, {}
             )
             if rel_effects:
                 changes_str = ", ".join([f"{k}+{v}" for k, v in rel_effects.items()])
-                logger.info(f"[灵魂] 关系影响({relationship.value}): {changes_str}")
+                # 使用美化输出
+                SoulDisplay.relationship_effect(relationship.value, changes_str)
                 for emotion_name, delta in rel_effects.items():
                     self._adjust_emotion(emotion_name, delta)
         relationship = context.get("relationship")
+
+        # 只有配置的主人才会触发额外的亲密情绪
+        is_owner = False
+        owner_id = _CONFIG.get("OWNER_USER_ID", "")
+        if user_id and str(user_id) == owner_id:
+            is_owner = True
+
         if relationship == ContextType.INTIMATE:
-            self._adjust_emotion("爱意", 5)
+            if is_owner:
+                self._adjust_emotion("爱意", 5)
+            # 非主人用户不会触发额外爱意
         elif relationship == ContextType.COLD_WAR:
             self._adjust_emotion("不安", 10)
             self._adjust_emotion("委屈", 8)

@@ -1557,7 +1557,16 @@ class DecisionHub:
                                         pass
                                 # 灵魂发生器处理 - 在AI调用前执行
                                 soul_result = await self._soul_generator.process(
-                                    content, history, ai_client_for_soul
+                                    content,
+                                    history,
+                                    ai_client_for_soul,
+                                    user_info={
+                                        "user_id": user_id,
+                                        "group_id": perception.get("group_id"),
+                                        "is_group": (
+                                            perception.get("message_type") == "group"
+                                        ),
+                                    },
                                 )
                                 if soul_result:
                                     # 用户情绪
@@ -1579,6 +1588,15 @@ class DecisionHub:
 
                                     logger.info(
                                         f"[灵魂] 主导情绪: {dominant} | 弥娅: {miya_dominant}({miya_intensity}%)"
+                                    )
+
+                                    # 使用美化输出
+                                    from core.soul_generator import SoulDisplay
+
+                                    SoulDisplay.emotion_analysis(
+                                        dominant,
+                                        soul_result.get("intensity", 50),
+                                        f"弥娅: {miya_dominant}({miya_intensity}%)",
                                     )
 
                                     # 构建情绪上下文，传递给协作引擎
@@ -1648,11 +1666,16 @@ class DecisionHub:
             # 【灵魂发生器】在单模型路径先进行分析
             _soul_result = None
             ai_emotion_context = ""
+            user_info = {
+                "user_id": user_id,
+                "group_id": perception.get("group_id"),
+                "is_group": (perception.get("message_type") == "group"),
+            }
             if self._soul_generator:
                 try:
                     history = conversation_context if conversation_context else []
                     _soul_result = await self._soul_generator.process(
-                        content, history, ai_client_to_use
+                        content, history, ai_client_to_use, user_info
                     )
                     if _soul_result:
                         # 用户情绪（来自AI分析）
