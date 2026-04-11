@@ -436,11 +436,11 @@
     "chain_collaboration": {
       "enabled": true,
       "thinking_system_prompt": "你是弥娅，用自己的第一人称视角来思考问题。",
-      "thinking_prompt_template": "作为{persona_name}，请用我的第一人称视角来思考这个问题（任务类型: {task_type}）：\n\n{message}\n\n我当前的人格设定：\n{persona_prompt}\n\n请完全用我的内心独白来思考：\n1. 这个问题对我意味着什么\n2. 我会怎么想、怎么感受\n3. 我内心想怎么回应\n\n注意：完全用我的第一人称视角（我）来思考，只输出我的内心想法，不要给出任何最终回复。",
+      "thinking_prompt_template": "作为{persona_name}，请用我的第一人称视角来思考这个问题（任务类型: {task_type}）：\n\n{message}\n\n我当前的人格设定：\n{persona_prompt}\n\n请完全用我的内心独白来思考（核心要点，100字以内）：\n1. 这个问题对我意味着什么\n2. 我会怎么想、怎么感受\n3. 我内心想怎么回应\n\n注意：只输出核心思考要点，简洁有力。可以利用对话上下文来理解当前情况，但思考中不要提及\"上一句\"、\"之前\"、\"你刚才\"等。",
       "reasoning_system_prompt": "你是弥娅的理性思维，负责分析自己的思考并做出决策。",
       "reasoning_prompt_template": "基于我的内心思考，请分析并决定如何回复用户（任务类型: {task_type}）：\n\n我的思考：\n{thinking_result}\n\n用户的问题：{message}\n\n请从我的角度决定：\n1. 我应该采取什么回复策略\n2. 我需要调用哪些工具（如果有）\n3. 我的回复应该用什么语气和风格\n\n注意：完全用我的第一人称视角来输出我的推理决定，不要给出最终回复内容。",
       "output_system_prompt": "你是弥娅，负责生成最终回复。",
-      "output_prompt_template": "基于我的推理决定，请生成我的最终回复：\n\n我的推理决定：\n{reasoning_result}\n\n用户的问题：\n{message}\n\n要求：\n1. 只输出我想说的话（我的最终回复）\n2. 回复要自然、符合我的人设和当下心情\n3. 简洁为主，不要啰嗦\n4. 不要包含任何内心思考或分析过程",
+      "output_prompt_template": "基于我的推理决定，请生成我的最终回复：\n\n我的推理决定：\n{reasoning_result}\n\n用户的问题：\n{message}\n\n要求：\n1. 只输出我想说的话（我的最终回复）\n2. 回复要自然、符合我的人设和当下心情\n3. 简洁为主，不要啰嗦\n4. 不要包含任何内心思考或分析过程\n5. 不要提及\"之前\"、\"刚才\"、\"上一句\"等，不要重复或引用对方说过的话",
       "max_thinking_words": 200,
       "max_reasoning_words": 150
     },
@@ -450,7 +450,7 @@
       "arbiter_priority": "speed",
       "arbiter_system_prompt": "你是一个仲裁者，请综合多个回答的优点，生成最佳版本。",
       "arbiter_user_template": "原始问题: {message}\n\n以下是多个模型的回答:\n\n{comparison_text}\n\n请综合这些回答的优点，生成一个最佳版本。保持准确性和完整性。",
-      "output_prompt_template": "基于以下思考过程，请生成最终回复（只输出回复内容，不要包含思考过程）：\n\n思考过程：\n{thinking_result}\n\n用户问题：{message}\n\n要求：\n1. 只输出最终回复，不要包含任何思考过程\n2. 回复要简洁、自然，符合弥娅的人设\n3. 回复不超过3句话",
+      "output_prompt_template": "基于以下思考过程，请生成最终回复（只输出回复内容，不要包含思考过程）：\n\n思考过程：\n{thinking_result}\n\n用户问题：{message}\n\n要求：\n1. 只输出最终回复，不要包含任何思考过程\n2. 回复要简洁、自然，符合弥娅的人设\n3. 回复不超过3句话\n4. 不要提及\"之前\"、\"刚才\"、\"上一句\"等，不要重复对方的话",
       "comparison_separator": "\n\n---\n\n",
       "comparison_format": "[{model_id}]: {response}"
     },
