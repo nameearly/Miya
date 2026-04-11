@@ -1556,6 +1556,20 @@ class DecisionHub:
                                     except Exception:
                                         pass
                                 # 灵魂发生器处理 - 在AI调用前执行
+                                # 获取当前人格信息
+                                personality_info = {}
+                                if self.personality:
+                                    try:
+                                        form = self.personality.get_current_form()
+                                        personality_info = {
+                                            "form_name": form.get("name", "默认"),
+                                            "form_description": form.get(
+                                                "description", ""
+                                            ),
+                                        }
+                                    except Exception:
+                                        pass
+
                                 soul_result = await self._soul_generator.process(
                                     content,
                                     history,
@@ -1567,6 +1581,7 @@ class DecisionHub:
                                             perception.get("message_type") == "group"
                                         ),
                                     },
+                                    personality_info=personality_info,
                                 )
                                 if soul_result:
                                     # 用户情绪
@@ -1674,8 +1689,19 @@ class DecisionHub:
             if self._soul_generator:
                 try:
                     history = conversation_context if conversation_context else []
+                    # 获取人格信息
+                    personality_info = {}
+                    if self.personality:
+                        try:
+                            form = self.personality.get_current_form()
+                            personality_info = {
+                                "form_name": form.get("name", "默认"),
+                                "form_description": form.get("description", ""),
+                            }
+                        except Exception:
+                            pass
                     _soul_result = await self._soul_generator.process(
-                        content, history, ai_client_to_use, user_info
+                        content, history, ai_client_to_use, user_info, personality_info
                     )
                     if _soul_result:
                         # 用户情绪（来自AI分析）

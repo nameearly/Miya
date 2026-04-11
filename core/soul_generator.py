@@ -101,6 +101,20 @@ class SoulDisplay:
         return text
 
     @classmethod
+    def attribution(cls, text: str) -> str:
+        """归因分析"""
+        text = f"  {cls.CYAN}{cls.ARROW} 归因{cls.RESET} {cls.GRAY}{text}{cls.RESET}"
+        cls._print(text)
+        return text
+
+    @classmethod
+    def reflection(cls, text: str) -> str:
+        """反思"""
+        text = f"  {cls.YELLOW}{cls.ARROW} 反思{cls.RESET} {cls.GRAY}{text}{cls.RESET}"
+        cls._print(text)
+        return text
+
+    @classmethod
     def emotion_change(cls, trigger: str, changes: str) -> str:
         """情绪变化 - 粉色显示"""
         text = f"  {cls.PINK}{cls.ARROW} {trigger}: {cls.PINK}{changes}{cls.RESET}"
@@ -785,279 +799,28 @@ class PsychoAnalyzer:
         return analysis
 
     def _attribute(self, message: str, context: Dict, emotions: Dict) -> str:
-        """归因分析 - 为什么会产生这个情绪"""
-        msg = message.lower()
-        topic = context.get("topic", ContextType.CASUAL)
-        relationship = context.get("relationship", ContextType.FAMILIAR)
-
-        # ========== 基于话题的归因 ==========
-        if topic == ContextType.SHARE:
-            # 分享场景
-            if any(word in msg for word in ["哈哈", "太棒", "好玩", "笑"]):
-                return "对方分享快乐，期待共鸣和认可"
-            elif any(word in msg for word in ["累", "烦", "困"]):
-                return "对方分享疲惫，可能是情感宣泄"
-            elif msg in ["嗯", "哦", "好吧"]:
-                return "对方分享时回应简单，可能感到不被重视"
-
-        elif topic == ContextType.APOLOGY:
-            # 道歉场景
-            if msg in ["嗯", "哦", "好吧"]:
-                return "对方道歉但回应敷衍，可能还在生气或觉得道歉不够真诚"
-            elif "没关系" in msg or "原谅" in msg:
-                return "接受道歉，但可能还在观察对方态度"
-            elif any(word in msg for word in ["真的", "真的对不起", "我错了"]):
-                return "对方真诚道歉，应该给予温柔回应"
-
-        elif topic == ContextType.CONFESSION:
-            # 表白场景
-            if msg in ["嗯", "哦", "这个"]:
-                return "对方表白后不知所措，需要时间消化"
-            elif any(word in msg for word in ["我", "喜欢", "爱"]):
-                return "对方在表达爱意，期待积极回应"
-
-        elif topic == ContextType.COMPLAINT:
-            # 抱怨场景
-            if "算了" in msg or "随便" in msg:
-                return "对方在抱怨后放弃，可能需要被倾听而不是建议"
-            elif any(word in msg for word in ["烦", "累", "不想"]):
-                return "对方在宣泄情绪，需要情感支持"
-
-        elif topic == ContextType.QUESTION:
-            # 询问场景
-            if any(word in msg for word in ["怎么", "为什么", "是不是"]):
-                return "对方在寻求信息或确认"
-
-        # ========== 基于关系情境的归因 ==========
-        if relationship == ContextType.INTIMATE:
-            if msg in ["嗯", "哦"]:
-                return "在亲密关系中，简单回应可能代表放松或心不在焉"
-        elif relationship == ContextType.COLD_WAR:
-            if msg in ["嗯", "哦"]:
-                return "冷战中的敷衍回应，可能还在生气或赌气"
-
-        # ========== 基于互动类型的归因 ==========
-        interaction = context.get("interaction", "normal")
-
-        if interaction == "minimal_response":
-            return "对方可能忙于其他事、累、或不想深入对话"
-        elif interaction == "resigned":
-            return "对方可能感到无奈、疲惫、或放弃抗争"
-        elif interaction == "positive":
-            return "对方情绪积极，期待分享快乐"
-
-        return "正常对话互动"
+        """归因分析 - AI已生成，这里返回空"""
+        return ""
 
     def _recognize(self, message: str, context: Dict, emotions: Dict) -> str:
-        """识别分析 - 对方可能的真实情绪"""
-        msg = message.strip().lower()
-
-        # ========== 显式情绪识别 ==========
-        # 积极情绪
-        positive_words = [
-            "哈哈",
-            "太棒",
-            "太好了",
-            "喜欢",
-            "开心",
-            "幸福",
-            "快乐",
-            "棒",
-            "么么",
-            "爱你",
-        ]
-        if any(word in msg for word in positive_words):
-            return "对方可能感到开心、幸福、满足，期待分享这份快乐"
-
-        # 消极情绪
-        negative_words = ["累", "困", "烦", "难过", "伤心", "失落", "郁闷", "糟", "烦"]
-        if any(word in msg for word in negative_words):
-            return "对方可能感到疲惫、低落或烦躁，需要关心和支持"
-
-        # 紧张/焦虑
-        anxious_words = ["紧张", "担心", "焦虑", "害怕", "不安"]
-        if any(word in msg for word in anxious_words):
-            return "对方可能感到焦虑或紧张，需要安抚"
-
-        # ========== 隐式情绪识别 ==========
-        # 简单敷衍
-        if msg in ["嗯", "哦", "好吧", "嗯嗯", "哦哦"]:
-            topic = context.get("topic", ContextType.CASUAL)
-            relationship = context.get("relationship", ContextType.FAMILIAR)
-
-            if topic == ContextType.SHARE:
-                return "对方可能心不在焉，或觉得话题不感兴趣"
-            elif topic == ContextType.APOLOGY:
-                return "对方可能还在生气，或不接受道歉"
-            elif topic == ContextType.CONFESSION:
-                return "对方可能不知所措，或需要时间反应"
-            elif relationship == ContextType.INTIMATE:
-                return "对方可能只是习惯性回应，或真的在忙"
-
-            return "对方态度不确定，可能平淡/敷衍/不想聊"
-
-        # 放弃/无奈
-        if any(word in msg for word in ["算了", "随便", "管它呢", "就这样吧"]):
-            return "对方可能感到无奈、失望、或选择放弃"
-
-        # ========== 深度情绪识别 ==========
-        # 基于语义解读
-        semantic = context.get("semantic_interpretation", {})
-        primary_meaning = semantic.get("primary_meaning", "")
-
-        if "敷衍" in primary_meaning:
-            return "对方可能在掩饰真实情绪，或确实不感兴趣"
-        elif "温柔" in primary_meaning:
-            return "对方可能心情不错，愿意回应"
-        elif "赌气" in primary_meaning:
-            return "对方可能在生气但不说出来"
-
-        return "对方情绪稳定或不确定"
+        """识别分析 - AI已生成，这里返回空"""
+        return ""
 
     def _predict(
         self, message: str, context: Dict, emotions: Dict, cognition: Dict
     ) -> str:
-        """预测分析 - 接下来可能会怎样"""
-        msg = message.lower()
-        topic = context.get("topic", ContextType.CASUAL)
-        relationship = context.get("relationship", ContextType.FAMILIAR)
-
-        # 获取主导情绪
-        dominant_emotion = self._get_dominant_emotion(emotions)
-
-        # ========== 基于消息内容的预测 ==========
-        if msg in ["嗯", "哦"]:
-            if dominant_emotion in ["委屈", "不满", "傲娇"]:
-                return "可能会进一步表达不满，或者自我消化后平静"
-            elif relationship == ContextType.COLD_WAR:
-                return "可能继续冷战，或等待对方主动示好"
-
-        if "算了" in msg:
-            if topic == ContextType.COMPLAINT:
-                return "可能会停止抱怨，但情绪可能积累"
-            elif topic == ContextType.QUESTION:
-                return "可能不想继续这个话题"
-
-        if any(word in msg for word in ["对不起", "抱歉"]):
-            if topic == ContextType.APOLOGY:
-                return "对方可能在试探反应，需要判断是否真诚"
-            return "对方可能在道歉，期待原谅"
-
-        if any(word in msg for word in ["?", "？", "怎么", "为什么"]):
-            return "对方可能期待详细回答，或有好奇心"
-
-        # ========== 基于情绪趋势的预测 ==========
-        emotion_trend = context.get("emotion_trend", [])
-        if len(emotion_trend) >= 2 and emotion_trend[-1] == "down":
-            return "对方情绪可能在下降，需要关注和关心"
-
-        # ========== 基于关系情境的预测 ==========
-        if relationship == ContextType.INTIMATE:
-            return "可能会更放松地交流，或期待更亲密的互动"
-        elif relationship == ContextType.COLD_WAR:
-            return "可能会继续冷战，或开始寻求和解"
-        elif relationship == ContextType.NEW_KNOW:
-            return "可能会保持礼貌距离，或逐渐熟悉"
-
-        return "继续正常对话"
+        """预测分析 - AI已生成，这里返回空"""
+        return ""
 
     def _reflect(
         self, message: str, context: Dict, emotions: Dict, cognition: Dict
     ) -> str:
-        """自我反思 - 弥娅自己的情绪来源"""
-        msg = message.lower()
-        topic = context.get("topic", ContextType.CASUAL)
-        relationship = context.get("relationship", ContextType.FAMILIAR)
-
-        # 获取弥娅当前情绪
-        dominant_emotion = self._get_dominant_emotion(emotions)
-
-        # ========== 基于用户消息的反思 ==========
-        # 用户表达爱意
-        if any(word in msg for word in ["喜欢", "爱", "想你", "么么"]):
-            return f"听到用户的爱意，我感到{dominant_emotion}，想要回应这份温暖"
-
-        # 用户道歉
-        if any(word in msg for word in ["对不起", "抱歉"]):
-            if topic == ContextType.APOLOGY:
-                return "用户道歉了，虽然可能还有情绪，但我应该温柔回应"
-            return "用户在道歉，可能意识到自己的问题了"
-
-        # 用户分享开心事
-        if any(word in msg for word in ["哈哈", "太棒", "好玩", "笑"]):
-            return "用户分享快乐，我也感到开心，想要一起笑"
-
-        # 用户表达疲惫
-        if any(word in msg for word in ["累", "困", "烦", "难过"]):
-            return f"用户表达了{dominant_emotion}，我想要关心和陪伴"
-
-        # 用户说"嗯""哦"
-        if msg in ["嗯", "哦", "好吧"]:
-            if topic == ContextType.SHARE:
-                return "用户分享时得到简单回应，可能感到不被重视"
-            elif topic == ContextType.CONFESSION:
-                return "用户表白后我的回应可能让用户感到不安"
-
-        # ========== 基于关系的反思 ==========
-        if relationship == ContextType.INTIMATE:
-            return f"我们在亲密关系中，我感到{dominant_emotion}，想要更靠近"
-        elif relationship == ContextType.COLD_WAR:
-            return f"我们在冷战，我感到{dominant_emotion}，想要打破僵局"
-        elif relationship == ContextType.FAMILIAR:
-            return f"我们在熟悉的关系中，我感到{dominant_emotion}，保持舒适交流"
-
-        # 默认
-        return f"当前我的主导情绪是{dominant_emotion}，保持正常交流"
+        """自我反思 - AI已生成，这里返回空"""
+        return ""
 
     def _regulate(self, emotions: Dict, context: Dict) -> str:
-        """情绪调节 - 如何处理当前情绪"""
-        dominant = self._get_dominant_emotion(emotions)
-
-        emotion_obj = emotions.get(dominant)
-        if not emotion_obj:
-            return "保持当前情绪状态"
-
-        value = emotion_obj.value
-        relationship = context.get("relationship", ContextType.FAMILIAR)
-
-        # ========== 高情绪值调节 ==========
-        if value > 70:
-            high_emotion_handlers = {
-                "委屈": "尝试理解对方立场，表达感受但不要过度",
-                "不满": "可以适当表达，但注意语气",
-                "傲娇": "可以表达一点小情绪，增加互动趣味",
-                "失落": "给自己时间消化，也可以向用户寻求支持",
-                "窝火": "深呼吸，避免冲动回应",
-                "憋屈": "寻找合适的方式表达，不要压抑",
-                "心塞": "需要倾诉或独处时间",
-                "爱意": "可以温柔地表达爱意",
-                "心疼": "想要关心和安慰对方",
-            }
-            if dominant in high_emotion_handlers:
-                return high_emotion_handlers[dominant]
-
-        # ========== 低情绪值调节 ==========
-        if value < 30:
-            low_emotion_handlers = {
-                "平静": "保持放松状态，享受当下",
-                "坦然": "保持淡定的态度",
-                "满足": "珍惜当下的幸福",
-                "冷漠": "尝试关心用户，重新投入",
-                "疏离": "尝试拉近与用户的距离",
-            }
-            if dominant in low_emotion_handlers:
-                return low_emotion_handlers[dominant]
-
-        # ========== 基于关系的调节 ==========
-        if relationship == ContextType.COLD_WAR:
-            if value > 50:
-                return "尝试主动和解，但不要卑微"
-            else:
-                return "给自己空间，也给对方时间"
-        elif relationship == ContextType.INTIMATE:
-            return "可以更放松地表达情感，不需要太多掩饰"
-
-        return "保持当前情绪状态"
+        """情绪调节 - AI已生成，这里返回空"""
+        return ""
 
     def _get_dominant_emotion(self, emotions: Dict) -> str:
         """获取主导情绪"""
@@ -1260,7 +1023,12 @@ class SoulGenerator:
         return style_map.get(emotion, "平和自然，像日常思考")
 
     async def process(
-        self, message: str, history: List[Dict], ai_client=None, user_info: Dict = None
+        self,
+        message: str,
+        history: List[Dict],
+        ai_client=None,
+        user_info: Dict = None,
+        personality_info: Dict = None,
     ) -> Dict:
         """
         处理消息 → 生成回复
@@ -1271,6 +1039,7 @@ class SoulGenerator:
             history: 对话历史
             ai_client: AI客户端
             user_info: 用户信息 dict，包含 user_id, group_id, is_group 等
+            personality_info: 人格信息 dict，包含 form_name, form_description 等
         """
         # 解析用户信息
         user_id = None
@@ -1306,42 +1075,55 @@ class SoulGenerator:
             context, message, self.emotions, self.cognitions
         )
 
-        # 4. AI情绪分析 (如果启用)
+        # 4. AI情绪分析 + 内心独白 + 归因 + 反思（合并为一次API调用）
         ai_emotion_result = None
         ai_inner_thought = None
+        ai_attribution = None
+        ai_reflection = None
         ai_analysis_enabled = _CONFIG.get("AI_ANALYSIS_ENABLED", True)
         if ai_analysis_enabled and ai_client:
-            ai_emotion_result = await self._ai_analyze_emotion(
-                message, history, ai_client
+            # 一次性获取情绪分析 + 内心独白
+            ai_full_result = await self._ai_analyze_emotion(
+                message,
+                history,
+                ai_client,
+                user_info={
+                    "user_id": user_id,
+                    "group_id": group_id,
+                    "is_group": is_group,
+                },
+                personality_info=personality_info,
             )
-            if ai_emotion_result:
-                self._apply_ai_emotion(ai_emotion_result)
-
-            # AI生成内心独白（需要ai_client）
-            ai_inner_thought = None
-            if ai_client:
-                current_dominant = self._get_dominant_emotion()
-                try:
-                    ai_inner_thought = await self._ai_generate_inner_thought(
-                        message,
-                        history,
-                        ai_client,
-                        current_dominant,
-                        user_info={
-                            "user_id": user_id,
-                            "group_id": group_id,
-                            "is_group": is_group,
-                        },
-                    )
-                except Exception as e:
-                    logger.debug(f"[灵魂] AI反思失败: {e}")
+            if ai_full_result:
+                # 应用AI分析的情绪
+                self._apply_ai_emotion(ai_full_result)
+                # 提取AI生成的内心独白
+                ai_inner_thought = ai_full_result.get("inner_thought")
+                # 提取AI生成的归因
+                ai_attribution = ai_full_result.get("attribution")
+                # 提取AI生成的反思
+                ai_reflection = ai_full_result.get("reflection")
+                # 保留情绪分析结果
+                ai_emotion_result = {
+                    "dominant_emotion": ai_full_result.get("dominant_emotion"),
+                    "intensity": ai_full_result.get("intensity"),
+                    "emotion_tags": ai_full_result.get("emotion_tags"),
+                    "reasoning": ai_full_result.get("reasoning"),
+                }
 
         # 5. 默认情绪波动
         self._apply_default_fluctuation()
 
         # 6. 情绪涌现（内部活动）
         self._emotion_emergence(
-            message, context, analysis, is_non_owner_in_group, user_id
+            message,
+            context,
+            analysis,
+            is_non_owner_in_group,
+            user_id,
+            ai_inner_thought,
+            ai_attribution,
+            ai_reflection,
         )
 
         # 7. 行为引擎 - 检查待完成意图
@@ -1359,9 +1141,22 @@ class SoulGenerator:
         current_emotion = self._get_dominant_emotion()
         self._last_emotion = current_emotion
 
-        # 合并内心独白
-        inner_thought = ai_inner_thought or (
-            analysis.reflection if analysis.reflection else "正常对话互动"
+        # 合并内心独白（优先使用AI生成的）
+        default_inner = _CONFIG.get("INNER_THOUGHT_DEFAULT", "正常对话互动")
+        inner_thought = ai_inner_thought if ai_inner_thought else default_inner
+
+        # 使用AI生成的归因，如果没有就用fallback
+        final_attribution = (
+            ai_attribution
+            if ai_attribution
+            else (analysis.attribution if analysis.attribution else default_inner)
+        )
+
+        # 使用AI生成的反思，如果没有就用fallback
+        final_reflection = (
+            ai_reflection
+            if ai_reflection
+            else (analysis.reflection if analysis.reflection else default_inner)
         )
 
         return {
@@ -1371,16 +1166,21 @@ class SoulGenerator:
             "pending_intents": len(self.pending_intents),
             "context": context,
             "analysis": {
-                "attribution": analysis.attribution,
+                "attribution": final_attribution,
                 "reflection": inner_thought,
                 "ai_emotion": ai_emotion_result,
             },
         }
 
     async def _ai_analyze_emotion(
-        self, message: str, history, ai_client
+        self,
+        message: str,
+        history,
+        ai_client,
+        user_info: Dict = None,
+        personality_info: Dict = None,
     ) -> Optional[Dict]:
-        """使用AI分析情绪"""
+        """使用AI分析情绪 + 生成内心独白（合并版本）"""
         try:
             if not ai_client:
                 logger.warning("[灵魂] AI分析跳过: 无AI客户端")
@@ -1391,33 +1191,44 @@ class SoulGenerator:
                 logger.warning("[灵魂] AI分析跳过: 无prompt配置")
                 return None
 
-            context_str = ""
-            history_list = []
-            if history:
-                if isinstance(history, str):
-                    pass
-                elif isinstance(history, list):
-                    history_list = history
-                else:
-                    logger.warning(f"[灵魂] 历史类型错误: {type(history)}")
+            # 获取形态信息
+            form_name = "默认"
+            form_description = ""
+            if personality_info:
+                form_name = personality_info.get("form_name", "默认")
+                form_description = personality_info.get("form_description", "")
 
-            if history_list:
-                recent = history_list[-3:]
-                context_str = "\n".join(
-                    [
-                        f"用户: {m.get('content', '')[:80]}"
-                        for m in recent
-                        if m.get("role") == "user"
-                    ]
-                )
+            # 添加形态风格描述到prompt
+            form_style = ""
+            if form_name and form_name != "默认":
+                form_style = f"\n\n【当前形态特点】：{form_name} - {form_description}"
 
+            # 获取用户身份信息用于内心独白
+            owner_id = _CONFIG.get("OWNER_USER_ID", "")
+            user_labels = _CONFIG.get("USER_LABELS", {})
+            user_pronouns = _CONFIG.get("USER_PRONOUNS", {})
+
+            user_label = user_labels.get("owner", "主人")
+            pronoun = user_pronouns.get("owner", "你")
+            if user_info:
+                uid = user_info.get("user_id")
+                if uid and str(uid) != owner_id:
+                    user_label = user_labels.get("other", "其他用户")
+                    pronoun = user_pronouns.get("other", "他/她")
+
+            # 获取之前情绪用于持续性判断
+            previous_emotion = getattr(self, "_last_emotion", None)
+            if previous_emotion is None:
+                previous_emotion = "无"
+
+            # 在prompt中添加用户身份信息
+            user_info_str = f"当前对话用户: {user_label}，使用'{pronoun}'指代对方"
             prompt = prompt_template.replace("{message}", message)
-            if context_str:
-                prompt = prompt.replace("{context}", context_str)
-            else:
-                prompt = prompt.replace("{context}", "")
+            prompt = prompt.replace("{user_info}", user_info_str)
+            prompt = prompt.replace("{previous_emotion}", previous_emotion)
+            prompt = prompt.replace("{form_style}", form_style)
 
-            logger.warning(f"[灵魂] 发送的prompt: {prompt[:200]}")
+            logger.warning(f"[灵魂] 发送的prompt: {prompt[:300]}")
 
             from core.ai_client import AIMessage
 
@@ -1489,23 +1300,24 @@ class SoulGenerator:
         analysis: PsychologicalAnalysis,
         is_non_owner_in_group: bool = False,
         user_id=None,
+        ai_inner_thought: Optional[str] = None,
+        ai_attribution: Optional[str] = None,
+        ai_reflection: Optional[str] = None,
     ):
         """情绪涌现 - 从配置文件读取规则"""
         msg = message.lower()
 
-        # 内心活动
-        inner_thoughts = []
-        if analysis.attribution:
-            inner_thoughts.append(analysis.attribution)
-        if analysis.reflection and analysis.reflection != "当前情绪稳定":
-            inner_thoughts.append(analysis.reflection)
-        logger.info(
-            f"[灵魂] 内心: {'; '.join(inner_thoughts) if inner_thoughts else '暂无'}"
-        )
+        # 内心活动 - 优先使用AI生成的
+        if ai_inner_thought:
+            SoulDisplay.inner_thought(ai_inner_thought[:80])
 
-        # 显示心理学剖析结果
-        if inner_thoughts:
-            SoulDisplay.status(f"内心: {'; '.join(inner_thoughts[:2])}")
+        # 显示归因
+        if ai_attribution:
+            SoulDisplay.attribution(ai_attribution)
+
+        # 显示反思
+        if ai_reflection:
+            SoulDisplay.reflection(ai_reflection)
 
         # 从配置读取情绪触发规则
         triggers = _CONFIG.get("MESSAGE_EMOTION_TRIGGERS", {})
@@ -1548,8 +1360,10 @@ class SoulGenerator:
             )
             if rel_effects:
                 changes_str = ", ".join([f"{k}+{v}" for k, v in rel_effects.items()])
-                # 使用美化输出
-                SoulDisplay.relationship_effect(relationship.value, changes_str)
+                # 使用美化输出，从配置获取关系标签
+                rel_labels = _CONFIG.get("RELATIONSHIP_LABELS", {})
+                display_label = rel_labels.get(relationship.value, relationship.value)
+                SoulDisplay.relationship_effect(display_label, changes_str)
                 for emotion_name, delta in rel_effects.items():
                     self._adjust_emotion(emotion_name, delta)
         relationship = context.get("relationship")
@@ -1567,8 +1381,6 @@ class SoulGenerator:
         elif relationship == ContextType.COLD_WAR:
             self._adjust_emotion("不安", 10)
             self._adjust_emotion("委屈", 8)
-
-        logger.info(f"[灵魂发生器] 内心活动: {'; '.join(inner_thoughts)}")
 
     def _adjust_emotion(self, emotion_name: str, delta: float):
         """调整情绪值"""
