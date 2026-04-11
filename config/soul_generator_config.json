@@ -1,5 +1,10 @@
 {
-  "comment": "灵魂发生器配置文件 - Soul Generator Configuration",
+  "comment": "灵魂发生器配置文件 - Soul Generator Configuration v2.0",
+  "comment2": "扩展到70+情绪类别，增强情境检测、心理学剖析、行为引擎、情绪记忆、社交面具",
+  
+  "AI_ANALYSIS_ENABLED": true,
+  "AI_EMOTION_ANALYSIS_PROMPT": "分析用户情绪，直接返回JSON：{\"dominant_emotion\": \"情绪词\", \"intensity\": 0-100, \"emotion_tags\": [\"标签1\", \"标签2\"], \"reasoning\": \"理由\"}。情绪词（70+）：喜悦、悲伤、恐惧、愤怒、惊讶、厌恶、爱、恨、羡慕、嫉妒、羞耻、愧疚、骄傲、尴尬、怀旧、思念、挂念、失落、释然、心动、治愈、心疼、吃醋、傲娇、赌气、委屈、窝火、憋屈、心塞、幸福、满足、甜蜜、感动、感恩、迷茫、疲惫、焦虑、平静、充实、空虚、慵懒、惬意、紧张、坦然、纠结、期待、希望、无助、急躁、依恋、疏离、信任、怀疑、亲近、抵触、失望、依赖、粘人、推开、忽冷忽热、关怀、保护欲、自我怀疑、自我肯定、自卑、自恋、不安全、积极、消极、攻击性、防御、逃避、强迫、同情、共情、冷漠、温暖、封闭、五味杂陈、不知所措、脆弱、坚韧、安然、烦躁。用户：{message}",
+  
   "EMOTION_INIT_MIN": 30,
   "EMOTION_INIT_MAX": 50,
   "EMOTION_EXPRESSION_THRESHOLD": 40,
@@ -7,114 +12,136 @@
   "EMOTION_BASE_VALUE": 30,
   "EMOTION_DECAY_INTERVAL": 10,
   "EMOTION_SIGNIFICANT_THRESHOLD": 20,
-  "RELATIONSHIP_KEYWORDS": {
-    "亲密": ["爱", "想", "喜欢", "宝贝", "亲爱的"],
-    "冷战": ["冷战", "生气", "不理", "绝交"],
-    "吵架": ["吵", "吼", "凶", "过分"]
-  },
-  "TIME_CONTEXT": {
-    "刚睡醒": [5, 8],
-    "深夜": [22, 24],
-    "凌晨": [0, 2]
-  },
-  "TOPIC_KEYWORDS": {
-    "道歉": ["对不起", "抱歉", "我错了", "对不起啦"],
-    "表白": ["我爱你", "喜欢", "表白", "想你了"],
-    "询问": ["?", "怎么", "什么", "为什么", "是不是"],
-    "分享": ["给你看", "分享", "有意思", "看这个"],
-    "正事": ["正事", "工作", "项目", "正经事"]
-  },
-  "TOPIC_CONTEXT_MAP": {
-    "道歉": "APOLOGY",
-    "表白": "CONFESSION",
-    "询问": "QUESTION",
-    "分享": "SHARE",
-    "正事": "SERIOUS"
-  },
-  "MINIMAL_RESPONSE_KEYWORDS": ["嗯", "哦", "好吧", "都行", "随便"],
-  "ATTRIBUTION_RULES": {
-    "敷衍": {
-      "keywords": ["嗯", "哦"],
-      "topics": ["分享"],
-      "result": "期待分享被简单回应，可能感到失落"
-    },
-    "不接受道歉": {
-      "keywords": ["嗯", "哦"],
-      "topics": ["道歉"],
-      "result": "对方道歉但回应敷衍，可能还在生气或不满"
-    }
-  },
-  "RECOGNITION_RULES": {
-    "开心": ["哈哈", "太棒了", "喜欢", "好耶", "开心"],
-    "疲惫": ["累", "困", "烦", "不想动", "好累"],
-    "敷衍": ["嗯", "哦", "好吧", "都行"]
-  },
-  "INTENT_ACTIVATION_CHANCE": 0.4,
-  "INTENT_MAX_ATTEMPTS": 3,
-  "INTENT_PRIORITY_MIN": 1,
-  "INTENT_PRIORITY_MAX": 10,
-  "INTENT_PRIORITY_DEFAULT": 5,
-  "MESSAGE_EMOTION_TRIGGERS": {
-    "敷衍回应": {
-      "keywords": ["嗯", "哦", "好吧"],
-      "emotions": {
-        "委屈": 10,
-        "不满": 5,
-        "失落": 8
-      }
-    },
-    "积极回应": {
-      "keywords": ["哈哈", "喜欢", "棒", "好耶"],
-      "emotions": {
-        "开心": 15,
-        "愉悦": 10,
-        "小得意": 8
-      }
-    },
-    "道歉回应": {
-      "keywords": ["对不起", "抱歉", "我错了"],
-      "emotions": {
-        "委屈": -10,
-        "不满": -15,
-        "傲娇": 5
-      }
-    },
-    "关心回应": {
-      "keywords": ["没事", "担心", "关心", "怎么样"],
-      "emotions": {
-        "暖心": 10,
-        "安心": 8
-      }
-    }
-  },
-  "RELATIONSHIP_EMOTION_EFFECTS": {
-    "亲密": {"爱意": 5, "依赖": 3},
-    "冷战": {"不安": 10, "委屈": 8, "赌气": 5},
-    "吵架": {"愤怒": 10, "委屈": 8, "心寒": 5},
-    "熟悉": {},
-    "刚认识": {"警惕": 5, "好奇": 3}
-  },
-  "HIGH_EMOTION_THRESHOLD": 70,
-  "LOW_EMOTION_THRESHOLD": 30,
+  
+  "DEFAULT_EMOTION_FLUCTUATION": 5,
+  "HIGH_EMOTION_THRESHOLD": 60,
+  "LOW_EMOTION_THRESHOLD": 40,
+  
   "HIGH_EMOTION_RESPONSES": [
     "哼~",
     "好吧...",
     "知道了啦~",
     "哼，不想理你了",
-    "哎呀，行吧"
+    "哎呀，行吧",
+    "真是拿你没办法",
+    "哼╭(╯^╰)╮",
+    "行吧行吧",
+    "真是的"
   ],
+  "HIGH_EMOTION_TRIGGER_EMOTIONS": ["委屈", "不满", "傲娇", "赌气", "失落", "窝火", "憋屈", "心塞", "吃醋", "赌气", "委屈", "窝火"],
+  
   "MEDIUM_EMOTION_RESPONSES": [
     "嗯~",
     "好嘛",
     "那好吧",
-    "行啦"
+    "行啦",
+    "知道啦"
   ],
-  "LOW_EMOTION_RESPONSES": [
-    "嗯",
-    "哦",
-    "知道了"
-  ],
+  "MEDIUM_EMOTION_TRIGGER_EMOTIONS": ["期待", "开心", "幸福", "满足", "爱意"],
+  
+  "LOW_EMOTION_SUFFIXES": ["~", "呀", "呢", "～", "啦"],
+  "LOW_EMOTION_TRIGGER_EMOTIONS": ["开心", "幸福", "满足", "期待", "心动", "甜蜜", "温暖"],
+  
+  "INTIMATE_RELATIONSHIP_KEYWORDS": ["么么", "爱你", "宝贝", "亲爱的", "想你了", "么么哒"],
+  "INTIMATE_SUFFIX": " ~",
+  
+  "TOPIC_KEYWORDS": {
+    "APOLOGY": ["对不起", "抱歉", "不好意思", "是我的错", "抱歉啊", "不好意思啊"],
+    "CONFESSION": ["喜欢你", "我爱你", "想你了", "表白", "我的心", "爱你", "么么"],
+    "COMPLAINT": ["烦", "累", "气", "不爽", "郁闷", "烦死了", "气死了", "累了"],
+    "REQUEST": ["帮我", "能不能", "可以帮我", "帮我一下", "问一下"],
+    "SHARE": ["告诉你", "给你说", "分享", "说件事", "我刚", "你知道吗", "跟你说"],
+    "QUESTION": ["怎么", "为什么", "什么是", "是不是", "有没有", "?", "？"],
+    "JOKE": ["哈哈", "笑死", "太好笑", "笑死我了", "笑不活"],
+    "SERIOUS": ["正事", "工作", "学习", "事情", "重要", "必须"]
+  },
+  
+  "TOPIC_CONTEXT_MAP": {
+    "APOLOGY": "APOLOGY",
+    "CONFESSION": "CONFESSION",
+    "COMPLAINT": "COMPLAINT",
+    "REQUEST": "REQUEST",
+    "SHARE": "SHARE",
+    "QUESTION": "QUESTION",
+    "JOKE": "JOKE",
+    "SERIOUS": "SERIOUS"
+  },
+  
+  "MINIMAL_RESPONSE_KEYWORDS": ["嗯", "哦", "好吧", "呃", "额", "嗯嗯", "哦哦", "嗯哪", "好吧", "嗯~", "哦~"],
+  
+  "MESSAGE_EMOTION_TRIGGERS": {
+    "道歉触发": {
+      "keywords": ["对不起", "抱歉", "不好意思"],
+      "emotions": {"心疼": 10, "感动": 5, "傲娇": -3, "温暖": 8}
+    },
+    "关心触发": {
+      "keywords": ["还好吗", "注意身体", "早点休息", "辛苦了", "累不累"],
+      "emotions": {"爱意": 8, "温暖": 5, "害羞": 3, "感动": 5}
+    },
+    "冷战触发": {
+      "keywords": ["哼", "算了", "不管了", "滚", "走开"],
+      "emotions": {"委屈": 10, "不安": 8, "傲娇": 5, "窝火": 5}
+    },
+    "表白触发": {
+      "keywords": ["喜欢你", "爱你", "想你了", "么么"],
+      "emotions": {"爱意": 15, "心动": 10, "害羞": 8, "甜蜜": 8}
+    },
+    "分享开心触发": {
+      "keywords": ["哈哈", "太棒", "好玩", "笑死"],
+      "emotions": {"开心": 8, "幸福": 5, "治愈": 3}
+    },
+    "分享疲惫触发": {
+      "keywords": ["累", "困", "烦", "难过"],
+      "emotions": {"心疼": 8, "担心": 5, "温暖": 5}
+    },
+    "询问触发": {
+      "keywords": ["怎么", "为什么", "什么是"],
+      "emotions": {"好奇": 5}
+    },
+    "拒绝触发": {
+      "keywords": ["不要", "不想", "算了"],
+      "emotions": {"失落": 5, "委屈": 3}
+    },
+    "积极触发": {
+      "keywords": ["好", "可以", "没问题", "行"],
+      "emotions": {"开心": 3, "满足": 3}
+    },
+    "否定触发": {
+      "keywords": ["不", "没", "无"],
+      "emotions": {"担心": 3, "不安": 2}
+    }
+  },
+  
+  "RELATIONSHIP_EMOTION_EFFECTS": {
+    "刚认识": {"好奇": 5, "害羞": 3, "期待": 3},
+    "认识": {"好奇": 3, "友善": 3},
+    "熟悉": {"放松": 5, "亲近": 3, "自在": 3},
+    "亲近": {"温暖": 5, "放松": 5, "亲密": 3},
+    "亲密": {"爱意": 10, "依恋": 8, "心动": 5},
+    "冷战": {"委屈": 10, "不安": 8, "难过": 5, "窝火": 5},
+    "吵架中": {"生气": 10, "伤心": 8, "委屈": 5},
+    "和好中": {"欣慰": 5, "开心": 5, "温暖": 5}
+  },
+  
+  "INTENT_ACTIVATION_CHANCE": 0.4,
+  "MAX_PENDING_INTENTS": 5,
+  
+  "EMOTION_MEMORY_ENABLED": true,
+  "EMOTION_MEMORY_MAX": 20,
+  "EMOTION_MEMORY_TRIGGERS": {
+    "道歉": "感动",
+    "表白": "心动",
+    "关心": "温暖",
+    "冷战": "委屈"
+  },
+  
+  "SOCIAL_MASK_ENABLED": true,
+  "MASK_INTENSITY_HIGH_EMOTIONS": 0.3,
+  "MASK_INTENSITY_NEGATIVE_EMOTIONS": 0.5,
+  
   "DEBUG_MODE": false,
   "LOG_EMOTION_CHANGES": true,
-  "LOG_INNER_THOUGHTS": true
+  "LOG_INNER_THOUGHTS": true,
+  "LOG_CONTEXT_DETECTION": true,
+  "LOG_PSYCHO_ANALYSIS": true
 }

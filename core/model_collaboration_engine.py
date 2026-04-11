@@ -1335,25 +1335,42 @@ class ModelCollaborationEngine:
             return self.msg_error_call_failed.format(error=e)
 
     def _clean_thinking_content(self, response: str) -> str:
-        """清理回复中的思考过程，只保留最终回复"""
+        """清理回复中的思考过程，只保留最终回复 - 保守版"""
         if not response:
             return response
 
         import re
 
-        # 移除 thinking 块
+        # 移除明显的 thinking 块
         patterns = [
             r"<think>[\s\S]*?",  # OpenAI格式
             r"\[think\][\s\S]*?\[/think\]",  # 其他格式
-            r"【重要规则】[\s\S]*?请严格按照上述人格设定来回复。",  # 清理提示词残留
         ]
 
         for pattern in patterns:
             response = re.sub(pattern, "", response)
 
-        # 尝试找到回复部分的开始
-        # 常见回复开头：好的、明白了、所以、根据分析等
+        # 如果响应已经很短（小于50字符），直接返回
+        if len(response) < 50:
+            return response.strip()
+
+        # 尝试找到回复部分的开始 - 常见回复开头
         reply_markers = [
+            "好的，",
+            "好的\n",
+            "明白了，",
+            "明白了\n",
+            "知道了，",
+            "知道啦",
+            "嗯~",
+            "嗯...\n",
+            "这个嘛",
+            "其实",
+            "对我来说",
+            "我最喜欢",
+            "最喜欢",
+            "我最喜欢称呼你为",
+            "指挥官",
             "\n\n好的",
             "\n好的",
             "\n明白了",
@@ -1362,8 +1379,8 @@ class ModelCollaborationEngine:
             "\n综上",
             "\n总结",
             "\n回复",
-            "好的，",
-            "明白了，",
+            "好的",
+            "明白了",
             "所以，",
             "根据分析",
             "综上",
@@ -1372,22 +1389,32 @@ class ModelCollaborationEngine:
 
         for marker in reply_markers:
             idx = response.find(marker)
-            if idx > 0:
-                return response[idx:].strip()
+            if idx >= 0:
+                # 确保找到的是有意义的回复开头
+                result = response[idx:].strip()
+                if len(result) > 10:
+                    return result
 
-        # 如果没找到明确回复开头，尝试清理开头的分析内容
+        # 如果没找到明确的回复开头，但内容看起来是正常的（没有大量分析内容）
+        # 就直接返回原内容，保留有用的信息
         lines = response.split("\n")
         cleaned_lines = []
         for line in lines:
-            # 跳过分析标题和列表标记
-            if re.match(r"^#{1,3}\s*|^[-*]\s*|^[0-9]+\.\s*|^###|^\[", line):
+            # 跳过明显的分析标题
+            if re.match(r"^#{1,3}\s*分析|^#\s*思考|^###", line):
                 continue
-            # 如果行太长，可能是分析内容
-            if len(line) > 200:
+            # 跳过过长的行（可能是分析内容）
+            if len(line) > 300:
                 continue
             cleaned_lines.append(line)
 
-        return "\n".join(cleaned_lines).strip()
+        result = "\n".join(cleaned_lines).strip()
+
+        # 如果清理后太短，返回原始响应
+        if len(result) < 20 and len(response) > 20:
+            return response.strip()
+
+        return result if result else response.strip()
 
     def _estimate_tokens(self, *texts: str) -> int:
         total_chars = sum(len(t) for t in texts if t)
