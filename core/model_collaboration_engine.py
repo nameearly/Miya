@@ -93,10 +93,15 @@ class ModelCollaborationEngine:
     """
 
     def __init__(
-        self, model_pool: ModelPool, config: Optional[Dict] = None, personality=None
+        self,
+        model_pool: ModelPool,
+        config: Optional[Dict] = None,
+        personality=None,
+        soul_generator=None,
     ):
         self.model_pool = model_pool
         self.personality = personality
+        self.soul_generator = soul_generator
         raw_config = config or {}
         self.config = raw_config.get("collaboration") or _load_collaboration_config()
 
@@ -476,6 +481,57 @@ class ModelCollaborationEngine:
 
         client = self._create_client(model_config, factory, tools, context)
 
+        # 【灵魂发生器】获取情绪上下文 - 优先使用从decision_hub传入的
+        ai_emotion_context = context.get("emotion_context", "") if context else ""
+
+        # 如果没有传入，则在协作引擎内部生成（兼容没有传的情况）
+        if not ai_emotion_context and self.soul_generator:
+            try:
+                history = context.get("history", []) if context else []
+                soul_result = await self.soul_generator.process(message, history, None)
+                if soul_result:
+                    # 用户情绪
+                    dominant = soul_result.get("dominant_emotion", "平静")
+                    intensity = soul_result.get("emotions", {}).get(dominant, 50)
+
+                    # 弥娅自己的情绪
+                    miya_emotions = soul_result.get("emotions", {})
+                    if miya_emotions:
+                        miya_dominant = max(miya_emotions, key=miya_emotions.get)
+                        miya_intensity = miya_emotions[miya_dominant]
+                    else:
+                        miya_dominant = "平静"
+                        miya_intensity = 40
+
+                    logger.info(
+                        f"[协作-灵魂] 用户: {dominant} | 弥娅: {miya_dominant}({miya_intensity}%) | 情绪池: {miya_emotions}"
+                    )
+
+                    # 获取AI生成的内心独白
+                    inner_thought = ""
+                    if soul_result.get("analysis"):
+                        inner_thought = soul_result["analysis"].get("reflection", "")
+
+                    # 注入情绪上下文
+                    ai_emotion_context = (
+                        f"\n\n【情感指引】\n"
+                        f"- 用户情绪: {dominant} ({intensity}%)\n"
+                        f"- 你的情绪: {miya_dominant} ({miya_intensity}%)\n"
+                    )
+
+                    # 注入内心独白作为背景（标记为内部思考，不要直接输出）
+                    if inner_thought:
+                        ai_emotion_context += f"- 你的内心独白: {inner_thought}\n"
+
+                    ai_emotion_context += (
+                        f"请根据上述情感自然回应，展现你真实的情感。\n"
+                        f"注意：内心独白仅供你参考理解自己的感受，请不要在回复中直接引用或输出内心独白内容。\n"
+                        f"禁止在回复中使用小括号()描述动作，如（微笑）、（点头）等。"
+                    )
+
+            except Exception as e:
+                logger.debug(f"[协作-灵魂] 处理失败: {e}")
+
         # 思考过程
         from core.terminal_formatter import TerminalFormatter
 
@@ -486,9 +542,16 @@ class ModelCollaborationEngine:
             print(TerminalFormatter.chain_step(1, model_config.id, "思考分析"))
             print(TerminalFormatter.chain_step(2, model_config.id, "生成回复"))
 
+        # 注入情绪上下文到 user_prompt
+        final_user_prompt = user_prompt
+        if ai_emotion_context and user_prompt:
+            final_user_prompt = user_prompt + ai_emotion_context
+        elif ai_emotion_context:
+            final_user_prompt = ai_emotion_context
+
         # 正式回复
         response = await self._call_client(
-            client, system_prompt or "", user_prompt or "", tools
+            client, system_prompt or "", final_user_prompt, tools
         )
 
         return CollaborationResult(
@@ -638,19 +701,77 @@ class ModelCollaborationEngine:
             output_model = chain_models[1]
 
         # 阶段3：输出
+        # 【灵魂发生器】获取情绪上下文 - 优先使用从decision_hub传入的
+        ai_emotion_context = context.get("emotion_context", "") if context else ""
+
+        # 如果没有传入，则在协作引擎内部生成（兼容没有传的情况）
+        if not ai_emotion_context and self.soul_generator:
+            try:
+                history = context.get("history", []) if context else []
+                soul_result = await self.soul_generator.process(message, history, None)
+                if soul_result:
+                    # 用户情绪
+                    dominant = soul_result.get("dominant_emotion", "平静")
+                    intensity = soul_result.get("emotions", {}).get(dominant, 50)
+
+                    # 弥娅自己的情绪
+                    miya_emotions = soul_result.get("emotions", {})
+                    if miya_emotions:
+                        miya_dominant = max(miya_emotions, key=miya_emotions.get)
+                        miya_intensity = miya_emotions[miya_dominant]
+                    else:
+                        miya_dominant = "平静"
+                        miya_intensity = 40
+
+                    logger.info(
+                        f"[协作-灵魂] 用户: {dominant} | 弥娅: {miya_dominant}({miya_intensity}%) | 情绪池: {miya_emotions}"
+                    )
+
+                    # 获取AI生成的内心独白
+                    inner_thought = ""
+                    if soul_result.get("analysis"):
+                        inner_thought = soul_result["analysis"].get("reflection", "")
+
+                    # 注入情绪上下文
+                    ai_emotion_context = (
+                        f"\n\n【情感指引】\n"
+                        f"- 用户情绪: {dominant} ({intensity}%)\n"
+                        f"- 你的情绪: {miya_dominant} ({miya_intensity}%)\n"
+                    )
+
+                    # 注入内心独白作为背景（标记为内部思考，不要直接输出）
+                    if inner_thought:
+                        ai_emotion_context += f"- 你的内心独白: {inner_thought}\n"
+
+                    ai_emotion_context += (
+                        f"请根据上述情感自然回应，展现你真实的情感。\n"
+                        f"注意：内心独白仅供你参考理解自己的感受，请不要在回复中直接引用或输出内心独白内容。\n"
+                        f"禁止在回复中使用小括号()描述动作，如（微笑）、（点头）等。"
+                    )
+
+            except Exception as e:
+                logger.debug(f"[协作-灵魂] 处理失败: {e}")
+
         try:
             client_output = self._create_client(output_model, factory, tools, context)
 
             # 安全格式化，处理可能的特殊字符
             try:
-                output_prompt = self.output_prompt_template.format(
+                base_output_prompt = self.output_prompt_template.format(
                     reasoning_result=reasoning_result, message=user_prompt or message
                 )
             except (KeyError, ValueError) as fmt_err:
                 logger.warning(
                     f"[协作引擎] Prompt格式化失败: {self.output_prompt_template[:100]}..., 错误: {fmt_err}"
                 )
-                output_prompt = f"推理结果：{reasoning_result}\n\n用户问题：{user_prompt or message}"
+                base_output_prompt = f"推理结果：{reasoning_result}\n\n用户问题：{user_prompt or message}"
+
+            # 注入情绪上下文
+            output_prompt = (
+                base_output_prompt + ai_emotion_context
+                if ai_emotion_context
+                else base_output_prompt
+            )
 
             if platform == "terminal":
                 print(TerminalFormatter.chain_step(3, output_model.id, "生成回复"))
@@ -788,12 +909,69 @@ class ModelCollaborationEngine:
             except Exception as e:
                 logger.debug(f"[协作引擎] 显示思考过程失败: {e}")
 
+        # 【灵魂发生器】获取情绪上下文 - 优先使用从decision_hub传入的
+        ai_emotion_context = context.get("emotion_context", "") if context else ""
+
+        # 如果没有传入，则在协作引擎内部生成（兼容没有传的情况）
+        if not ai_emotion_context and self.soul_generator:
+            try:
+                history = context.get("history", []) if context else []
+                soul_result = await self.soul_generator.process(message, history, None)
+                if soul_result:
+                    # 用户情绪
+                    dominant = soul_result.get("dominant_emotion", "平静")
+                    intensity = soul_result.get("emotions", {}).get(dominant, 50)
+
+                    # 弥娅自己的情绪
+                    miya_emotions = soul_result.get("emotions", {})
+                    if miya_emotions:
+                        miya_dominant = max(miya_emotions, key=miya_emotions.get)
+                        miya_intensity = miya_emotions[miya_dominant]
+                    else:
+                        miya_dominant = "平静"
+                        miya_intensity = 40
+
+                    logger.info(
+                        f"[协作-灵魂] 用户: {dominant} | 弥娅: {miya_dominant}({miya_intensity}%) | 情绪池: {miya_emotions}"
+                    )
+
+                    # 获取AI生成的内心独白
+                    inner_thought = ""
+                    if soul_result.get("analysis"):
+                        inner_thought = soul_result["analysis"].get("reflection", "")
+
+                    # 注入情绪上下文
+                    ai_emotion_context = (
+                        f"\n\n【情感指引】\n"
+                        f"- 用户情绪: {dominant} ({intensity}%)\n"
+                        f"- 你的情绪: {miya_dominant} ({miya_intensity}%)\n"
+                    )
+
+                    # 注入内心独白作为背景（标记为内部思考，不要直接输出）
+                    if inner_thought:
+                        ai_emotion_context += f"- 你的内心独白: {inner_thought}\n"
+
+                    ai_emotion_context += (
+                        f"请根据上述情感自然回应，展现你真实的情感。\n"
+                        f"注意：内心独白仅供你参考理解自己的感受，请不要在回复中直接引用或输出内心独白内容。\n"
+                        f"禁止在回复中使用小括号()描述动作，如（微笑）、（点头）等。"
+                    )
+
+            except Exception as e:
+                logger.debug(f"[协作-灵魂] 处理失败: {e}")
+
             # 用模型2根据思考结果生成最终回复
             output_model = parallel_models[1]
             output_client = self._create_client(output_model, factory, tools, context)
 
-            output_prompt = self.parallel_output_prompt_template.format(
+            base_output_prompt = self.parallel_output_prompt_template.format(
                 thinking_result=thinking_result, message=message
+            )
+            # 注入情绪上下文
+            output_prompt = (
+                base_output_prompt + ai_emotion_context
+                if ai_emotion_context
+                else base_output_prompt
             )
 
             final_response = await self._call_client(
@@ -910,19 +1088,77 @@ class ModelCollaborationEngine:
             draft = skip_creation
 
         # 阶段 3: 审核员
+        # 【灵魂发生器】获取情绪上下文 - 优先使用从decision_hub传入的
+        ai_emotion_context = context.get("emotion_context", "") if context else ""
+
+        # 如果没有传入，则在协作引擎内部生成（兼容没有传的情况）
+        if not ai_emotion_context and self.soul_generator:
+            try:
+                history = context.get("history", []) if context else []
+                soul_result = await self.soul_generator.process(message, history, None)
+                if soul_result:
+                    # 用户情绪
+                    dominant = soul_result.get("dominant_emotion", "平静")
+                    intensity = soul_result.get("emotions", {}).get(dominant, 50)
+
+                    # 弥娅自己的情绪
+                    miya_emotions = soul_result.get("emotions", {})
+                    if miya_emotions:
+                        miya_dominant = max(miya_emotions, key=miya_emotions.get)
+                        miya_intensity = miya_emotions[miya_dominant]
+                    else:
+                        miya_dominant = "平静"
+                        miya_intensity = 40
+
+                    logger.info(
+                        f"[协作-灵魂] 用户: {dominant} | 弥娅: {miya_dominant}({miya_intensity}%) | 情绪池: {miya_emotions}"
+                    )
+
+                    # 获取AI生成的内心独白
+                    inner_thought = ""
+                    if soul_result.get("analysis"):
+                        inner_thought = soul_result["analysis"].get("reflection", "")
+
+                    # 注入情绪上下文
+                    ai_emotion_context = (
+                        f"\n\n【情感指引】\n"
+                        f"- 用户情绪: {dominant} ({intensity}%)\n"
+                        f"- 你的情绪: {miya_dominant} ({miya_intensity}%)\n"
+                    )
+
+                    # 注入内心独白作为背景（标记为内部思考，不要直接输出）
+                    if inner_thought:
+                        ai_emotion_context += f"- 你的内心独白: {inner_thought}\n"
+
+                    ai_emotion_context += (
+                        f"请根据上述情感自然回应，展现你真实的情感。\n"
+                        f"注意：内心独白仅供你参考理解自己的感受，请不要在回复中直接引用或输出内心独白内容。\n"
+                        f"禁止在回复中使用小括号()描述动作，如（微笑）、（点头）等。"
+                    )
+
+            except Exception as e:
+                logger.debug(f"[协作-灵魂] 处理失败: {e}")
+
         reviewer_config = roles.get("reviewer")
         if reviewer_config and reviewer_config.api_key:
             print(TerminalFormatter.role_step("reviewer", reviewer_config.id))
             reviewer_client = self._create_client(
                 reviewer_config, factory, None, context
             )
+            base_reviewer_prompt = reviewer_template.format(
+                message=message,
+                draft=draft,
+            )
+            # 注入情绪上下文
+            final_reviewer_prompt = (
+                base_reviewer_prompt + ai_emotion_context
+                if ai_emotion_context
+                else base_reviewer_prompt
+            )
             final_response = await self._call_client(
                 reviewer_client,
                 system_prompt=reviewer_prompt_text,
-                user_prompt=reviewer_template.format(
-                    message=message,
-                    draft=draft,
-                ),
+                user_prompt=final_reviewer_prompt,
                 tools=None,
             )
         else:

@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Miya.灵魂发生器")
 
 
 def _load_config() -> Dict:
@@ -439,19 +439,7 @@ class PsychoAnalyzer:
 
     def _reflect(self, emotions: Dict, cognition: Dict) -> str:
         """自我反思 - 弥娅自己的情绪来源"""
-        # 检查当前主导情绪
-        dominant = self._get_dominant_emotion(emotions)
-
-        reflections = []
-
-        if dominant == "委屈":
-            reflections.append("我是不是太敏感了？对方可能没那个意思")
-        elif dominant == "不满":
-            reflections.append("我是不是要求太多了？")
-        elif dominant == "傲娇":
-            reflections.append("嘴上说不要，心里其实在意")
-
-        return "; ".join(reflections) if reflections else "当前情绪稳定"
+        return "当前情绪稳定"
 
     def _regulate(self, emotions: Dict, context: Dict) -> str:
         """情绪调节 - 如何处理当前情绪"""
@@ -520,10 +508,39 @@ class SoulGenerator:
 
         return emotions
 
-    def process(self, message: str, history: List[Dict]) -> Dict:
+    async def _ai_generate_inner_thought(
+        self, message: str, history: List[Dict], ai_client, dominant_emotion: str
+    ) -> Optional[str]:
+        """用AI生成弥娅的内心反思"""
+        try:
+            prompt = (
+                f"你是弥娅的内心，正在思考自己的情绪。\n"
+                f"当前主导情绪: {dominant_emotion}\n"
+                f"用户说了: {message}\n"
+                f"请用弥娅的语气，写一段内心独白（30-60字），表达你此刻的想法和感受。\n"
+                f"不要加任何格式或前缀，直接输出内心独白。"
+            )
+
+            from core.ai_client import AIMessage
+
+            messages = [AIMessage(role="user", content=prompt)]
+            response = await ai_client.chat(
+                messages=messages, tools=None, use_miya_prompt=False
+            )
+
+            if response and len(response) > 0:
+                logger.info(f"[灵魂] AI反思: {response[:100]}")
+                return response.strip()
+
+        except Exception as e:
+            logger.debug(f"[灵魂] AI反思失败: {e}")
+
+        return None
+
+    async def process(self, message: str, history: List[Dict], ai_client=None) -> Dict:
         """
         处理消息 → 生成回复
-        完整流程：检测 → 剖析 → 涌现 → 行为 → 输出
+        完整流程：检测 → AI分析(可选) → 涌现 → 行为 → 输出
         """
         # 1. 获取弥娅当前状态
         miya_state = {
@@ -539,19 +556,49 @@ class SoulGenerator:
             context, message, self.emotions, self.cognitions
         )
 
-        # 4. 情绪涌现（内部活动）
+        # 4. AI情绪分析 (如果启用)
+        ai_emotion_result = None
+        ai_inner_thought = None
+        ai_analysis_enabled = _CONFIG.get("AI_ANALYSIS_ENABLED", True)
+        if ai_analysis_enabled and ai_client:
+            ai_emotion_result = await self._ai_analyze_emotion(
+                message, history, ai_client
+            )
+            if ai_emotion_result:
+                self._apply_ai_emotion(ai_emotion_result)
+
+            # AI生成内心独白（需要ai_client）
+            ai_inner_thought = None
+            if ai_client:
+                current_dominant = self._get_dominant_emotion()
+                try:
+                    ai_inner_thought = await self._ai_generate_inner_thought(
+                        message, history, ai_client, current_dominant
+                    )
+                except Exception as e:
+                    logger.debug(f"[灵魂] AI反思失败: {e}")
+
+        # 5. 默认情绪波动
+        self._apply_default_fluctuation()
+
+        # 6. 情绪涌现（内部活动）
         self._emotion_emergence(message, context, analysis)
 
-        # 5. 行为引擎 - 检查待完成意图
+        # 7. 行为引擎 - 检查待完成意图
         intent_response = self._check_pending_intents(context)
 
-        # 6. 情绪衰减（时间流逝）
+        # 8. 情绪衰减（时间流逝）
         self._decay_emotions()
 
-        # 7. 生成输出
+        # 9. 生成输出
         output = self._generate_output(message, context, intent_response)
 
         self.last_update = time.time()
+
+        # 合并内心独白
+        inner_thought = ai_inner_thought or (
+            analysis.reflection if analysis.reflection else "正常对话互动"
+        )
 
         return {
             "response": output,
@@ -561,9 +608,112 @@ class SoulGenerator:
             "context": context,
             "analysis": {
                 "attribution": analysis.attribution,
-                "reflection": analysis.reflection,
+                "reflection": inner_thought,
+                "ai_emotion": ai_emotion_result,
             },
         }
+
+    async def _ai_analyze_emotion(
+        self, message: str, history, ai_client
+    ) -> Optional[Dict]:
+        """使用AI分析情绪"""
+        try:
+            if not ai_client:
+                logger.warning("[灵魂] AI分析跳过: 无AI客户端")
+                return None
+
+            prompt_template = _CONFIG.get("AI_EMOTION_ANALYSIS_PROMPT", "")
+            if not prompt_template:
+                logger.warning("[灵魂] AI分析跳过: 无prompt配置")
+                return None
+
+            context_str = ""
+            history_list = []
+            if history:
+                if isinstance(history, str):
+                    pass
+                elif isinstance(history, list):
+                    history_list = history
+                else:
+                    logger.warning(f"[灵魂] 历史类型错误: {type(history)}")
+
+            if history_list:
+                recent = history_list[-3:]
+                context_str = "\n".join(
+                    [
+                        f"用户: {m.get('content', '')[:80]}"
+                        for m in recent
+                        if m.get("role") == "user"
+                    ]
+                )
+
+            prompt = prompt_template.replace("{message}", message)
+            if context_str:
+                prompt = prompt.replace("{context}", context_str)
+            else:
+                prompt = prompt.replace("{context}", "")
+
+            logger.warning(f"[灵魂] 发送的prompt: {prompt[:200]}")
+
+            from core.ai_client import AIMessage
+
+            messages = [AIMessage(role="user", content=prompt)]
+            response = await ai_client.chat(
+                messages=messages, tools=None, use_miya_prompt=False
+            )
+
+            logger.warning(f"[灵魂] AI响应: {response[:500]}")
+
+            import re
+            import json
+
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
+            if not json_match:
+                logger.warning(f"[灵魂] 无JSON: {response[:100]}")
+                return None
+
+            result = json.loads(json_match.group())
+            logger.info(
+                f"[灵魂] AI分析: {result.get('dominant_emotion')} | 强度: {result.get('intensity')} | 理由: {result.get('reasoning', '')[:30]}"
+            )
+            return result
+
+        except Exception as e:
+            import traceback
+
+            logger.warning(f"[灵魂] AI分析失败: {e}")
+            logger.warning(f"[灵魂] 错误堆栈: {traceback.format_exc()}")
+            return None
+
+    def _apply_ai_emotion(self, ai_result: Dict):
+        """应用AI分析的情绪"""
+        try:
+            emotion_name = ai_result.get("dominant_emotion", "")
+            intensity = ai_result.get("intensity", 50)
+            tags = ai_result.get("emotion_tags", [])
+
+            if emotion_name and intensity > 0:
+                self._adjust_emotion(emotion_name, intensity - 40)
+
+                for tag in tags[:3]:
+                    if tag != emotion_name:
+                        self._adjust_emotion(tag, (intensity - 40) * 0.5)
+
+        except Exception as e:
+            logger.debug(f"[灵魂] 应用AI情绪失败: {e}")
+
+    def _apply_default_fluctuation(self):
+        """应用默认情绪波动"""
+        fluctuation = _CONFIG.get("DEFAULT_EMOTION_FLUCTUATION", 5)
+        if fluctuation <= 0:
+            return
+
+        import random
+
+        for emotion in self.emotions.values():
+            change = random.uniform(-fluctuation, fluctuation)
+            new_value = max(10, min(90, emotion.value + change))
+            emotion.value = new_value
 
     def _emotion_emergence(
         self, message: str, context: Dict, analysis: PsychologicalAnalysis
@@ -578,7 +728,7 @@ class SoulGenerator:
         if analysis.reflection and analysis.reflection != "当前情绪稳定":
             inner_thoughts.append(analysis.reflection)
         logger.info(
-            f"[灵魂] 💭 内心: {'; '.join(inner_thoughts) if inner_thoughts else '暂无'}"
+            f"[灵魂] 内心: {'; '.join(inner_thoughts) if inner_thoughts else '暂无'}"
         )
 
         # 从配置读取情绪触发规则
@@ -599,17 +749,7 @@ class SoulGenerator:
                     ]
                 )
 
-                # 根据触发类型选择emoji
-                emoji = (
-                    "📉"
-                    if "敷衍" in trigger_name
-                    else "📈"
-                    if "积极" in trigger_name
-                    else "🔧"
-                    if "道歉" in trigger_name
-                    else "💭"
-                )
-                logger.info(f"[灵魂] {emoji} {trigger_name}: {changes_str}")
+                logger.info(f"[灵魂] {trigger_name}: {changes_str}")
 
                 # 应用情绪变化
                 for emotion_name, delta in emotions_change.items():
@@ -623,7 +763,7 @@ class SoulGenerator:
             )
             if rel_effects:
                 changes_str = ", ".join([f"{k}+{v}" for k, v in rel_effects.items()])
-                logger.info(f"[灵魂] 🔗 关系影响({relationship.value}): {changes_str}")
+                logger.info(f"[灵魂] 关系影响({relationship.value}): {changes_str}")
                 for emotion_name, delta in rel_effects.items():
                     self._adjust_emotion(emotion_name, delta)
         relationship = context.get("relationship")

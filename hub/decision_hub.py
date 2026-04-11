@@ -540,6 +540,7 @@ class DecisionHub:
                     model_pool=self.model_pool,
                     config=config,
                     personality=self.personality,
+                    soul_generator=self._soul_generator,
                 )
                 logger.info(
                     f"[决策层] 模型协作引擎初始化成功 | "
@@ -1532,6 +1533,83 @@ class DecisionHub:
                             f"[决策层] 传递给协作引擎的tool_context keys: {list(tool_ctx_for_collab.keys()) if tool_ctx_for_collab else 'None'}"
                         )
 
+                        # 【新增】灵魂发生器处理 - 在AI调用前执行
+                        soul_result = None
+                        ai_client_for_soul = None
+                        emotion_context_for_collab = ""
+                        if self._soul_generator:
+                            try:
+                                # 获取对话历史
+                                history = (
+                                    conversation_context if conversation_context else []
+                                )
+                                # 尝试获取一个AI客户端用于情绪分析
+                                ai_client_for_soul = None
+                                if self.model_pool:
+                                    try:
+                                        # 使用 deepseek_v3_official 作为默认情绪分析模型
+                                        ai_client_for_soul = (
+                                            self.model_pool.create_ai_client(
+                                                "deepseek_v3_official"
+                                            )
+                                        )
+                                    except Exception:
+                                        pass
+                                # 灵魂发生器处理 - 在AI调用前执行
+                                soul_result = await self._soul_generator.process(
+                                    content, history, ai_client_for_soul
+                                )
+                                if soul_result:
+                                    # 用户情绪
+                                    dominant = soul_result.get(
+                                        "dominant_emotion", "平静"
+                                    )
+                                    emotions = soul_result.get("emotions", {})
+
+                                    # 弥娅自己的情绪
+                                    miya_emotions = soul_result.get("emotions", {})
+                                    if miya_emotions:
+                                        miya_dominant = max(
+                                            miya_emotions, key=miya_emotions.get
+                                        )
+                                        miya_intensity = miya_emotions[miya_dominant]
+                                    else:
+                                        miya_dominant = "平静"
+                                        miya_intensity = 40
+
+                                    logger.info(
+                                        f"[灵魂] 主导情绪: {dominant} | 弥娅: {miya_dominant}({miya_intensity}%)"
+                                    )
+
+                                    # 构建情绪上下文，传递给协作引擎
+                                    inner_thought = ""
+                                    if soul_result.get("analysis"):
+                                        inner_thought = soul_result["analysis"].get(
+                                            "reflection", ""
+                                        )
+
+                                    emotion_context_for_collab = (
+                                        f"\n\n【情感指引】\n"
+                                        f"- 用户情绪: {dominant}\n"
+                                        f"- 你的情绪: {miya_dominant} ({miya_intensity}%)\n"
+                                    )
+                                    if inner_thought:
+                                        emotion_context_for_collab += (
+                                            f"- 你的内心独白: {inner_thought}\n"
+                                        )
+                                    emotion_context_for_collab += (
+                                        f"请根据上述情感自然回应，展现你真实的情感。\n"
+                                        f"注意：内心独白仅供你参考理解自己的感受，请不要在回复中直接引用或输出内心独白内容。"
+                                    )
+                            except Exception as e:
+                                logger.warning(f"[灵魂] 处理失败: {e}")
+
+                        # 传递情绪上下文给协作引擎
+                        if emotion_context_for_collab and tool_ctx_for_collab:
+                            tool_ctx_for_collab["emotion_context"] = (
+                                emotion_context_for_collab
+                            )
+
                         collab_result = await self.collaboration_engine.process(
                             message=content,
                             task_type=task_type.value,
@@ -1543,23 +1621,6 @@ class DecisionHub:
                             ai_client_factory=AIClientFactory,
                         )
 
-                        # 【新增】灵魂发生器处理
-                        if self._soul_generator:
-                            try:
-                                # 获取对话历史
-                                history = perception.get("_conversation_history", [])
-                                # 灵魂发生器处理
-                                soul_result = self._soul_generator.process(
-                                    content, history
-                                )
-                                dominant = soul_result.get("dominant_emotion", "未知")
-                                emotions = soul_result.get("emotions", {})
-                                logger.info(
-                                    f"[灵魂] 🎭 主导情绪: {dominant} | 情绪值: {emotions}"
-                                )
-                            except Exception as e:
-                                logger.warning(f"[灵魂] 处理失败: {e}")
-
                         # 记录协作结果
                         self._last_selected_model = ",".join(collab_result.models_used)
                         self._last_task_type = task_type.value
@@ -1570,6 +1631,13 @@ class DecisionHub:
                             f"原因={collab_result.reasoning}"
                         )
 
+                        # 【新增】协作引擎路径的情感注入
+                        if soul_result and collab_result.response:
+                            injected_response = self._inject_soul_into_response(
+                                collab_result.response, soul_result
+                            )
+                            return injected_response
+
                         # 协作引擎已直接返回最终响应
                         return collab_result.response
 
@@ -1577,153 +1645,75 @@ class DecisionHub:
                         logger.warning(f"[决策层-协作引擎] 协作失败，降级为单模型: {e}")
                         # 继续走原有单模型路径
 
-                # 原有单模型选择逻辑（作为协作引擎的降级路径）
-                model_config = self.model_pool.select_model_for_task(
-                    task_type.value, platform
-                )
-
-                if model_config and model_config.api_key and model_config.base_url:
-                    try:
-                        from core.ai_client import AIClientFactory
-
-                        # 传递 tool_context 给工厂方法
-                        tool_ctx = (
-                            self._temp_tool_context
-                            if hasattr(self, "_temp_tool_context")
-                            else None
-                        )
-                        selected_client = AIClientFactory.create_client(
-                            provider=model_config.provider.value,
-                            api_key=model_config.api_key,
-                            model=model_config.name,
-                            base_url=model_config.base_url,
-                            tool_context=tool_ctx,
-                        )
-                        if selected_client:
-                            ai_client_to_use = selected_client
-                            selected_client.set_tool_registry(
-                                self.tool_subnet.get_tools_schema
-                            )
-                            self._last_selected_model = model_config.id
-                            self._last_task_type = task_type.value
-                            logger.info(
-                                f"[决策层-跨平台] 使用模型 {model_config.id} 处理任务类型 {task_type.value}"
-                            )
-                    except Exception as e:
-                        logger.warning(f"[决策层] 创建模型客户端失败: {e}")
-
-                # 记录模型信息
-                model_name = getattr(ai_client_to_use, "model", "unknown")
-                if not self._last_selected_model:
-                    self._last_selected_model = model_name
-                logger.info(f"[决策层-跨平台] 使用模型: {model_name}")
-                logger.info(f"[决策层-跨平台] 用户输入: {content[:100]}")
-
+            # 【灵魂发生器】在单模型路径先进行分析
+            _soul_result = None
+            ai_emotion_context = ""
+            if self._soul_generator:
                 try:
-                    response = await ai_client_to_use.chat_with_system_prompt(
-                        system_prompt=prompt_info["system"],
-                        user_message=prompt_info["user"],
-                        tools=tools_schema,
-                        tool_choice=tool_choice,
+                    history = conversation_context if conversation_context else []
+                    _soul_result = await self._soul_generator.process(
+                        content, history, ai_client_to_use
                     )
-                    logger.info(
-                        f"[决策层-跨平台] AI响应: {response[:100] if response else '(空)'}"
-                    )
-                except Exception as tool_error:
-                    # 工具调用失败时,尝试不使用工具重新生成
-                    logger.warning(
-                        f"[决策层-跨平台] 工具调用失败: {tool_error}，尝试不使用工具..."
-                    )
-                    try:
-                        response = await ai_client_to_use.chat_with_system_prompt(
-                            system_prompt=prompt_info["system"],
-                            user_message=prompt_info["user"],
-                            tools=None,  # 不使用工具
-                            tool_choice="none",
+                    if _soul_result:
+                        # 用户情绪（来自AI分析）
+                        dominant = _soul_result.get("dominant_emotion", "未知")
+                        intensity = _soul_result.get("intensity", 50)
+                        reasoning = _soul_result.get("reasoning", "")
+                        logger.info(f"[灵魂] 用户情绪: {dominant} | 强度: {intensity}")
+
+                        # 弥娅自己的情绪：从emotions字典中取最显著的那个
+                        miya_emotions = _soul_result.get("emotions", {})
+                        if miya_emotions:
+                            miya_dominant = max(miya_emotions, key=miya_emotions.get)
+                            miya_intensity = miya_emotions[miya_dominant]
+                        else:
+                            miya_dominant = "平静"
+                            miya_intensity = 40
+
+                        logger.info(
+                            f"[灵魂] 弥娅情绪: {miya_dominant} | 强度: {miya_intensity} | 情绪池: {miya_emotions}"
                         )
-                    except Exception as e2:
-                        response = get_text(
-                            "error_messages.tool_failure_fallback"
-                        ).format(error=str(e2)[:100])
-            else:
-                # 不带工具的 AI 调用路径
-                ai_client_to_use = self.ai_client  # 默认使用传入的AI客户端
 
-                if self.model_pool:
-                    from core.model_pool import TaskType
-
-                    task_type = await self.model_pool.classify_task(content, context)
-
-                    # 尝试使用协作引擎处理（不带工具版本）
-                    if self.collaboration_engine and self.collaboration_engine.enabled:
-                        try:
-                            from core.ai_client import AIClientFactory
-
-                            collab_result = await self.collaboration_engine.process(
-                                message=content,
-                                task_type=task_type.value,
-                                platform=platform,
-                                context=context,
-                                system_prompt=prompt_info["system"],
-                                user_prompt=prompt_info["user"],
-                                tools=None,
-                                ai_client_factory=AIClientFactory,
+                        # 获取AI生成的内心独白
+                        inner_thought = ""
+                        if _soul_result.get("analysis"):
+                            inner_thought = _soul_result["analysis"].get(
+                                "reflection", ""
                             )
 
-                            self._last_selected_model = ",".join(
-                                collab_result.models_used
-                            )
-                            self._last_task_type = task_type.value
-                            logger.info(
-                                f"[决策层-协作引擎] 模式={collab_result.mode.value} | "
-                                f"模型={collab_result.models_used} | "
-                                f"Token≈{collab_result.token_estimate}"
-                            )
+                        # 同时注入用户和弥娅的情绪，让AI根据双方情感自然回应
+                        ai_emotion_context = (
+                            f"\n\n【情感指引】\n"
+                            f"- 用户情绪: {dominant} ({intensity}%)\n"
+                            f"- 你的情绪: {miya_dominant} ({miya_intensity}%)\n"
+                        )
 
-                            return collab_result.response
+                        # 注入内心独白作为背景（标记为内部思考，不要直接输出）
+                        if inner_thought:
+                            ai_emotion_context += f"- 你的内心独白: {inner_thought}\n"
 
-                        except Exception as e:
-                            logger.warning(
-                                f"[决策层-协作引擎] 协作失败，降级为单模型: {e}"
-                            )
+                        ai_emotion_context += (
+                            f"请根据上述情感自然回应，展现你真实的情感。\n"
+                            f"注意：内心独白仅供你参考理解自己的感受，请不要在回复中直接引用或输出内心独白内容。\n"
+                            f"禁止在回复中使用小括号()描述动作，如（微笑）、（点头）等。"
+                        )
+                except Exception as e:
+                    logger.warning(f"[灵魂] 处理失败: {e}")
 
-                    # 原有单模型选择逻辑（降级路径）
-                    model_config = self.model_pool.select_model_for_task(
-                        task_type.value, platform
-                    )
+            # 调用 AI（注入情绪上下文）
+            user_msg = prompt_info["user"]
+            if ai_emotion_context:
+                user_msg = user_msg + ai_emotion_context
+            response = await ai_client_to_use.chat_with_system_prompt(
+                system_prompt=prompt_info["system"],
+                user_message=user_msg,
+                tools=tools_schema if tools_schema else None,
+                tool_choice=tool_choice,
+            )
 
-                    if model_config and model_config.api_key and model_config.base_url:
-                        try:
-                            from core.ai_client import AIClientFactory
-
-                            # 传递 tool_context 给工厂方法
-                            tool_ctx = (
-                                self._temp_tool_context
-                                if hasattr(self, "_temp_tool_context")
-                                else None
-                            )
-                            selected_client = AIClientFactory.create_client(
-                                provider=model_config.provider.value,
-                                api_key=model_config.api_key,
-                                model=model_config.name,
-                                base_url=model_config.base_url,
-                                tool_context=tool_ctx,
-                            )
-                            if selected_client:
-                                ai_client_to_use = selected_client
-                                self._last_selected_model = model_config.id
-                                self._last_task_type = task_type.value
-                                logger.info(
-                                    f"[决策层-跨平台] 使用模型 {model_config.id} 处理任务类型 {task_type.value}"
-                                )
-                        except Exception as e:
-                            logger.warning(f"[决策层] 创建模型客户端失败: {e}")
-
-                # 调用 AI（不带工具）
-                response = await ai_client_to_use.chat_with_system_prompt(
-                    system_prompt=prompt_info["system"],
-                    user_message=prompt_info["user"],
-                )
+            # 【灵魂发生器】将情感注入到回复中
+            if _soul_result and response:
+                response = self._inject_soul_into_response(response, _soul_result)
 
             return response
 
@@ -1732,6 +1722,66 @@ class DecisionHub:
             return await self._fallback_response_cross_platform(
                 content, sender_name, platform
             )
+
+    def _inject_soul_into_response(self, response: str, soul_result: Dict) -> str:
+        """
+        将灵魂发生器的情感注入到AI回复中
+        根据主导情绪调整回复的语气、情感色彩
+        """
+        try:
+            dominant = soul_result.get("dominant_emotion", "平静")
+            emotions = soul_result.get("emotions", {})
+
+            import random
+            import json
+
+            config_path = (
+                Path(__file__).parent.parent / "config" / "soul_generator_config.json"
+            )
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+
+            emotion_value = emotions.get(dominant, 50)
+            high_threshold = config.get("HIGH_EMOTION_THRESHOLD", 70)
+            medium_threshold = config.get("LOW_EMOTION_THRESHOLD", 30)
+
+            high_emotion_trigger = config.get("HIGH_EMOTION_TRIGGER_EMOTIONS", [])
+            if emotion_value > high_threshold:
+                if dominant in high_emotion_trigger:
+                    prefix_options = config.get("HIGH_EMOTION_RESPONSES", [])
+                    if prefix_options:
+                        prefix = random.choice(prefix_options)
+                        if not response.startswith(prefix):
+                            response = f"{prefix} {response}"
+                            logger.info(f"[灵魂] 注入了高情绪前缀: {prefix}")
+
+            low_emotion_trigger = config.get("LOW_EMOTION_TRIGGER_EMOTIONS", [])
+            low_suffixes = config.get("LOW_EMOTION_SUFFIXES", [])
+            if emotion_value < medium_threshold:
+                if dominant in low_emotion_trigger and low_suffixes:
+                    suffix = random.choice(low_suffixes)
+                    if not response.endswith(suffix):
+                        response = f"{response}{suffix}"
+                        logger.info(f"[灵魂] 注入了低情绪后缀: {suffix}")
+
+            context = soul_result.get("context", {})
+            relationship = context.get("relationship")
+            if relationship and "value" in str(relationship):
+                rel_str = str(relationship.value)
+                if rel_str == "INTIMATE":
+                    intimate_keywords = config.get("INTIMATE_RELATIONSHIP_KEYWORDS", [])
+                    intimate_suffix = config.get("INTIMATE_SUFFIX", "")
+                    if intimate_suffix and not any(
+                        kw in response for kw in intimate_keywords
+                    ):
+                        response = response + intimate_suffix
+                        logger.info(f"[灵魂] 注入了亲密后缀")
+
+            return response
+
+        except Exception as e:
+            logger.warning(f"[灵魂] 注入情感失败: {e}")
+            return response
 
     async def _fallback_response_cross_platform(
         self, content: str, sender_name: str, platform: str
